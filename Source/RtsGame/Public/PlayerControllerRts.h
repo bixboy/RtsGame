@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "PlayerControllerRts.generated.h"
 
+struct FCommandData;
 class UInputMappingContext;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSelectedUpdatedDelegate);
 
@@ -23,8 +24,14 @@ public:
 	void Handle_Selection(AActor* ActorToSelect);
 	void Handle_Selection(TArray<AActor*> ActorsToSelect);
 
+	UFUNCTION()
+	void CommandSelected(FCommandData CommandData);
+
 protected:
 	virtual void BeginPlay() override;
+
+	UFUNCTION(Server, Reliable)
+	void Server_CommandSelected(FCommandData CommandData);
 
 	UFUNCTION()
 	bool ActorSelected(AActor* ActorToCheck) const;

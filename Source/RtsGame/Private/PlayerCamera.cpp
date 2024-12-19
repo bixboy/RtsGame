@@ -123,6 +123,7 @@ void APlayerCamera::RotateVertical(float Value)
 }
 #pragma endregion
 
+// Camera Movement Utiliti
 #pragma region Movement Utiliti
 
 void APlayerCamera::GetTerrainPosition(FVector& TerrainPosition)
@@ -195,6 +196,7 @@ void APlayerCamera::CameraBounds()
 
 #pragma endregion
 
+// Selection
 #pragma region Selection
 
 AActor* APlayerCamera::GetSelectedObject()
@@ -257,8 +259,11 @@ void APlayerCamera::LeftMouseInputHold(float Value)
 
 	if (Player->GetInputKeyTimeDown(EKeys::LeftMouseButton) >= LeftMouseHoldThreshold && SelectionBox)
 	{
-		SelectionBox->Start(LeftMouseHitLocation, TargetRotation);
-		BoxSelect = true;
+		if (!BoxSelect && SelectionBox)
+		{
+			SelectionBox->Start(LeftMouseHitLocation, TargetRotation);
+			BoxSelect = true;	
+		}
 	}
 }
 
@@ -286,6 +291,45 @@ void APlayerCamera::CreateSelectionBox()
 			SelectionBox->SetOwner(this);
 		}
 	}
+}
+
+#pragma endregion
+
+#pragma region Command
+
+void APlayerCamera::CommandStart()
+{
+	if (!Player)
+	{
+		return;
+	}
+
+	CommandLocation = Player->GetMousePositionOnTerrain();
+}
+
+void APlayerCamera::Command()
+{
+	if (!Player) return;
+
+	Player->CommandSelected(CreatCommandData(ECommandType::CommandMove));
+}
+
+FCommandData APlayerCamera::CreatCommandData(const ECommandType Type) const
+{
+	if (!Player) return FCommandData();
+	
+	FRotator CommandRotation = FRotator::ZeroRotator;
+	const FVector CommandEndLocation = Player->GetMousePositionOnTerrain();
+
+	if ((CommandEndLocation - CommandLocation).Length() > 100.f)
+	{
+		const FVector Direction = CommandEndLocation - CommandLocation;
+		const float RotationAngle = FMath::RadiansToDegrees(FMath::Atan2(Direction.Y, Direction.X));
+
+		CommandRotation = FRotator(0.f, RotationAngle, 0.f);
+	}
+	
+	return FCommandData(CommandLocation, CommandRotation, Type);
 }
 
 #pragma endregion

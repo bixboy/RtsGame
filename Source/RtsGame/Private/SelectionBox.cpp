@@ -106,9 +106,8 @@ void ASelectionBox::Adjust() const
 
 	BoxComponent->SetBoxExtent(NewExtent);
 
-	FVector DecalSize = FVector(NewExtent.X, NewExtent.Y, NewExtent.X);
+	FVector DecalSize = FVector(NewExtent.Z, NewExtent.Y, NewExtent.X);
 	Decal->DecalSize = DecalSize;
-
 }
 
 void ASelectionBox::Manage()
@@ -118,19 +117,20 @@ void ASelectionBox::Manage()
 		return;
 	}
 
+	const FVector BoxExtent = BoxComponent->GetScaledBoxExtent();
+	const FVector BoxCenter = BoxComponent->GetComponentLocation(); 
+
 	for (int i = 0; i < InBox.Num(); ++i)
 	{
-		// get actor center and transform into the local space of the collider
 		FVector ActorCenter = InBox[i]->GetActorLocation();
-		const FVector LocalActorCenter = BoxComponent->GetComponentTransform().InverseTransformPosition(ActorCenter);
 
-		DrawDebugSphere(GetWorld(), ActorCenter, 50.f, 8, FColor::Blue, false, -1, 0, 5.f);
+		// Vérifier si l'acteur est dans la box en utilisant les limites de la box
+		FVector LocalActorCenter = BoxComponent->GetComponentTransform().InverseTransformPosition(ActorCenter);
+		bool bInsideBox = FMath::Abs(LocalActorCenter.X) <= BoxExtent.X && FMath::Abs(LocalActorCenter.Y) <= BoxExtent.Y;
+		
+		DrawDebugBox(GetWorld(), BoxCenter, BoxExtent, FColor::Red, false, -1, 0, 5.f);
 
-		//Get the local extents of the collider
-		const FVector LocalExtents = BoxComponent->GetUnscaledBoxExtent();
-		if (LocalActorCenter.X >= -LocalExtents.X && LocalActorCenter.X <= LocalExtents.X
-			&& LocalActorCenter.Y >= -LocalExtents.Y && LocalActorCenter.Y <= LocalExtents.Y
-			&& LocalActorCenter.Z >= -LocalExtents.Z && LocalActorCenter.Z <= LocalExtents.Z)
+		if (bInsideBox)
 		{
 
 			// add object to CenterBox is in selection box list

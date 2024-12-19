@@ -1,6 +1,8 @@
 ﻿#include "PlayerControllerRts.h"
 
+#include "AiData.h"
 #include "EnhancedInputSubsystems.h"
+#include "SoldierRts.h"
 #include "Interfaces/Selectable.h"
 #include "Net/UnrealNetwork.h"
 
@@ -67,6 +69,24 @@ void APlayerControllerRts::BeginPlay()
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
 	bShowMouseCursor = true;
+}
+
+void APlayerControllerRts::CommandSelected(FCommandData CommandData)
+{
+	Server_CommandSelected(CommandData);
+}
+
+void APlayerControllerRts::Server_CommandSelected_Implementation(FCommandData CommandData)
+{
+	if (!HasAuthority()) return;
+
+	for (int i = 0; i < SelectedActors.Num(); i++)
+	{
+		if (ASoldierRts* Soldier = Cast<ASoldierRts>(SelectedActors[i]))
+		{
+			Soldier->CommandMoveToLocation(CommandData);
+		}
+	}
 }
 
 bool APlayerControllerRts::ActorSelected(AActor* ActorToCheck) const

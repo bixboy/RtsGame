@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "AiData.h"
 #include "GameFramework/Pawn.h"
 #include "PlayerCamera.generated.h"
 
@@ -121,7 +122,20 @@ protected:
 	UPROPERTY()
 	FVector LeftMouseHitLocation;
 
-#pragma endregion	
+#pragma endregion
+
+#pragma region Command
+
+	UFUNCTION(BlueprintCallable)
+	void CommandStart();
+	
+	UFUNCTION(BlueprintCallable)
+	void Command();
+	
+	UFUNCTION()
+	FCommandData CreatCommandData(const ECommandType Type) const;
+
+#pragma endregion 	
 	
 private:
 	UFUNCTION()
@@ -145,4 +159,6 @@ private:
 	float TargetZoom;
 	UPROPERTY()
 	bool CanRotate;
+	UPROPERTY()
+	FVector CommandLocation;
 };

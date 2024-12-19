@@ -1,18 +1,35 @@
 ﻿#include "RtsGame/Public/AiControllerRts.h"
 
-AAiControllerRts::AAiControllerRts()
+#include "AiData.h"
+#include "SoldierRts.h"
+
+AAiControllerRts::AAiControllerRts(const FObjectInitializer& ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-void AAiControllerRts::BeginPlay()
+void AAiControllerRts::CommandMove(FCommandData CommandData)
 {
-	Super::BeginPlay();
-	
+	CurrentCommand = CommandData;
+
+	MoveToLocation(CurrentCommand.Location);
 }
 
-void AAiControllerRts::Tick(float DeltaTime)
+void AAiControllerRts::OnPossess(APawn* InPawn)
 {
-	Super::Tick(DeltaTime);
+	Super::OnPossess(InPawn);
+
+	OwnerSoldier = Cast<ASoldierRts>(InPawn);
+	if (OwnerSoldier)
+	{
+		OwnerSoldier->SetAIController(this);
+	}
+}
+
+void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
+{
+	Super::OnMoveCompleted(RequestID, Result);
+
+	OnReachedDestination.Broadcast(CurrentCommand);
 }
 

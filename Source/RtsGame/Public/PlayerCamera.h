@@ -20,10 +20,8 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 
-protected:
-
 #pragma region Camera Movement
-	
+protected:	
 	UFUNCTION(BlueprintCallable)
 	void MoveForward(float Value);
 	UFUNCTION(BlueprintCallable)
@@ -49,7 +47,7 @@ protected:
 #pragma endregion	
 
 #pragma region Movement Utiliti
-	
+protected:	
 	UFUNCTION()
 	void GetTerrainPosition(FVector& TerrainPosition);
 	UFUNCTION()
@@ -57,8 +55,8 @@ protected:
 
 #pragma endregion	
 
-#pragma region Variables
-	
+#pragma region Variables Movement
+protected:	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float CameraSpeed = 20.0f;
 
@@ -89,7 +87,7 @@ protected:
 #pragma endregion
 
 #pragma region Selection
-
+protected:
 	UFUNCTION(BlueprintCallable)
 	AActor* GetSelectedObject();
 
@@ -125,7 +123,7 @@ protected:
 #pragma endregion
 
 #pragma region Command
-
+protected:
 	UFUNCTION(BlueprintCallable)
 	void CommandStart();
 	

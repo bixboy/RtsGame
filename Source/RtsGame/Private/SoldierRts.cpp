@@ -4,6 +4,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
+// Setup
+#pragma region Setup
+
 ASoldierRts::ASoldierRts()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -46,6 +49,11 @@ void ASoldierRts::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
+#pragma endregion
+
+// Selection
+#pragma region Selection
+
 void ASoldierRts::Select()
 {
 	Selected = true;
@@ -70,6 +78,11 @@ void ASoldierRts::Highlight(const bool Highlight)
 		}
 	}
 }
+
+#pragma endregion
+
+// Create & Start Commands
+#pragma region Create & Start Commands
 
 void ASoldierRts::CommandMoveToLocation(const FCommandData CommandData)
 {
@@ -115,13 +128,21 @@ void ASoldierRts::CommandMove(const FCommandData CommandData)
 	}
 
 	AIController->CommandMove(CommandData);
+	SetMoveMarker(CommandData.Location);
 }
 
 void ASoldierRts::DestinationReached(const FCommandData CommandData)
 {
+	if(MoveMarker) MoveMarker->Destroy();
+	
 	TargetOrientation = CommandData.Rotation;
 	ShouldOrientate = 1;
 }
+
+#pragma endregion
+
+// Walk Speed
+#pragma region Walk Speed
 
 void ASoldierRts::SetWalk() const
 {
@@ -144,6 +165,8 @@ void ASoldierRts::SetSprint() const
 	CharaMovementComp->MaxWalkSpeed = MaxSpeed * 1.25f;
 }
 
+#pragma endregion
+
 void ASoldierRts::SetOrientation(const float DeltaTime)
 {
 	const FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.f), TargetOrientation, DeltaTime, 2.f);
@@ -161,3 +184,53 @@ bool ASoldierRts::IsOrientated() const
 	return false;
 }
 
+// Marker
+#pragma region Marker
+
+// Spawn Marker
+void ASoldierRts::SetMoveMarker(const FVector Location)
+{
+	if (MoveMarkerClass)
+	{
+		if (MoveMarker) MoveMarker->Destroy();
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Instigator = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		if (UWorld* World = GetWorld())
+		{
+			MoveMarker = World->SpawnActor<AActor>(MoveMarkerClass, GetPositionTransform(Location), SpawnParams);
+		}
+	}
+}
+
+// Get position For Marker
+FTransform ASoldierRts::GetPositionTransform(const FVector Position) const
+{
+	FHitResult Hit;
+	FCollisionQueryParams CollisionParams;
+	FVector TraceOrigin = Position;
+	TraceOrigin.Z += 10000.f;
+	FVector TraceEnd = Position;
+	TraceEnd.Z -= 10000.f;
+
+	if (UWorld* World = GetWorld())
+	{
+		if (World->LineTraceSingleByChannel(Hit, TraceOrigin, TraceEnd, ECollisionChannel::ECC_GameTraceChannel1, CollisionParams))
+		{
+			if (Hit.bBlockingHit)
+			{
+				FTransform HitTransform;
+				HitTransform.SetLocation(Hit.ImpactPoint + FVector(1.f, 1.f, 1.25f));
+				FRotator TerrainRotation = UKismetMathLibrary::MakeRotFromZX(Hit.Normal, FVector::UpVector);
+				TerrainRotation += FRotator(90.f, 0.f, 0.f);
+				HitTransform.SetRotation(TerrainRotation.Quaternion());
+				return HitTransform;
+			}
+		}
+	}
+	return FTransform::Identity;
+}
+
+#pragma endregion 

@@ -60,6 +60,12 @@ protected:
 	UFUNCTION()
 	bool IsOrientated() const;
 
+	UFUNCTION()
+	void SetMoveMarker(const FVector Location);
+
+	UFUNCTION()
+	FTransform GetPositionTransform(const FVector Position) const;
+
 	
 	UPROPERTY(EditAnywhere)
 	float MaxSpeed = 100.f;
@@ -74,4 +80,9 @@ protected:
 
 	UPROPERTY()
 	AAiControllerRts* AIController;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
+	TSubclassOf<AActor> MoveMarkerClass;
+	UPROPERTY()
+	TObjectPtr<AActor> MoveMarker;
 };

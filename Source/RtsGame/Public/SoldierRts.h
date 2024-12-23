@@ -13,6 +13,8 @@ class AAiControllerRts;
 class UCharacterMovementComponent;
 class APlayerControllerRts;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBehaviorUpdatedDelegate);
+
 UCLASS(Blueprintable)
 class RTSGAME_API ASoldierRts : public ACharacter, public ISelectable
 {
@@ -81,13 +83,15 @@ protected:
 	void OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION()
 	void OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	UFUNCTION()
+	virtual void SetBehavior_Implementation(const ECombatBehavior NewBehavior) override;
 	
 	/*- Variables -*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<USphereComponent> AreaAttack;
 
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Attack", ReplicatedUsing = OnRep_CombatBehavior)
 	ECombatBehavior CombatBehavior = ECombatBehavior::Neutral;
 	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
 	float AttackCooldown = 1.5f;
@@ -101,8 +105,14 @@ protected:
 
 	virtual void BeginDestroy() override;
 
+	UPROPERTY()
+	FBehaviorUpdatedDelegate OnBehaviorUpdate;
+	UFUNCTION()
+	void OnRep_CombatBehavior();
+
 #pragma endregion
 
+// Team	
 #pragma region Team
 public:
 	UFUNCTION(BlueprintCallable)

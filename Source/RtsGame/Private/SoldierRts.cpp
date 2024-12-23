@@ -2,6 +2,7 @@
 #include "AiControllerRts.h"
 #include "Components/CommandComponent.h"
 #include "Components/SphereComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Setup
 #pragma region Setup
@@ -45,6 +46,13 @@ void ASoldierRts::Tick(float DeltaTime)
 void ASoldierRts::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+}
+
+auto ASoldierRts::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const -> void
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ASoldierRts, CombatBehavior);
 }
 
 #pragma endregion
@@ -130,7 +138,7 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 		UpdateActorsInArea();
 		
 		ActorsInRange.AddUnique(OtherActor);
-		if (AIController && AIController->GetCombatBehavior() == ECombatBehavior::Aggressive && !AIController->GetHaveTarget())
+		if (AIController && CombatBehavior == ECombatBehavior::Aggressive && !AIController->GetHaveTarget())
 		{
 			FCommandData CommandData;
 			CommandData.Type = ECommandType::CommandAttack;
@@ -183,6 +191,31 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 	}
 }
 
+void ASoldierRts::SetBehavior_Implementation(const ECombatBehavior NewBehavior)
+{
+	ISelectable::SetBehavior_Implementation(NewBehavior);
+	CombatBehavior = NewBehavior;
+	
+	if (AIController)
+	{
+		AIController->SetupVariables();
+		if (CombatBehavior == ECombatBehavior::Passive)
+		{
+			AIController->StopAttack();
+		}
+		else if (CombatBehavior == ECombatBehavior::Aggressive)
+		{
+			if (ActorsInRange.Num() > 0)
+			{
+				FCommandData NewCommandData;
+				NewCommandData.Type = ECommandType::CommandAttack;
+				NewCommandData.Target = ActorsInRange[0];
+				GetCommandComponent()->CommandMoveToLocation(NewCommandData);
+			}
+		}
+	}
+}
+
 void ASoldierRts::UpdateActorsInArea()
 {
 	TArray<AActor*> ValidActors;
@@ -207,6 +240,11 @@ void ASoldierRts::BeginDestroy()
 		}
 	}
 	Super::BeginDestroy();
+}
+
+void ASoldierRts::OnRep_CombatBehavior()
+{
+	OnBehaviorUpdate.Broadcast();
 }
 
 

@@ -83,7 +83,7 @@ void ASelectionBox::End()
 		PlayerController->Handle_Selection(CenterInBox);
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("Current Selection: %i"), CenterInBox.Num()));
+	GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Yellow, FString::Printf(TEXT("Current Selection: %i"), CenterInBox.Num()));
 
 	InBox.Empty();
 	CenterInBox.Empty();

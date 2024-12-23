@@ -397,7 +397,6 @@ void APlayerControllerRts::Server_UpdateSpacing_Implementation(const float NewSp
 	OnRep_FormationSpacing(); // Réplique sur tous les clients
 }
 
-
 void APlayerControllerRts::OnRep_CurrentFormation()
 {
 	if (HasGroupSelection() && SelectedActors.IsValidIndex(0))
@@ -416,4 +415,37 @@ void APlayerControllerRts::OnRep_FormationSpacing()
 
 #pragma endregion
 
-#pragma endregion 
+#pragma endregion
+
+// Behavior
+#pragma region Behavior
+
+void APlayerControllerRts::UpdateBehavior(const ECombatBehavior NewBehavior)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Red, FString("New combat mode:").Append(UEnum::GetDisplayValueAsText(NewBehavior).ToString()));
+	if (!HasAuthority())
+	{
+		Server_UpdateBehavior(NewBehavior);
+	}
+	else
+	{
+		for (AActor* Soldier : SelectedActors)
+		{
+			if (Soldier->Implements<USelectable>())
+			{
+				ISelectable::Execute_SetBehavior(Soldier, NewBehavior);
+			}
+		}
+	}
+}
+
+void APlayerControllerRts::Server_UpdateBehavior_Implementation(const ECombatBehavior NewBehavior)
+{
+	for(AActor* Soldier: SelectedActors)
+	{
+		if (Soldier->Implements<USelectable>())
+			ISelectable::Execute_SetBehavior(Soldier, NewBehavior);
+	}
+}
+
+#pragma endregion

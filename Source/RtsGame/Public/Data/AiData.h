@@ -32,7 +32,7 @@ UENUM(BlueprintType)
 enum class ETeams : uint8
 {
 	Clone	UMETA(DisplayName = "Clone Team"),
-	Droide	UMETA(DisplayName = "Droide Team"),
+	Droid	UMETA(DisplayName = "Droid Team"),
 	HiveMind	UMETA(DisplayName = "HiveMind Team")
 };
 

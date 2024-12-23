@@ -25,5 +25,8 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	ETeams GetCurrentTeam();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void SetBehavior(const ECombatBehavior NewBehavior);
 	
 };

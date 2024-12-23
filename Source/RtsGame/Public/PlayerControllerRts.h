@@ -153,5 +153,16 @@ protected:
 	void OnRep_FormationSpacing();
 	
 #pragma endregion
+
+// Behavior
+#pragma region Behavior
+public:
+	UFUNCTION()
+	void UpdateBehavior(const ECombatBehavior NewBehavior);
+
+protected:
+	UFUNCTION(Server, Reliable)
+	void Server_UpdateBehavior(const ECombatBehavior NewBehavior);
 	
+#pragma endregion
 };

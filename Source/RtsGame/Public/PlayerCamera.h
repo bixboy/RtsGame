@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "AiData.h"
+#include "Data/AiData.h"
 #include "GameFramework/Pawn.h"
 #include "PlayerCamera.generated.h"
 
@@ -19,6 +19,9 @@ public:
 	APlayerCamera();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	APlayerControllerRts* GetRtsPlayerController();
 
 #pragma region Camera Movement
 protected:	
@@ -131,7 +134,7 @@ protected:
 	void Command();
 	
 	UFUNCTION()
-	FCommandData CreatCommandData(const ECommandType Type) const;
+	FCommandData CreatCommandData(const ECommandType Type, AActor* Enemy = nullptr) const;
 
 #pragma endregion 	
 	

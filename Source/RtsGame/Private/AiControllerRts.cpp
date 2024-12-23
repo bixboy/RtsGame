@@ -1,18 +1,11 @@
 ﻿#include "RtsGame/Public/AiControllerRts.h"
 
-#include "AiData.h"
+#include "Data/AiData.h"
 #include "SoldierRts.h"
 
 AAiControllerRts::AAiControllerRts(const FObjectInitializer& ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
-}
-
-void AAiControllerRts::CommandMove(FCommandData CommandData)
-{
-	CurrentCommand = CommandData;
-
-	MoveToLocation(CurrentCommand.Location);
 }
 
 void AAiControllerRts::OnPossess(APawn* InPawn)
@@ -23,13 +16,113 @@ void AAiControllerRts::OnPossess(APawn* InPawn)
 	if (OwnerSoldier)
 	{
 		OwnerSoldier->SetAIController(this);
+		SetupVariables();
+	}
+}
+
+void AAiControllerRts::SetupVariables()
+{
+	if (OwnerSoldier)
+	{
+		AttackCooldown = OwnerSoldier->GetAttackCooldown();
+		AttackRange = OwnerSoldier->GetAttackRange();
+		CombatBehavior = OwnerSoldier->GetCombatBehavior();
+	}
+}
+
+void AAiControllerRts::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (HaveTargetAttack && OwnerSoldier)
+	{
+		if (CurrentCommand.Target)
+		{
+			float DistanceToTarget = FVector::Distance(OwnerSoldier->GetActorLocation(), CurrentCommand.Target->GetActorLocation());
+
+			if (DistanceToTarget <= AttackRange && bCanAttack)
+			{
+				AttackTarget();
+			}
+			else if (DistanceToTarget > AttackRange && MoveComplete)
+			{
+				MoveComplete = false;
+				MoveToActor(CurrentCommand.Target, 85.f);
+			}	
+		}
+	}
+}
+
+// Movement
+#pragma region Movement
+
+void AAiControllerRts::CommandMove(const FCommandData& CommandData, bool Attack)
+{
+	CurrentCommand = CommandData;
+	HaveTargetAttack = Attack;
+	MoveComplete = false;
+	
+	if (HaveTargetAttack)
+	{
+		MoveToActor(CurrentCommand.Target, 85.f);
+	}
+	else
+	{
+		MoveToLocation(CurrentCommand.Location);
 	}
 }
 
 void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
 {
 	Super::OnMoveCompleted(RequestID, Result);
-
+	MoveComplete = true;
 	OnReachedDestination.Broadcast(CurrentCommand);
 }
+
+#pragma endregion
+
+// Attack
+#pragma region Attack
+
+void AAiControllerRts::AttackTarget()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Attacked By: %s"), *OwnerSoldier->GetName()));
+	bCanAttack = false;
+	
+	GetWorld()->GetTimerManager().SetTimer(AttackTimerHandle, this, &AAiControllerRts::ResetAttack, AttackCooldown, false);
+}
+
+void AAiControllerRts::ResetAttack()
+{
+	bCanAttack = true;
+}
+
+void AAiControllerRts::StopAttack()
+{
+	GetWorld()->GetTimerManager().ClearTimer(AttackTimerHandle);
+	bCanAttack = true;
+	HaveTargetAttack = false;
+}
+
+ECombatBehavior AAiControllerRts::GetCombatBehavior() const
+{
+	return CombatBehavior;
+}
+
+FCommandData AAiControllerRts::GetCurrentCommand()
+{
+	return CurrentCommand;
+}
+
+bool AAiControllerRts::GetHaveTarget()
+{
+	return HaveTargetAttack;
+}
+
+void AAiControllerRts::SetHaveTarget(bool value)
+{
+	HaveTargetAttack = value;
+}
+
+#pragma endregion
 

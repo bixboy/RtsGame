@@ -1,15 +1,14 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "AiData.h"
-#include "InputActionValue.h"
+#include "Data/AiData.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
 #include "Interfaces/Selectable.h"
 #include "SoldierRts.generated.h"
 
+class USphereComponent;
+class UCommandComponent;
 class AAiControllerRts;
 class UCharacterMovementComponent;
 class APlayerControllerRts;
@@ -25,64 +24,93 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-private:
-	UPROPERTY()
-	TObjectPtr<APlayerControllerRts> PlayerOwner;
+	virtual void PossessedBy(AController* NewController) override;
+	
+	UFUNCTION()
+	void SetAIController(AAiControllerRts* AiController);
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	AAiControllerRts* GetAiController() const;
 
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UCommandComponent* GetCommandComponent() const;
+
+protected:
+	UPROPERTY()
+	TObjectPtr<AAiControllerRts> AIController;
+	
+	UPROPERTY(EditAnywhere, Category = "Settings|DefaultValue")
+	TSubclassOf<AAiControllerRts> AiControllerRtsClass;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
+	TObjectPtr<UCommandComponent> CommandComp;
+
+// Selection	
+#pragma region Selection
+	
 public:
+	/*- Function -*/
 	virtual void Select() override;
 	virtual void Deselect() override;
 	virtual void Highlight(const bool Highlight) override;
 
+	UFUNCTION()
+	bool GetIsSelected() const;
+	
+protected:
+	/*- Variables -*/
 	UPROPERTY()
 	bool Selected;
+	UPROPERTY()
+	TObjectPtr<APlayerControllerRts> PlayerOwner;
+	
 
-	UFUNCTION()
-	void CommandMoveToLocation(const FCommandData CommandData);
-	UFUNCTION()
-	void SetAIController(AAiControllerRts* AiController);
+#pragma endregion	
 
+// Attack
+#pragma region Attack
+
+public:
+	/*- Getter -*/
+	float GetAttackRange() const;
+	float GetAttackCooldown() const;
+	ECombatBehavior GetCombatBehavior() const;
+	
 protected:
+	/*- Function -*/
 	UFUNCTION()
-	void CommandMove(const FCommandData CommandData);
+	void OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION()
-	void DestinationReached(const FCommandData CommandData);
-
-	UFUNCTION()
-	void SetWalk() const;
-	UFUNCTION()
-	void SetRun() const;
-	UFUNCTION()
-	void SetSprint() const;
-
-	UFUNCTION()
-	void SetOrientation(const float DeltaTime);
-	UFUNCTION()
-	bool IsOrientated() const;
-
-	UFUNCTION()
-	void SetMoveMarker(const FVector Location);
-
-	UFUNCTION()
-	FTransform GetPositionTransform(const FVector Position) const;
+	void OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	
+	/*- Variables -*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
+	TObjectPtr<USphereComponent> AreaAttack;
 
 	
-	UPROPERTY(EditAnywhere)
-	float MaxSpeed = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Attack")
+	ECombatBehavior CombatBehavior = ECombatBehavior::Neutral;
+	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
+	float AttackCooldown = 1.5f;
+	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
+	float AttackRange = 200.f;
+	
 	UPROPERTY()
-	UCharacterMovementComponent* CharaMovementComp;
+	TArray<AActor*> ActorsInRange;
+	UFUNCTION()
+	void UpdateActorsInArea();
 
-	UPROPERTY()
-	FRotator TargetOrientation;
+	virtual void BeginDestroy() override;
 
-	UPROPERTY()
-	uint8 ShouldOrientate;
+#pragma endregion
 
-	UPROPERTY()
-	AAiControllerRts* AIController;
+#pragma region Team
+public:
+	UFUNCTION(BlueprintCallable)
+	virtual ETeams GetCurrentTeam_Implementation() override;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
-	TSubclassOf<AActor> MoveMarkerClass;
-	UPROPERTY()
-	TObjectPtr<AActor> MoveMarker;
+protected:
+	UPROPERTY(EditAnywhere, Category = "Settings|Team")
+	ETeams CurrentTeam = ETeams::Clone;
+
+#pragma endregion	
 };

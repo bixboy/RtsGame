@@ -1,8 +1,7 @@
 ﻿#include "RtsGame/Public/SoldierRts.h"
-
 #include "AiControllerRts.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/KismetMathLibrary.h"
+#include "Components/CommandComponent.h"
+#include "Components/SphereComponent.h"
 
 // Setup
 #pragma region Setup
@@ -11,37 +10,36 @@ ASoldierRts::ASoldierRts()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	CharaMovementComp = GetCharacterMovement();
-	if (CharaMovementComp)
-	{
-		CharaMovementComp->bOrientRotationToMovement = true;
-		CharaMovementComp->RotationRate = FRotator(0.f, 640.f, 0.f);
-		CharaMovementComp->bConstrainToPlane = true;
-		CharaMovementComp->bSnapToPlaneAtStart = true;
-	}
-
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	AIControllerClass = AiControllerRtsClass;
+	
+	CommandComp = CreateDefaultSubobject<UCommandComponent>(TEXT("CommandComponent"));
+	
+	AreaAttack = CreateDefaultSubobject<USphereComponent>(TEXT("AreaAttack"));
+	AreaAttack->SetupAttachment(RootComponent);
+
+	AreaAttack->OnComponentBeginOverlap.AddDynamic(this, &ASoldierRts::OnAreaAttackBeginOverlap);
+	AreaAttack->OnComponentEndOverlap.AddDynamic(this, &ASoldierRts::OnAreaAttackEndOverlap);
+}
+
+void ASoldierRts::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (CommandComp)
+	{
+		CommandComp->SetOwnerAIController(Cast<AAiControllerRts>(NewController));
+	}
 }
 
 void ASoldierRts::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 void ASoldierRts::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	if (ShouldOrientate)
-	{
-		SetOrientation(DeltaTime);
-
-		if (IsOrientated())
-		{
-			ShouldOrientate = 0;
-		}
-	}
 }
 
 void ASoldierRts::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -79,158 +77,167 @@ void ASoldierRts::Highlight(const bool Highlight)
 	}
 }
 
+bool ASoldierRts::GetIsSelected() const
+{
+	return Selected;
+}
+
 #pragma endregion
 
-// Create & Start Commands
-#pragma region Create & Start Commands
-
-void ASoldierRts::CommandMoveToLocation(const FCommandData CommandData)
-{
-	switch (CommandData.Type)
-	{
-		case ECommandType::CommandMoveSlow:
-		{
-			SetWalk();
-			break;	
-		}
-		case ECommandType::CommandMoveFast:
-		{
-			SetSprint();
-			break;	
-		}
-		case ECommandType::CommandAttack:
-		{
-			break;
-		}
-		default:
-		{
-				SetRun();
-		}
-	}
-
-	CommandMove(CommandData);
-}
+// Set & Get AiController
+#pragma region Set & Get AiController
 
 void ASoldierRts::SetAIController(AAiControllerRts* AiController)
 {
+	if (!AiController) return;
+	
 	AIController = AiController;
 }
 
-void ASoldierRts::CommandMove(const FCommandData CommandData)
+AAiControllerRts* ASoldierRts::GetAiController() const
 {
-	if(!AIController)return;
-	
-	AIController->OnReachedDestination.Clear();
-
-	if (!AIController->OnReachedDestination.IsBound())
+	if (AIController)
 	{
-		AIController->OnReachedDestination.AddDynamic(this, &ASoldierRts::DestinationReached);
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "SoldierRts");
+		return AIController;
 	}
 
-	AIController->CommandMove(CommandData);
-	SetMoveMarker(CommandData.Location);
+	return nullptr;
 }
 
-void ASoldierRts::DestinationReached(const FCommandData CommandData)
+UCommandComponent* ASoldierRts::GetCommandComponent() const
 {
-	if(MoveMarker) MoveMarker->Destroy();
-	
-	TargetOrientation = CommandData.Rotation;
-	ShouldOrientate = 1;
+	if(CommandComp) return CommandComp;
+
+	return nullptr;
 }
+
 
 #pragma endregion
 
-// Walk Speed
-#pragma region Walk Speed
+// Attack
+#pragma region Attack
 
-void ASoldierRts::SetWalk() const
+void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                                           UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!CharaMovementComp) return;
-
-	CharaMovementComp->MaxWalkSpeed = MaxSpeed * 0.5f;
-}
-
-void ASoldierRts::SetRun() const
-{
-	if (!CharaMovementComp) return;
-
-	CharaMovementComp->MaxWalkSpeed = MaxSpeed;
-}
-
-void ASoldierRts::SetSprint() const
-{
-	if (!CharaMovementComp) return;
-
-	CharaMovementComp->MaxWalkSpeed = MaxSpeed * 1.25f;
-}
-
-#pragma endregion
-
-void ASoldierRts::SetOrientation(const float DeltaTime)
-{
-	const FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(FRotator(GetActorRotation().Pitch, GetActorRotation().Yaw, 0.f), TargetOrientation, DeltaTime, 2.f);
-	SetActorRotation(InterpolatedRotation);
-}
-
-bool ASoldierRts::IsOrientated() const
-{
-	const FRotator CurrentRotation = GetActorRotation();
-
-	if(FMath::IsNearlyEqual(CurrentRotation.Yaw, TargetOrientation.Yaw, 0.25f))
+	if(OtherActor == this) return;
+	
+	if (OtherActor->Implements<USelectable>())
 	{
-		return true;
-	}
-	return false;
-}
-
-// Marker
-#pragma region Marker
-
-// Spawn Marker
-void ASoldierRts::SetMoveMarker(const FVector Location)
-{
-	if (MoveMarkerClass)
-	{
-		if (MoveMarker) MoveMarker->Destroy();
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Instigator = this;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		if (UWorld* World = GetWorld())
+		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam) return;
+			
+		UpdateActorsInArea();
+		
+		ActorsInRange.AddUnique(OtherActor);
+		if (AIController && AIController->GetCombatBehavior() == ECombatBehavior::Aggressive && !AIController->GetHaveTarget())
 		{
-			MoveMarker = World->SpawnActor<AActor>(MoveMarkerClass, GetPositionTransform(Location), SpawnParams);
+			FCommandData CommandData;
+			CommandData.Type = ECommandType::CommandAttack;
+			CommandData.Target = OtherActor;
+			GetCommandComponent()->CommandMoveToLocation(CommandData);
 		}
 	}
 }
 
-// Get position For Marker
-FTransform ASoldierRts::GetPositionTransform(const FVector Position) const
+void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+										UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	FHitResult Hit;
-	FCollisionQueryParams CollisionParams;
-	FVector TraceOrigin = Position;
-	TraceOrigin.Z += 10000.f;
-	FVector TraceEnd = Position;
-	TraceEnd.Z -= 10000.f;
-
-	if (UWorld* World = GetWorld())
+	if(OtherActor == this) return;
+	
+	if (OtherActor->Implements<USelectable>())
 	{
-		if (World->LineTraceSingleByChannel(Hit, TraceOrigin, TraceEnd, ECollisionChannel::ECC_GameTraceChannel1, CollisionParams))
+		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam) return;
+		
+		UpdateActorsInArea();
+		
+		if (ActorsInRange.Contains(OtherActor))
+			ActorsInRange.Remove(OtherActor);
+		
+		if (AIController && AIController->GetHaveTarget() && AIController->GetCurrentCommand().Target == OtherActor)
 		{
-			if (Hit.bBlockingHit)
+			AActor* NewTarget = nullptr;
+			if (ActorsInRange.Num() > 0)
 			{
-				FTransform HitTransform;
-				HitTransform.SetLocation(Hit.ImpactPoint + FVector(1.f, 1.f, 1.25f));
-				FRotator TerrainRotation = UKismetMathLibrary::MakeRotFromZX(Hit.Normal, FVector::UpVector);
-				TerrainRotation += FRotator(90.f, 0.f, 0.f);
-				HitTransform.SetRotation(TerrainRotation.Quaternion());
-				return HitTransform;
+				NewTarget = ActorsInRange[0];
+			}
+
+			if (NewTarget)
+			{
+				FCommandData NewCommandData;
+				NewCommandData.Type = ECommandType::CommandAttack;
+				NewCommandData.Target = NewTarget;
+				GetCommandComponent()->CommandMoveToLocation(NewCommandData);
+			}
+			else if (AIController->GetCombatBehavior() == ECombatBehavior::Aggressive)
+			{
+				AIController->StopAttack();
 			}
 		}
+
+		if (ActorsInRange.Num() == 0 && AIController)
+		{
+			if (AIController->GetCombatBehavior() == ECombatBehavior::Aggressive)
+				AIController->StopAttack();
+		}
 	}
-	return FTransform::Identity;
+}
+
+void ASoldierRts::UpdateActorsInArea()
+{
+	TArray<AActor*> ValidActors;
+    
+	for (AActor* Soldier : ActorsInRange)
+	{
+		if (Soldier && IsValid(Soldier))
+		{
+			ValidActors.Add(Soldier);
+		}
+	}
+	ActorsInRange = ValidActors;
+}
+
+void ASoldierRts::BeginDestroy()
+{
+	for (AActor* Soldier : ActorsInRange)
+	{
+		if (ASoldierRts* SoldierRts = Cast<ASoldierRts>(Soldier))
+		{
+			SoldierRts->UpdateActorsInArea();
+		}
+	}
+	Super::BeginDestroy();
+}
+
+
+// Getter
+#pragma region Getter
+
+float ASoldierRts::GetAttackRange() const
+{
+	return AttackRange;
+}
+
+float ASoldierRts::GetAttackCooldown() const
+{
+	return AttackCooldown;
+}
+
+ECombatBehavior ASoldierRts::GetCombatBehavior() const
+{
+	return CombatBehavior;
+}
+
+#pragma endregion
+
+#pragma endregion
+
+// Team
+#pragma region Team
+
+ETeams ASoldierRts::GetCurrentTeam_Implementation()
+{
+	return CurrentTeam;
 }
 
 #pragma endregion 

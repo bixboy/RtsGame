@@ -5,6 +5,7 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Interfaces/Selectable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
@@ -53,6 +54,11 @@ void APlayerCamera::Tick(float DeltaTime)
 
 	const FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(SpringArm->GetRelativeRotation(), TargetRotation, DeltaTime, CameraSpeed);
 	SpringArm->SetRelativeRotation(InterpolatedRotation);
+}
+
+APlayerControllerRts* APlayerCamera::GetRtsPlayerController()
+{
+	return Player;
 }
 
 // Camera Movement Input
@@ -295,14 +301,12 @@ void APlayerCamera::CreateSelectionBox()
 
 #pragma endregion
 
+// Command
 #pragma region Command
 
 void APlayerCamera::CommandStart()
 {
-	if (!Player)
-	{
-		return;
-	}
+	if (!Player) return;
 
 	CommandLocation = Player->GetMousePositionOnTerrain();
 }
@@ -311,10 +315,16 @@ void APlayerCamera::Command()
 {
 	if (!Player) return;
 
+	AActor* ActorEnemy = GetSelectedObject();
+	if (ActorEnemy->Implements<USelectable>())
+	{
+		Player->CommandSelected(CreatCommandData(ECommandType::CommandAttack, ActorEnemy));
+		return;
+	}
 	Player->CommandSelected(CreatCommandData(ECommandType::CommandMove));
 }
 
-FCommandData APlayerCamera::CreatCommandData(const ECommandType Type) const
+FCommandData APlayerCamera::CreatCommandData(const ECommandType Type, AActor* Enemy) const
 {
 	if (!Player) return FCommandData();
 	
@@ -328,8 +338,13 @@ FCommandData APlayerCamera::CreatCommandData(const ECommandType Type) const
 
 		CommandRotation = FRotator(0.f, RotationAngle, 0.f);
 	}
+
+	if (Type == ECommandType::CommandAttack)
+	{
+		return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type, Enemy);
+	}
 	
-	return FCommandData(CommandLocation, CommandRotation, Type);
+	return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type);
 }
 
 #pragma endregion

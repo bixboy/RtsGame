@@ -22,4 +22,8 @@ public:
 
 	UFUNCTION()
 	virtual void Highlight(const bool Highlight) = 0;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	ETeams GetCurrentTeam();
+	
 };

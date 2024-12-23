@@ -128,8 +128,6 @@ void ASelectionBox::Manage()
 		FVector LocalActorCenter = BoxComponent->GetComponentTransform().InverseTransformPosition(ActorCenter);
 		bool bInsideBox = FMath::Abs(LocalActorCenter.X) <= BoxExtent.X && FMath::Abs(LocalActorCenter.Y) <= BoxExtent.Y;
 		
-		DrawDebugBox(GetWorld(), BoxCenter, BoxExtent, FColor::Red, false, -1, 0, 5.f);
-
 		if (bInsideBox)
 		{
 

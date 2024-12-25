@@ -11,13 +11,14 @@ void UFormationSelectorWidget::NativeOnInitialized()
 
 	verify((PlayerController = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0))) != nullptr);
 
-	if (LineButton && ColumnButton && WedgeButton && BlobButton)
+	if (LineButton && ColumnButton && WedgeButton && BlobButton && SquareButton)
 	{
 		OnFormationButtonClicked(LineButton, 0);
 		LineButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 		ColumnButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 		WedgeButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 		BlobButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
+		SquareButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 	}
 
 	if (SpacingSlider)

@@ -5,6 +5,7 @@
 #include "GameFramework/Pawn.h"
 #include "PlayerCamera.generated.h"
 
+class ASphereRadius;
 class ASelectionBox;
 class APlayerControllerRts;
 class UCameraComponent;
@@ -22,6 +23,8 @@ public:
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	APlayerControllerRts* GetRtsPlayerController();
+	UPROPERTY(BlueprintReadWrite)
+	bool bAltIsPressed = false;
 
 #pragma region Camera Movement
 protected:	
@@ -89,8 +92,10 @@ protected:
 
 #pragma endregion
 
+// Selection	
 #pragma region Selection
 protected:
+	/*- Function -*/
 	UFUNCTION(BlueprintCallable)
 	AActor* GetSelectedObject();
 
@@ -109,8 +114,10 @@ protected:
 	UFUNCTION()
 	void CreateSelectionBox();
 
+	/*- Variables -*/
 	UPROPERTY()
 	TObjectPtr<APlayerControllerRts> Player;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Mouse")
 	float LeftMouseHoldThreshold = 0.15f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Mouse")
@@ -118,23 +125,40 @@ protected:
 
 	UPROPERTY()
 	ASelectionBox* SelectionBox;
-	UPROPERTY()
 	bool BoxSelect;
-	UPROPERTY()
 	FVector LeftMouseHitLocation;
 
 #pragma endregion
 
+// Command
 #pragma region Command
 protected:
+	/*- Function -*/
 	UFUNCTION(BlueprintCallable)
 	void CommandStart();
-	
 	UFUNCTION(BlueprintCallable)
 	void Command();
 	
 	UFUNCTION()
-	FCommandData CreatCommandData(const ECommandType Type, AActor* Enemy = nullptr) const;
+	FCommandData CreatCommandData(const ECommandType Type, AActor* Enemy = nullptr, const float Radius = 0.f) const;
+	
+	UFUNCTION(BlueprintCallable)
+	void AltRightMousePressed();
+	UFUNCTION(BlueprintCallable)
+	void AltRightMouseReleased();
+	UFUNCTION(BlueprintCallable)
+	void AltRightMouseHold(float Value);
+	
+	UFUNCTION()
+	void CreatSphereRadius();
+
+	/*- Variables -*/
+	UPROPERTY(EditAnywhere, Category = "Settings|Command")
+	TSubclassOf<ASphereRadius> SphereRadiusClass;
+	UPROPERTY()
+	ASphereRadius* SphereRadius;
+	UPROPERTY()
+	bool SphereRadiusEnable;
 
 #pragma endregion 	
 	

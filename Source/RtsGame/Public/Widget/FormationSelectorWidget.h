@@ -28,6 +28,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UFormationButtonWidget* BlobButton;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UFormationButtonWidget* SquareButton;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USlider* SpacingSlider;

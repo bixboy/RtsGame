@@ -61,24 +61,34 @@ void UCommandComponent::CommandMoveToLocation(const FCommandData CommandData)
 {
 	switch (CommandData.Type)
 	{
+	/*- Slow -*/
 	case ECommandType::CommandMoveSlow:
 		{
 			TargetLocation = CommandData.Location;
 			SetWalk();
 			break;	
 		}
+	/*- Fast -*/
 	case ECommandType::CommandMoveFast:
 		{
 			TargetLocation = CommandData.Location;
 			SetSprint();
 			break;	
 		}
+	/*- Attack -*/
 	case ECommandType::CommandAttack:
 		{
 			TargetLocation = CommandData.Target->GetActorLocation();
 			HaveTargetAttack = true;
 			SetSprint();
 			break;
+		}
+	/*- Patrol -*/
+	case ECommandType::CommandPatrol:
+		{
+			SetWalk();
+			CommandPatrol(CommandData);
+			return;
 		}
 	default:
 		{
@@ -88,6 +98,15 @@ void UCommandComponent::CommandMoveToLocation(const FCommandData CommandData)
 	}
 	
 	CommandMove(CommandData);
+}
+
+void UCommandComponent::CommandPatrol(const FCommandData CommandData)
+{
+	if(!OwnerAIController)return;
+	
+	OwnerAIController->OnReachedDestination.Clear();
+	
+	OwnerAIController->CommandPatrol(CommandData);
 }
 
 void UCommandComponent::CommandMove(const FCommandData CommandData)

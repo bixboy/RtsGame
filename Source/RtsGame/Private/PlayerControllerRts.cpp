@@ -303,6 +303,23 @@ void APlayerControllerRts::CalculateOffset(const int Index, FCommandData& Comman
     	// Traitement du type de formation
     	switch (CurrentFormationData->FormationType)
     	{
+    		case EFormation::Square:
+    		{
+    			const int NumActors = SelectedActors.Num();
+    			const int GridSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(NumActors)));
+
+    			const int Row = Index / GridSize;
+    			const int Col = Index % GridSize;
+
+    			Offset.X = Row * FormationSpacing;
+    			Offset.Y = Col * FormationSpacing;
+
+    			const float HalfSize = (GridSize - 1) * FormationSpacing * 0.5f;
+    			Offset.X -= HalfSize;
+    			Offset.Y -= HalfSize;
+
+    			break;
+    		}
     		case EFormation::Blob:
     			{
     				if (Index != 0)
@@ -337,10 +354,13 @@ void APlayerControllerRts::CalculateOffset(const int Index, FCommandData& Comman
     				}
     			}
     	}
-	    if (CommandData.Rotation == FRotator::ZeroRotator) 
-    	Offset = CommandData.Rotation.RotateVector(Offset);
-    	FVector TargetLocation = CommandData.SourceLocation + Offset;
-    	CommandData.Location = TargetLocation;
+    	
+        if (CommandData.Rotation != FRotator::ZeroRotator)
+        {
+            Offset = CommandData.Rotation.RotateVector(Offset);
+        }
+        FVector TargetLocation = CommandData.SourceLocation + Offset;
+        CommandData.Location = TargetLocation;
     }
 }
 

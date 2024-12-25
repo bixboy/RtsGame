@@ -26,9 +26,10 @@ public:
 
 	FVector GetCommandLocation() const;
 
-private:
 #pragma region Command Functions
-	
+private:
+	UFUNCTION()
+	void CommandPatrol(const FCommandData CommandData);
 	UFUNCTION()
 	void CommandMove(const FCommandData CommandData);
 	UFUNCTION()
@@ -53,9 +54,10 @@ private:
 	FTransform GetPositionTransform(const FVector Position) const;
 
 #pragma endregion
-
+	
+// Variables
 #pragma region Variables
-
+private:
 	UPROPERTY()
 	TObjectPtr<ASoldierRts> OwnerActor;
 	

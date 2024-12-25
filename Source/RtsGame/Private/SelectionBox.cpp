@@ -36,7 +36,7 @@ void ASelectionBox::BeginPlay()
 		Decal->SetVisibility(false);
 	}
 
-	PlayerController = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0))	;
+	PlayerController = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 }
 
 void ASelectionBox::Tick(float DeltaTime)

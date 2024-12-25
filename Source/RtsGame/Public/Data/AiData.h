@@ -8,7 +8,8 @@ enum ECommandType
 	CommandMove,
 	CommandMoveFast,
 	CommandMoveSlow,
-	CommandAttack
+	CommandAttack,
+	CommandPatrol
 };
 
 UENUM(BlueprintType)
@@ -17,7 +18,8 @@ enum EFormation
 	Line	UMETA(DisplayName = "Line Formation"),
 	Column	UMETA(DisplayName = "Column Formation"),
 	Wedge	UMETA(DisplayName = "Wedge Formation"),
-	Blob	UMETA(DisplayName = "Blob Formation")
+	Blob	UMETA(DisplayName = "Blob Formation"),
+	Square	UMETA(DisplayName = "Square Formation"),
 };
 
 UENUM(BlueprintType)
@@ -47,15 +49,17 @@ struct FCommandData
 		Location(FVector::ZeroVector),
 		Rotation(FRotator::ZeroRotator),
 		Type(ECommandType::CommandMove),
-		Target(nullptr) {}
+		Target(nullptr),
+		Radius(0.f) {}
 
 	// Assignation des parametres 
-	FCommandData(const FVector InLocation, const FRotator InRotation, const ECommandType InType, AActor* InTarget = nullptr)
+	FCommandData(const FVector InLocation, const FRotator InRotation, const ECommandType InType, AActor* InTarget = nullptr, const float InRadius = 0.0f)
 	:	SourceLocation(InLocation),
 		Location(InLocation),
 		Rotation(InRotation),
 		Type(InType),
-		Target(InTarget) {}
+		Target(InTarget),
+		Radius(InRadius) {}
 
 
 	// Variables
@@ -73,4 +77,7 @@ struct FCommandData
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	AActor* Target;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Radius;
 };

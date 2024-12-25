@@ -118,9 +118,6 @@ protected:
 	bool IsPositionValid(const FVector& Position);
 
 	/*- Variables -*/
-	
-	UPROPERTY(EditAnywhere, Category = "Settings|Formations")
-	int UnitsPerRow = 5;
 
 	UPROPERTY()
 	TObjectPtr<UAssetManager> AssetManager;

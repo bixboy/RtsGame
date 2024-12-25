@@ -2,6 +2,7 @@
 
 #include "PlayerControllerRts.h"
 #include "SelectionBox.h"
+#include "SphereRadius.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -38,6 +39,7 @@ void APlayerCamera::BeginPlay()
 	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0.f));
 
 	CreateSelectionBox();
+	CreatSphereRadius();
 }
 
 void APlayerCamera::Tick(float DeltaTime)
@@ -54,6 +56,15 @@ void APlayerCamera::Tick(float DeltaTime)
 
 	const FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(SpringArm->GetRelativeRotation(), TargetRotation, DeltaTime, CameraSpeed);
 	SpringArm->SetRelativeRotation(InterpolatedRotation);
+
+	if (Player && Player->GetInputKeyTimeDown(EKeys::LeftAlt) || Player->GetInputKeyTimeDown(EKeys::RightAlt))
+	{
+		bAltIsPressed = true;
+	}
+	else
+	{
+		bAltIsPressed = false;
+	}
 }
 
 APlayerControllerRts* APlayerCamera::GetRtsPlayerController()
@@ -304,6 +315,66 @@ void APlayerCamera::CreateSelectionBox()
 // Command
 #pragma region Command
 
+/*- Input -*/
+void APlayerCamera::AltRightMousePressed()
+{
+	if(!Player && !bAltIsPressed) return;
+	
+	LeftMouseHitLocation = Player->GetMousePositionOnTerrain();
+}
+
+void APlayerCamera::AltRightMouseReleased()
+{
+	if (SphereRadiusEnable && SphereRadius)
+	{
+		SphereRadius->End();
+		SphereRadiusEnable = false;
+
+		Player->CommandSelected(CreatCommandData(ECommandType::CommandPatrol, nullptr, SphereRadius->GetRadius()));
+	}
+}
+
+void APlayerCamera::AltRightMouseHold(float Value)
+{
+	if(!bAltIsPressed)
+	{
+		SphereRadius->End();
+		SphereRadiusEnable = false;
+		return;
+	}
+	
+	if (!Player || Value == 0.f)
+	{
+		SphereRadius->End();
+		return;
+	}
+
+	if (Player->GetInputKeyTimeDown(EKeys::RightMouseButton) >= LeftMouseHoldThreshold && SphereRadius)
+	{
+		if (!SphereRadiusEnable && SphereRadius)
+		{
+			SphereRadius->Start(LeftMouseHitLocation, TargetRotation);
+			SphereRadiusEnable = true;	
+		}
+	}
+}
+
+void APlayerCamera::CreatSphereRadius()
+{
+	if(UWorld* World = GetWorld())
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Instigator = this;
+		SpawnParams.Owner = this;
+		SphereRadius = World->SpawnActor<ASphereRadius>(SphereRadiusClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if(SphereRadius)
+		{
+			SphereRadius->SetOwner(this);
+		}
+	}
+}
+
+/*- Commands -*/
 void APlayerCamera::CommandStart()
 {
 	if (!Player) return;
@@ -316,7 +387,7 @@ void APlayerCamera::Command()
 	if (!Player) return;
 
 	AActor* ActorEnemy = GetSelectedObject();
-	if (ActorEnemy->Implements<USelectable>())
+	if (ActorEnemy && ActorEnemy->Implements<USelectable>())
 	{
 		Player->CommandSelected(CreatCommandData(ECommandType::CommandAttack, ActorEnemy));
 		return;
@@ -324,7 +395,7 @@ void APlayerCamera::Command()
 	Player->CommandSelected(CreatCommandData(ECommandType::CommandMove));
 }
 
-FCommandData APlayerCamera::CreatCommandData(const ECommandType Type, AActor* Enemy) const
+FCommandData APlayerCamera::CreatCommandData(const ECommandType Type, AActor* Enemy, const float Radius) const
 {
 	if (!Player) return FCommandData();
 	
@@ -342,6 +413,10 @@ FCommandData APlayerCamera::CreatCommandData(const ECommandType Type, AActor* En
 	if (Type == ECommandType::CommandAttack)
 	{
 		return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type, Enemy);
+	}
+	else if (Type == ECommandType::CommandPatrol) 
+	{
+		return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type, nullptr, Radius * 2.f);
 	}
 	
 	return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type);

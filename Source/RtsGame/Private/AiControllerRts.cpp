@@ -1,7 +1,11 @@
 ﻿#include "RtsGame/Public/AiControllerRts.h"
-
+#include "NavigationSystem.h"
 #include "Data/AiData.h"
 #include "SoldierRts.h"
+
+
+// Setup Functions
+#pragma region Setup Functions
 
 AAiControllerRts::AAiControllerRts(const FObjectInitializer& ObjectInitializer)
 {
@@ -29,6 +33,8 @@ void AAiControllerRts::SetupVariables()
 		CombatBehavior = OwnerSoldier->GetCombatBehavior();
 	}
 }
+
+#pragma endregion
 
 void AAiControllerRts::Tick(float DeltaSeconds)
 {
@@ -61,6 +67,7 @@ void AAiControllerRts::CommandMove(const FCommandData& CommandData, bool Attack)
 	CurrentCommand = CommandData;
 	HaveTargetAttack = Attack;
 	MoveComplete = false;
+	InPatrol = false;
 	
 	if (HaveTargetAttack)
 	{
@@ -77,6 +84,11 @@ void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollow
 	Super::OnMoveCompleted(RequestID, Result);
 	MoveComplete = true;
 	OnReachedDestination.Broadcast(CurrentCommand);
+	if (InPatrol)
+	{
+		InPatrol = false;
+		CommandPatrol(CurrentCommand);
+	}
 }
 
 #pragma endregion
@@ -125,4 +137,30 @@ void AAiControllerRts::SetHaveTarget(bool value)
 }
 
 #pragma endregion
+
+// Patrol
+#pragma region Patrol
+
+void AAiControllerRts::CommandPatrol(const FCommandData& CommandData)
+{
+	CurrentCommand = CommandData;
+	FVector OutLocation;
+	bool bSuccess = UNavigationSystemV1::K2_GetRandomLocationInNavigableRadius(
+		GetWorld(),
+		CommandData.SourceLocation,
+		OutLocation,
+		CommandData.Radius,
+		nullptr,
+		nullptr
+	);
+
+	if (bSuccess)
+	{
+		FVector Destination = OutLocation;
+		MoveToLocation(Destination, 20.f);
+		InPatrol = true;
+	}
+}
+
+#pragma endregion 
 

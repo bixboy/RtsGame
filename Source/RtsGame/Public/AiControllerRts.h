@@ -22,25 +22,17 @@ public:
 
 	UFUNCTION()
 	void CommandMove(const FCommandData& CommandData, bool Attack = false);
+	UFUNCTION()
+	void CommandPatrol(const FCommandData& CommandData);
 
 	UPROPERTY()
 	FReachedDestinationDelegate OnReachedDestination;
-
-	UFUNCTION()
-	void StopAttack();
+	
 	UFUNCTION()
 	void SetupVariables();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	ECombatBehavior GetCombatBehavior() const;
-
-	UFUNCTION(BlueprintCallable, BlueprintPure)
 	FCommandData GetCurrentCommand();
-	
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	bool GetHaveTarget();
-	UFUNCTION(BlueprintCallable)
-	void SetHaveTarget(bool value);
 
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
@@ -53,24 +45,43 @@ protected:
 
 	/*- Movement -*/
 	bool MoveComplete;
+	bool InPatrol;
 
 	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
 
-	/*- Attack -*/
+// Attack
+#pragma region Attack
+protected:	
+	/*- Variables -*/
 	FTimerHandle AttackTimerHandle;
+	
+	ECombatBehavior CombatBehavior = ECombatBehavior::Neutral;
 	
 	bool bCanAttack = true;
 	bool HaveTargetAttack;
-
-	UPROPERTY()
-	ECombatBehavior CombatBehavior = ECombatBehavior::Neutral;
+	
 	UPROPERTY()
 	float AttackCooldown = 1.5f;
 	UPROPERTY()
 	float AttackRange = 200.f;
 
+	/*- Functions -*/
 	UFUNCTION()
 	void AttackTarget();
 	UFUNCTION()
 	void ResetAttack();
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetHaveTarget(bool value);
+	UFUNCTION()
+	void StopAttack();
+
+	/*- Getter -*/
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	bool GetHaveTarget();
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	ECombatBehavior GetCombatBehavior() const;
+	
+#pragma endregion	
 };

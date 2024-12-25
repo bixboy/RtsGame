@@ -1,5 +1,4 @@
 ﻿#include "PlayerControllerRts.h"
-
 #include "EnhancedInputSubsystems.h"
 #include "SoldierRts.h"
 #include "Blueprint/UserWidget.h"
@@ -22,7 +21,7 @@ void APlayerControllerRts::BeginPlay()
 	{
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
-
+	
 	verify((AssetManager = UAssetManager::GetIfInitialized()) != nullptr);
 
 	FInputModeGameAndUI InputMode;
@@ -113,18 +112,17 @@ void APlayerControllerRts::Server_CommandSelected_Implementation(FCommandData Co
 {
 	if (!HasAuthority()) return;
 
-	for (int i = 0; i < SelectedActors.Num(); i++)
+	for (AActor* Soldier: SelectedActors)
 	{
-		if (ASoldierRts* Soldier = Cast<ASoldierRts>(SelectedActors[i]))
+		if (ASoldierRts* SoldierTemp = Cast<ASoldierRts>(Soldier))
 		{
-			if (CommandData.Target && ISelectable::Execute_GetCurrentTeam(Soldier) == ISelectable::Execute_GetCurrentTeam(CommandData.Target))
-				return;
+			if (CommandData.Target && ISelectable::Execute_GetCurrentTeam(Soldier) == ISelectable::Execute_GetCurrentTeam(CommandData.Target)) return;
 			
 			if (!CommandData.Target)
 			{
-				CalculateOffset(i, CommandData);
+				CalculateOffset(SelectedActors.Find(Soldier), CommandData);
 			}
-			Soldier->GetCommandComponent()->CommandMoveToLocation(CommandData);
+			SoldierTemp->GetCommandComponent()->CommandMoveToLocation(CommandData);
 		}
 	}
 }
@@ -388,7 +386,7 @@ void APlayerControllerRts::UpdateFormation(EFormation Formation)
 	else
 	{
 		CurrentFormation = Formation;
-		OnRep_CurrentFormation(); // Appliquer immédiatement sur le serveur
+		OnRep_CurrentFormation();
 	}
 }
 

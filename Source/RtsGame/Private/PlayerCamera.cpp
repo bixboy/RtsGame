@@ -379,7 +379,8 @@ void APlayerCamera::CommandStart()
 {
 	if (!Player) return;
 
-	CommandLocation = Player->GetMousePositionOnTerrain();
+	FVector MouseLocation = Player->GetMousePositionOnTerrain();
+	CommandLocation = FVector(MouseLocation.X, MouseLocation.Y, MouseLocation.Z);
 }
 
 void APlayerCamera::Command()

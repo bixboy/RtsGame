@@ -30,7 +30,7 @@ protected:
 	
 	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
 	float WeaponRange = 1000.f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Weapon Values")
 	bool HasAiming;
 	
 };

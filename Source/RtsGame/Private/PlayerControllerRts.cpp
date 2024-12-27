@@ -114,7 +114,7 @@ void APlayerControllerRts::Server_CommandSelected_Implementation(FCommandData Co
 
 	for (AActor* Soldier: SelectedActors)
 	{
-		if (ASoldierRts* SoldierTemp = Cast<ASoldierRts>(Soldier))
+		if (Soldier->Implements<USelectable>())
 		{
 			if (CommandData.Target && ISelectable::Execute_GetCurrentTeam(Soldier) == ISelectable::Execute_GetCurrentTeam(CommandData.Target)) return;
 			
@@ -122,7 +122,7 @@ void APlayerControllerRts::Server_CommandSelected_Implementation(FCommandData Co
 			{
 				CalculateOffset(SelectedActors.Find(Soldier), CommandData);
 			}
-			SoldierTemp->GetCommandComponent()->CommandMoveToLocation(CommandData);
+			ISelectable::Execute_CommandMove(Soldier, CommandData);
 		}
 	}
 }

@@ -106,7 +106,6 @@ AAiControllerRts* ASoldierRts::GetAiController() const
 {
 	if (AIController)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "SoldierRts");
 		return AIController;
 	}
 
@@ -123,8 +122,25 @@ UCommandComponent* ASoldierRts::GetCommandComponent() const
 
 #pragma endregion
 
+//Movement
+#pragma region Movement
+
+void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
+{
+	ISelectable::CommandMove_Implementation(CommandData);
+	GetCommandComponent()->CommandMoveToLocation(CommandData);
+}
+
+#pragma endregion
+
 // Attack
 #pragma region Attack
+
+void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
+{
+	IDamageable::TakeDamage_Implementation(DamageOwner);
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Take Damage By: %s"), *DamageOwner->GetName()));
+}
 
 void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)

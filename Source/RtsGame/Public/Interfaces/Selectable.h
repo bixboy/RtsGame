@@ -29,4 +29,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void SetBehavior(const ECombatBehavior NewBehavior);
 	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void CommandMove(FCommandData CommandData);
+	
 };

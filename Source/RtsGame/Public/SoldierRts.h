@@ -4,6 +4,7 @@
 #include "Data/AiData.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
+#include "Interfaces/Damageable.h"
 #include "Interfaces/Selectable.h"
 #include "SoldierRts.generated.h"
 
@@ -16,7 +17,7 @@ class APlayerControllerRts;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBehaviorUpdatedDelegate);
 
 UCLASS(Blueprintable)
-class RTSGAME_API ASoldierRts : public ACharacter, public ISelectable
+class RTSGAME_API ASoldierRts : public ACharacter, public ISelectable, public IDamageable
 {
 	GENERATED_BODY()
 
@@ -24,27 +25,35 @@ public:
 	ASoldierRts();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	virtual void PossessedBy(AController* NewController) override;
 	
-	UFUNCTION()
-	void SetAIController(AAiControllerRts* AiController);
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	AAiControllerRts* GetAiController() const;
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void PossessedBy(AController* NewController) override;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	UCommandComponent* GetCommandComponent() const;
 
+protected:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
+	TObjectPtr<UCommandComponent> CommandComp;
+
+// AI controller
+#pragma region AI Controller
+	
+public:
+	UFUNCTION()
+	void SetAIController(AAiControllerRts* AiController);
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	AAiControllerRts* GetAiController() const;
+	
 protected:
 	UPROPERTY()
 	TObjectPtr<AAiControllerRts> AIController;
 	
 	UPROPERTY(EditAnywhere, Category = "Settings|DefaultValue")
 	TSubclassOf<AAiControllerRts> AiControllerRtsClass;
-	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
-	TObjectPtr<UCommandComponent> CommandComp;
+
+#pragma endregion	
 
 // Selection	
 #pragma region Selection
@@ -66,12 +75,23 @@ protected:
 	TObjectPtr<APlayerControllerRts> PlayerOwner;
 	
 
+#pragma endregion
+
+// Movement	
+#pragma region Movement
+public:
+	UFUNCTION()
+	virtual void CommandMove_Implementation(FCommandData CommandData) override;
+
 #pragma endregion	
 
 // Attack
 #pragma region Attack
 
 public:
+	/*- Interface -*/
+	virtual void TakeDamage_Implementation(AActor* DamageOwner) override;
+	
 	/*- Getter -*/
 	float GetAttackRange() const;
 	float GetAttackCooldown() const;

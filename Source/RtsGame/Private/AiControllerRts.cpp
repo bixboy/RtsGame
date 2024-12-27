@@ -15,7 +15,7 @@ AAiControllerRts::AAiControllerRts(const FObjectInitializer& ObjectInitializer)
 void AAiControllerRts::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
-
+	
 	OwnerSoldier = Cast<ASoldierRts>(InPawn);
 	if (OwnerSoldier)
 	{
@@ -98,7 +98,7 @@ void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollow
 
 void AAiControllerRts::AttackTarget()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Attacked By: %s"), *OwnerSoldier->GetName()));
+	IDamageable::Execute_TakeDamage(CurrentCommand.Target, OwnerSoldier);
 	bCanAttack = false;
 	
 	GetWorld()->GetTimerManager().SetTimer(AttackTimerHandle, this, &AAiControllerRts::ResetAttack, AttackCooldown, false);

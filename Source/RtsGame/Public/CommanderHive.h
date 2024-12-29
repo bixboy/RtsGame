@@ -40,6 +40,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<USphereComponent> AreaCommand;
 
+	UPROPERTY()
+	AActor* CurrentTarget;
+
 #pragma endregion	
 
 };

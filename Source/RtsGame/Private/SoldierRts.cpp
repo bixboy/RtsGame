@@ -142,6 +142,7 @@ void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Take Damage By: %s"), *DamageOwner->GetName()));
 }
 
+
 void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -230,6 +231,16 @@ void ASoldierRts::SetBehavior_Implementation(const ECombatBehavior NewBehavior)
 			}
 		}
 	}
+}
+
+ECombatBehavior ASoldierRts::GetBehavior_Implementation()
+{
+	return CombatBehavior;
+}
+
+bool ASoldierRts::GetIsInAttack_Implementation()
+{
+	return GetAiController()->GetHaveTarget();
 }
 
 void ASoldierRts::UpdateActorsInArea()

@@ -10,7 +10,6 @@ class UDamageable : public UInterface
 	GENERATED_BODY()
 };
 
-
 class RTSGAME_API IDamageable
 {
 	GENERATED_BODY()

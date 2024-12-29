@@ -91,6 +91,7 @@ public:
 public:
 	/*- Interface -*/
 	virtual void TakeDamage_Implementation(AActor* DamageOwner) override;
+	virtual bool GetIsInAttack_Implementation() override;
 	
 	/*- Getter -*/
 	float GetAttackRange() const;
@@ -105,6 +106,8 @@ protected:
 	void OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 	UFUNCTION()
 	virtual void SetBehavior_Implementation(const ECombatBehavior NewBehavior) override;
+	UFUNCTION()
+	virtual ECombatBehavior GetBehavior_Implementation() override;
 	
 	/*- Variables -*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))

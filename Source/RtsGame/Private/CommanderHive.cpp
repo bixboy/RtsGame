@@ -32,7 +32,6 @@ void ACommanderHive::Tick(float DeltaTime)
 
 #pragma endregion
 
-
 void ACommanderHive::UpdateMinions()
 {
 	TArray<AActor*> ValidActors;
@@ -50,14 +49,17 @@ void ACommanderHive::UpdateMinions()
 void ACommanderHive::TakeDamage_Implementation(AActor* DamageOwner)
 {
 	Super::TakeDamage_Implementation(DamageOwner);
+
+	if (!IsValid(CurrentTarget) || !Execute_GetIsInAttack(CurrentTarget)) CurrentTarget = DamageOwner;
 	
-	FCommandData CommandData = FCommandData(FVector::ZeroVector, FRotator::ZeroRotator, ECommandType::CommandAttack, DamageOwner);
+	FCommandData CommandData = FCommandData(FVector::ZeroVector, FRotator::ZeroRotator, ECommandType::CommandAttack, CurrentTarget);
 	
 	for (AActor* Minion: Minions)
 	{
-		if (Minion->Implements<USelectable>() && IsValid(Minion))
+		if (IsValid(Minion) && Minion->Implements<USelectable>())
 		{
-			ISelectable::Execute_CommandMove(Minion, CommandData);	
+			if(Execute_GetBehavior(Minion) != ECombatBehavior::Passive)
+				ISelectable::Execute_CommandMove(Minion, CommandData);
 		}
 		else
 		{

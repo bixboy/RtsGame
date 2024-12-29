@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "Data/AiData.h"
 #include "Selectable.generated.h"
 
 UINTERFACE()
@@ -28,8 +29,14 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void SetBehavior(const ECombatBehavior NewBehavior);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	ECombatBehavior GetBehavior();
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void CommandMove(FCommandData CommandData);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	bool GetIsInAttack();
 	
 };

@@ -2,6 +2,8 @@
 #include "AiControllerRts.h"
 #include "Components/CommandComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/WeaponMaster.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 
 // Setup
@@ -36,6 +38,13 @@ void ASoldierRts::PossessedBy(AController* NewController)
 void ASoldierRts::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (WeaponClass && CurrentTeam != ETeams::HiveMind)
+	{
+		CurrentWeapon = Cast<UWeaponMaster>(AddComponentByClass(*WeaponClass, false, FTransform::Identity, true));
+		CurrentWeapon->SetAiOwner(this);
+		HaveWeapon = true;
+	}
 }
 
 void ASoldierRts::Tick(float DeltaTime)
@@ -139,7 +148,7 @@ void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
 void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 {
 	IDamageable::TakeDamage_Implementation(DamageOwner);
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Take Damage By: %s"), *DamageOwner->GetName()));
+	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Take Damage By: %s"), *DamageOwner->GetName()));
 }
 
 
@@ -179,7 +188,7 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 		if (ActorsInRange.Contains(OtherActor))
 			ActorsInRange.Remove(OtherActor);
 		
-		if (AIController && AIController->GetHaveTarget() && AIController->GetCurrentCommand().Target == OtherActor)
+		if (CombatBehavior == ECombatBehavior::Aggressive && AIController && AIController->GetHaveTarget() && AIController->GetCurrentCommand().Target == OtherActor)
 		{
 			AActor* NewTarget = nullptr;
 			if (ActorsInRange.Num() > 0)
@@ -305,4 +314,19 @@ ETeams ASoldierRts::GetCurrentTeam_Implementation()
 	return CurrentTeam;
 }
 
-#pragma endregion 
+#pragma endregion
+
+// Weapons
+#pragma region Weapons
+
+UWeaponMaster* ASoldierRts::GetCurrentWeapon()
+{
+	return CurrentWeapon;
+}
+
+bool ASoldierRts::GetHaveWeapon()
+{
+	return HaveWeapon;
+}
+
+#pragma endregion

@@ -1,4 +1,7 @@
 ﻿#include "Components/WeaponMaster.h"
+
+#include "Projetiles.h"
+#include "SoldierRts.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 
@@ -12,8 +15,8 @@ UWeaponMaster::UWeaponMaster()
 
 void UWeaponMaster::BeginPlay()
 {
-	Super::BeginPlay();
 	PlayerController = Cast<APlayerController>(GetOwner()->GetInstigatorController());
+	Super::BeginPlay();
 }
 
 void UWeaponMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -21,6 +24,24 @@ void UWeaponMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(UWeaponMaster, HasAiming);
+	DOREPLIFETIME(UWeaponMaster, AiOwner);
+}
+
+void UWeaponMaster::SetAiOwner(ASoldierRts* NewOwner)
+{
+	if (!GetOwner()->HasAuthority())
+	{
+		SetAiOwner_Server(NewOwner);
+		return;
+	}
+
+	AiOwner = NewOwner;
+	ControlledByAi = true;
+}
+
+void UWeaponMaster::SetAiOwner_Server_Implementation(ASoldierRts* NewOwner)
+{
+	SetAiOwner(NewOwner);
 }
 
 #pragma endregion
@@ -29,9 +50,8 @@ void UWeaponMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 FVector UWeaponMaster::GetDirection()
 {
 	if (!PlayerController) return FVector::ZeroVector;
-	
-	APlayerCameraManager* Camera = PlayerController->PlayerCameraManager;
 
+	APlayerCameraManager* Camera = PlayerController->PlayerCameraManager;
 	const FVector Start = Camera->GetCameraLocation();
 	const FVector End = (UKismetMathLibrary::GetForwardVector(Camera->GetCameraRotation()) * WeaponRange) + Start;
 
@@ -111,6 +131,34 @@ void UWeaponMaster::GetShootTrace_Server_Implementation(const FVector Direction)
 // Spawn Bullet
 #pragma region Spawn Bullet
 
+void UWeaponMaster::AIShoot(AActor* Target)
+{
+	if (!GetOwner()->HasAuthority())
+	{
+		AiSpawnBullet_Server(Target);
+		return;
+	}
+	
+	FVector SpawnLocation = GetOwner()->GetActorLocation(); //GetSocketLocation("Ammo");
+	FRotator SpawnRotation = UKismetMathLibrary::FindLookAtRotation(GetOwner()->GetActorLocation(), Target->GetActorLocation());
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (AProjetiles* Bullet = GetWorld()->SpawnActor<AProjetiles>(BulletClass, SpawnLocation, SpawnRotation, SpawnParams))
+	{
+		if (AiOwner)
+		{
+			Bullet->SetOwnerActor(AiOwner);
+		}
+	}
+}
+
+void UWeaponMaster::AiSpawnBullet_Server_Implementation(AActor* Target)
+{
+	AIShoot(Target);
+}
+
 void UWeaponMaster::SpawnBullet()
 {
 	if (!GetOwner()->HasAuthority())
@@ -125,7 +173,8 @@ void UWeaponMaster::SpawnBullet()
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	GetWorld()->SpawnActor<AActor>(BulletClass, SpawnLocation, SpawnRotation, SpawnParams);
+	if (AProjetiles* Bullet = GetWorld()->SpawnActor<AProjetiles>(BulletClass, SpawnLocation, SpawnRotation, SpawnParams))
+		Bullet->SetOwnerActor(GetOwner());
 }
 
 void UWeaponMaster::SpawnBullet_Server_Implementation()

@@ -8,6 +8,7 @@
 #include "Interfaces/Selectable.h"
 #include "SoldierRts.generated.h"
 
+class UWeaponMaster;
 class USphereComponent;
 class UCommandComponent;
 class AAiControllerRts;
@@ -145,5 +146,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Team")
 	ETeams CurrentTeam = ETeams::Clone;
 
-#pragma endregion	
+#pragma endregion
+
+// Weapons
+#pragma region Weapons
+	
+public:
+	UFUNCTION()
+	UWeaponMaster* GetCurrentWeapon();
+	UFUNCTION()
+	bool GetHaveWeapon();
+	
+protected:
+	UPROPERTY(EditAnywhere, Category = "Settings|Weapons")
+	TSubclassOf<UWeaponMaster> WeaponClass;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
+	UWeaponMaster* CurrentWeapon;
+	
+	UPROPERTY(BlueprintReadWrite)
+	bool HaveWeapon;
+
+#pragma endregion
 };

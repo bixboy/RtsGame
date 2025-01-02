@@ -7,6 +7,11 @@
 UCommandComponent::UCommandComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UCommandComponent::BeginPlay()
+{
+	Super::BeginPlay();
 
 	if ((OwnerActor = Cast<ASoldierRts>(GetOwner())))
 	{
@@ -20,11 +25,6 @@ UCommandComponent::UCommandComponent()
 		OwnerCharaMovementComp->bConstrainToPlane = true;
 		OwnerCharaMovementComp->bSnapToPlaneAtStart = true;
 	}
-}
-
-void UCommandComponent::BeginPlay()
-{
-	Super::BeginPlay();
 	
 }
 
@@ -128,8 +128,14 @@ void UCommandComponent::CommandMove(const FCommandData CommandData)
 void UCommandComponent::DestinationReached(const FCommandData CommandData)
 {
 	if(MoveMarker) MoveMarker->Destroy();
-	
+
 	TargetOrientation = CommandData.Rotation;
+
+	if (CommandData.Target)
+	{
+		TargetOrientation = UKismetMathLibrary::FindLookAtRotation(OwnerActor->GetActorLocation(), CommandData.Target->GetActorLocation());
+	}
+		
 	ShouldOrientate = 1;
 }
 
@@ -166,12 +172,16 @@ void UCommandComponent::SetSprint() const
 
 void UCommandComponent::SetOrientation(const float DeltaTime)
 {
+	if (!OwnerActor) return;
+	
 	const FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(FRotator(OwnerActor->GetActorRotation().Pitch, OwnerActor->GetActorRotation().Yaw, 0.f), TargetOrientation, DeltaTime, 2.f);
 	OwnerActor->SetActorRotation(InterpolatedRotation);
 }
 
 bool UCommandComponent::IsOrientated() const
 {
+	if (!OwnerActor) return false;
+	
 	const FRotator CurrentRotation = OwnerActor->GetActorRotation();
 
 	if(FMath::IsNearlyEqual(CurrentRotation.Yaw, TargetOrientation.Yaw, 0.25f))

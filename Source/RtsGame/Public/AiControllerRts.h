@@ -60,10 +60,12 @@ protected:
 	bool bCanAttack = true;
 	bool HaveTargetAttack;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
 	float AttackCooldown = 1.5f;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
 	float AttackRange = 200.f;
+	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
+	float WeaponRange = 400.f;
 
 	/*- Functions -*/
 	UFUNCTION()

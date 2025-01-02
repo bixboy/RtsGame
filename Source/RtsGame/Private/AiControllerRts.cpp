@@ -2,6 +2,7 @@
 #include "NavigationSystem.h"
 #include "Data/AiData.h"
 #include "SoldierRts.h"
+#include "Components/WeaponMaster.h"
 
 
 // Setup Functions
@@ -46,15 +47,25 @@ void AAiControllerRts::Tick(float DeltaSeconds)
 		{
 			float DistanceToTarget = FVector::Distance(OwnerSoldier->GetActorLocation(), CurrentCommand.Target->GetActorLocation());
 
-			if (DistanceToTarget <= AttackRange && bCanAttack)
+			if (!OwnerSoldier->GetHaveWeapon() && DistanceToTarget <= AttackRange && bCanAttack)
 			{
 				AttackTarget();
 			}
-			else if (DistanceToTarget > AttackRange && MoveComplete)
+			else if (OwnerSoldier->GetHaveWeapon() && DistanceToTarget <= WeaponRange && bCanAttack)
+			{
+				AttackTarget();
+			}
+			
+			if (!OwnerSoldier->GetHaveWeapon() && DistanceToTarget > AttackRange && MoveComplete)
 			{
 				MoveComplete = false;
 				MoveToActor(CurrentCommand.Target, 85.f);
-			}	
+			}
+			else if (OwnerSoldier->GetHaveWeapon() && DistanceToTarget > WeaponRange && MoveComplete)
+			{
+				MoveComplete = false;
+				MoveToActor(CurrentCommand.Target, 200.f);
+			}
 		}
 	}
 }
@@ -69,9 +80,13 @@ void AAiControllerRts::CommandMove(const FCommandData& CommandData, bool Attack)
 	MoveComplete = false;
 	InPatrol = false;
 	
-	if (HaveTargetAttack)
+	if (HaveTargetAttack && !OwnerSoldier->GetHaveWeapon())
 	{
 		MoveToActor(CurrentCommand.Target, 85.f);
+	}
+	else if (HaveTargetAttack && OwnerSoldier->GetHaveWeapon())
+	{
+		MoveToActor(CurrentCommand.Target, 300.f);
 	}
 	else
 	{
@@ -98,7 +113,14 @@ void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollow
 
 void AAiControllerRts::AttackTarget()
 {
-	IDamageable::Execute_TakeDamage(CurrentCommand.Target, OwnerSoldier);
+	if (OwnerSoldier->GetCurrentWeapon())
+	{
+		OwnerSoldier->GetCurrentWeapon()->AIShoot(CurrentCommand.Target);
+	}
+	else
+	{
+		IDamageable::Execute_TakeDamage(CurrentCommand.Target, OwnerSoldier);	
+	}
 	bCanAttack = false;
 	
 	GetWorld()->GetTimerManager().SetTimer(AttackTimerHandle, this, &AAiControllerRts::ResetAttack, AttackCooldown, false);

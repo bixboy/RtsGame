@@ -4,6 +4,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "WeaponMaster.generated.h"
 
+class ASoldierRts;
+class AProjetiles;
+
 UCLASS()
 class RTSGAME_API UWeaponMaster : public USkeletalMeshComponent
 {
@@ -12,6 +15,14 @@ class RTSGAME_API UWeaponMaster : public USkeletalMeshComponent
 public:
 	UWeaponMaster();
 	virtual void BeginPlay() override;
+
+	UFUNCTION()
+	void AIShoot(AActor* Target);
+
+	UFUNCTION()
+	void SetAiOwner(ASoldierRts* NewOwner);
+	UFUNCTION(Server, Reliable)
+	void SetAiOwner_Server(ASoldierRts* NewOwner);
 
 protected:
 	/*- Function -*/
@@ -32,7 +43,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
 	TObjectPtr<USkeletalMesh> WeaponMesh;
 	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
-	TSubclassOf<AActor> BulletClass;
+	TSubclassOf<AProjetiles> BulletClass;
 	
 	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
 	float WeaponRange = 1000.f;
@@ -44,11 +55,19 @@ protected:
 	UPROPERTY()
 	APlayerController* PlayerController;
 
+	UPROPERTY(BlueprintReadWrite)
+	bool ControlledByAi = false;
+	UPROPERTY(BlueprintReadOnly, Replicated, EditAnywhere)
+	ASoldierRts* AiOwner;
+
 	/*- Server Replication -*/
 	UFUNCTION(Server, Reliable)
 	void SpawnBullet_Server();
 	UFUNCTION(Server, Reliable)
 	void GetShootTrace_Server(const FVector Direction);
+
+	UFUNCTION(Server, Reliable)
+	void AiSpawnBullet_Server(AActor* Target);
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };

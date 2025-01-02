@@ -148,6 +148,24 @@ void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
 void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 {
 	IDamageable::TakeDamage_Implementation(DamageOwner);
+	if (CombatBehavior == ECombatBehavior::Neutral || CombatBehavior == ECombatBehavior::Aggressive)
+	{
+		FCommandData NewCommandData;
+		NewCommandData.Type = ECommandType::CommandAttack;
+		NewCommandData.Target = DamageOwner;
+
+		if (!Execute_GetIsInAttack(this))
+			GetCommandComponent()->CommandMoveToLocation(NewCommandData);
+		
+		for (AActor* Ally: AllyInRange)
+		{
+			const ECombatBehavior TempEnum = Execute_GetBehavior(Ally);
+			if (DamageOwner && TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive)
+			{
+				ISelectable::Execute_CommandMove(Ally, NewCommandData);
+			}
+		}
+	}
 	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Take Damage By: %s"), *DamageOwner->GetName()));
 }
 
@@ -159,7 +177,11 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 	
 	if (OtherActor->Implements<USelectable>())
 	{
-		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam) return;
+		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam)
+		{
+			AllyInRange.AddUnique(OtherActor);
+			return;
+		}
 			
 		UpdateActorsInArea();
 		
@@ -181,7 +203,12 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 	
 	if (OtherActor->Implements<USelectable>())
 	{
-		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam) return;
+		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam)
+		{
+			if (AllyInRange.Contains(OtherActor))
+				AllyInRange.Remove(OtherActor);
+			return;
+		}
 		
 		UpdateActorsInArea();
 		
@@ -264,6 +291,16 @@ void ASoldierRts::UpdateActorsInArea()
 		}
 	}
 	ActorsInRange = ValidActors;
+	ValidActors.Empty();
+
+	for (AActor* Ally : AllyInRange)
+	{
+		if (Ally && IsValid(Ally))
+		{
+			ValidActors.Add(Ally);
+		}
+	}
+	AllyInRange = ValidActors;
 }
 
 void ASoldierRts::BeginDestroy()
@@ -282,7 +319,6 @@ void ASoldierRts::OnRep_CombatBehavior()
 {
 	OnBehaviorUpdate.Broadcast();
 }
-
 
 // Getter
 #pragma region Getter

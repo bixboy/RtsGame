@@ -113,6 +113,8 @@ void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollow
 
 void AAiControllerRts::AttackTarget()
 {
+	if(!CurrentCommand.Target) StopAttack();
+	
 	if (OwnerSoldier->GetCurrentWeapon())
 	{
 		OwnerSoldier->GetCurrentWeapon()->AIShoot(CurrentCommand.Target);

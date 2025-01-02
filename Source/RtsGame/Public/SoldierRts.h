@@ -127,6 +127,9 @@ protected:
 	UFUNCTION()
 	void UpdateActorsInArea();
 
+	UPROPERTY()
+	TArray<AActor*> AllyInRange;
+
 	virtual void BeginDestroy() override;
 
 	UPROPERTY()

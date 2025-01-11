@@ -36,7 +36,7 @@ public:
 	FButtonUnHovered OnButtonUnHovered;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	int32 ButtonIndex;
+	int ButtonIndex;
 
 private:
 	UFUNCTION()

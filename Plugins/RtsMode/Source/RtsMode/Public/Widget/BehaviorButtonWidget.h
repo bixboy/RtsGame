@@ -9,10 +9,10 @@ UCLASS()
 class RTSMODE_API UBehaviorButtonWidget : public UCustomButton
 {
 	GENERATED_BODY()
-
+	
+public:
 	virtual void NativePreConstruct() override;
 	
-public:	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	TEnumAsByte<ECombatBehavior> CombatBehavior;
 };

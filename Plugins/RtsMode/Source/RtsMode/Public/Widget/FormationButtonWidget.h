@@ -5,7 +5,6 @@
 #include "Data/AiData.h"
 #include "FormationButtonWidget.generated.h"
 
-
 UCLASS()
 class RTSMODE_API UFormationButtonWidget : public UCustomButton
 {

@@ -6,7 +6,7 @@ void UFormationButtonWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	ButtonIndex = static_cast<int>(Formation);
+	ButtonIndex = static_cast<int8>(Formation.GetValue());
 
 	if (ButtonText)
 	{

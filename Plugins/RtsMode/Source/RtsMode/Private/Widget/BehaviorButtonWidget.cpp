@@ -6,7 +6,7 @@ void UBehaviorButtonWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	ButtonIndex = TEnumAsByte<ECombatBehavior>(CombatBehavior).GetIntValue();
+	ButtonIndex = static_cast<int8>(CombatBehavior.GetValue());
 
 	if (ButtonText)
 	{

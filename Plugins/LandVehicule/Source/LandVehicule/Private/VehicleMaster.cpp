@@ -8,7 +8,7 @@ AVehicleMaster::AVehicleMaster()
 	RootComponent = BaseVehicle;
 	
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->SetupAttachment(BaseVehicle);
+	SpringArm->SetupAttachment(RootComponent);
 	
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
@@ -27,15 +27,6 @@ void AVehicleMaster::BeginPlay()
 void AVehicleMaster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	FVector Velocity = BaseVehicle->GetPhysicsLinearVelocity();
-	float Speed = Velocity.Size();
-
-	if (Speed > MaxSpeed)
-	{
-		Velocity = Velocity.GetClampedToMaxSize(MaxSpeed);
-		BaseVehicle->SetPhysicsLinearVelocity(Velocity);
-	}
 }
 
 void AVehicleMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -46,7 +37,7 @@ void AVehicleMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 void AVehicleMaster::TurnEngineOn(bool OnOff)
 {
 	EngineOn = OnOff;
-	PlaySond(SoundEngineOn);
+	PlaySound(SoundEngineOn);
 }
 
 void AVehicleMaster::MoveForward(float Value)

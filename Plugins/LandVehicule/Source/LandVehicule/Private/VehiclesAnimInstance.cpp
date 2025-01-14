@@ -1,4 +1,4 @@
-﻿#include "VehiclesAnimInstance.h"
+#include "VehiclesAnimInstance.h"
 
 void UVehiclesAnimInstance::UpdateTurretRotation(float NewAngle, FName ParentSocketName)
 {

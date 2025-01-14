@@ -68,6 +68,6 @@ private:
 	void Frictions();
 	
 	UFUNCTION()
-	float TraceGround();
+	float TraceGround(FHitResult& HitResult);
 	
 };

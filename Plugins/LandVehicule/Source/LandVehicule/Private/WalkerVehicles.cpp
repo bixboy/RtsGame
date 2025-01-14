@@ -1,4 +1,4 @@
-﻿#include "WalkerVehicles.h"
+#include "WalkerVehicles.h"
 
 #include "CameraVehicle.h"
 #include "VehiclesAnimInstance.h"

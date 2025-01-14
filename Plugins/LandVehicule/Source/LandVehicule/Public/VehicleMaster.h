@@ -17,14 +17,14 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="PlaySond"))
-	void PlaySond(USoundBase* Sound);
+	void PlaySound(USoundBase* Sound);
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="StopSond"))
-	void StopSond();
+	void StopSound();
 
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components", meta=(AllowPrivateAccess=true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta=(AllowPrivateAccess=true))
 	UStaticMeshComponent* BaseVehicle;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components", meta=(AllowPrivateAccess=true))
 	USpringArmComponent* SpringArm;
@@ -52,6 +52,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
 	bool EngineOn = false;
+	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
+	int PlacesNumber;
 
 	/*- Sounds -*/
 	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")

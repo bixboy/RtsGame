@@ -28,7 +28,8 @@ void AHoverVehicles::Hovering(float DeltaTime)
 	if(EngineOn)
 	{
 		/*- Hovering -*/
-		const float CurrentDistance = TraceGround();
+		FHitResult HitResult;
+		const float CurrentDistance = TraceGround(HitResult);
 		const float DistanceError = FloatingDistance - CurrentDistance;
 		
 		const float SpringForce = DistanceError * SpringStiffness;
@@ -38,8 +39,17 @@ void AHoverVehicles::Hovering(float DeltaTime)
 		const FVector HoverForce = FVector(0, 0, SpringForce + DampingForce + OscillationValue + GetWorld()->GetDefaultGravityZ() * -1);
 		BaseVehicle->AddForce(HoverForce, NAME_None, true);
 
+		if (HitResult.bBlockingHit)
+		{
+			FVector SurfaceNormal = HitResult.ImpactNormal;
+			FRotator CurrentRotation = GetActorRotation();
+			FRotator TargetRotation = FRotator(FRotationMatrix::MakeFromZ(SurfaceNormal).Rotator().Pitch, CurrentRotation.Yaw, CurrentRotation.Roll);
+			
+			FRotator SmoothedRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 2.f);
+			SetActorRotation(SmoothedRotation);
+		}
+
 		Movement(DeltaTime);
-		
 		Frictions();
 	}
 }
@@ -61,7 +71,7 @@ void AHoverVehicles::Movement(float DeltaTime)
 	{
 		FVector ForwardForce = ForwardVector * ForwardInput * MoveForce;
 		BaseVehicle->AddForce(ForwardForce, NAME_None, true);
-		PlaySond(SoundMoveForward);
+		PlaySound(SoundMoveForward);
 	}
 	else if (ForwardInput < 0) //Backward
 	{
@@ -69,7 +79,7 @@ void AHoverVehicles::Movement(float DeltaTime)
 		{
 			FVector BrakeForce = -VelocityDirection * BreakForce;
 			BaseVehicle->AddForce(BrakeForce, NAME_None, true);
-			PlaySond(SoundBrake);
+			PlaySound(SoundBrake);
         
 			if (CurrentSpeed < 20.f && CurrentSpeed < MaxReverseSpeed)
 			{
@@ -138,12 +148,10 @@ void AHoverVehicles::Frictions()
 
 #pragma endregion
 
-float AHoverVehicles::TraceGround()
+float AHoverVehicles::TraceGround(FHitResult& HitResult)
 {
 	const FVector StartLocation = GetActorLocation();
 	FVector EndLocation = StartLocation + FVector(0, 0, FloatingDistance * -2.f);
-
-	FHitResult HitResult;
 
 	const bool bHit = UKismetSystemLibrary::LineTraceSingle(
 		GetWorld(),

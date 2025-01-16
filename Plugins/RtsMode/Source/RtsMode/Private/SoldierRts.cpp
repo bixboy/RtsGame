@@ -156,13 +156,13 @@ void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 		NewCommandData.Type = ECommandType::CommandAttack;
 		NewCommandData.Target = DamageOwner;
 
-		if (!Execute_GetIsInAttack(this))
-			GetCommandComponent()->CommandMoveToLocation(NewCommandData);
+		if (!ISelectable::Execute_GetIsInAttack(this))
+			GetCommandComponent()->CommandMoveToLocation(NewCommandData);	
 		
-		for (AActor* Ally: AllyInRange)
+		for (AActor* Ally : AllyInRange)
 		{
 			const ECombatBehavior TempEnum = Execute_GetBehavior(Ally);
-			if (DamageOwner && TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive)
+			if (DamageOwner && !ISelectable::Execute_GetIsInAttack(Ally) && TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive)
 			{
 				ISelectable::Execute_CommandMove(Ally, NewCommandData);
 			}

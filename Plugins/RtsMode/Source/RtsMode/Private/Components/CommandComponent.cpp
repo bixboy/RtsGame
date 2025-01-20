@@ -32,7 +32,7 @@ void UCommandComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (ShouldOrientate)
+	if (OwnerActor->HasAuthority() && ShouldOrientate)
 	{
 		SetOrientation(DeltaTime);
 
@@ -41,7 +41,6 @@ void UCommandComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 			ShouldOrientate = 0;
 		}
 	}
-
 }
 
 // Create & Start Commands

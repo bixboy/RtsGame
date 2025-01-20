@@ -17,10 +17,16 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	UCameraComponent* GetCameraComponent();
+	
 	UFUNCTION()
 	bool GetIsUsed();
 	UFUNCTION()
 	void SetIsUsed(bool bIsUsed);
+	
+	UFUNCTION()
+	void SetController(APlayerController* NewOwner);
+	UFUNCTION()
+	APlayerController* GetCameraController() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -30,4 +36,6 @@ protected:
 
 	UPROPERTY()
 	bool IsUsed = false;
+	UPROPERTY()
+	APlayerController* OwningPlayer;
 };

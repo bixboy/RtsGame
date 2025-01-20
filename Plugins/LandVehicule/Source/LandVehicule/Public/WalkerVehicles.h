@@ -14,7 +14,6 @@ class LANDVEHICULE_API AWalkerVehicles : public AVehicleMaster
 
 public:
 	AWalkerVehicles();
-	virtual void Tick(float DeltaTime) override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -26,23 +25,31 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta=(AllowPrivateAccess=true))
 	TArray<ACameraVehicle*> Cameras;
+	UPROPERTY()
+	ACameraVehicle* CurrentCamera;
 	
 	UPROPERTY()
 	UVehiclesAnimInstance* AnimInstance;
-	UPROPERTY()
-	float CurrentAngle;
+	
+	FRotator CurrentAngle;
+	float AccumulatedYaw = 0.0f;
+	float AccumulatedPitch = 0.0f;
 
 	/*- Function -*/
 	UFUNCTION(BlueprintCallable)
-	void SetTurretRotation(ACameraVehicle* CurrenCamera, float TurretAngle);
+	void SetTurretRotation(ACameraVehicle* CurrenCamera, FRotator TurretAngle);
 	UFUNCTION()
 	void SetTurretElevation(float TurretElevation);
 	UFUNCTION(BlueprintCallable)
 	void SwitchToCamera(ACameraVehicle* NewCamera);
+	UFUNCTION(BlueprintCallable)
+	void SwitchToNextCamera();
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	ACameraVehicle* GeCameraInArray(int Index);
+	UFUNCTION(BlueprintCallable)
+	void ApplyCameraRotation(float DeltaYaw, float DeltaPitch);
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	float GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed = 1.f);
+	FRotator GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed = 1.f);
 };

@@ -14,8 +14,11 @@ class LANDVEHICULE_API UVehiclesAnimInstance : public UAnimInstance
 
 public:
 	UFUNCTION()
-	void UpdateTurretRotation(float NewAngle, FName ParentSocketName);
+	void UpdateTurretRotation(FRotator NewAngle, FName ParentSocketName);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, meta=(BlueprintThreadSafe))
+	FRotator GetTurretRotation(FName TurretName) const;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	TMap<FName, float> TurretAngle;
+	TMap<FName, FRotator> TurretAngle;
 };

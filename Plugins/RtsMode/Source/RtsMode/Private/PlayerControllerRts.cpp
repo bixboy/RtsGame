@@ -417,7 +417,8 @@ void APlayerControllerRts::OnRep_CurrentFormation()
 {
 	if (HasGroupSelection() && SelectedActors.IsValidIndex(0))
 	{
-		CommandSelected(FCommandData(SelectedActors[0]->GetActorLocation(), SelectedActors[0]->GetActorRotation(), ECommandType::CommandMove));
+		FRotator PlayerRotation = GetPawn()->GetActorRotation();
+		CommandSelected(FCommandData(SelectedActors[0]->GetActorLocation(), FRotator(PlayerRotation.Pitch, PlayerRotation.Yaw, SelectedActors[0]->GetActorRotation().Roll), ECommandType::CommandMove));
 	}
 }
 
@@ -425,7 +426,8 @@ void APlayerControllerRts::OnRep_FormationSpacing()
 {
 	if (HasGroupSelection() && SelectedActors.IsValidIndex(0))
 	{
-		CommandSelected(FCommandData(SelectedActors[0]->GetActorLocation(), SelectedActors[0]->GetActorRotation(), ECommandType::CommandMove));
+		FRotator PlayerRotation = GetPawn()->GetActorRotation();
+		CommandSelected(FCommandData(SelectedActors[0]->GetActorLocation(), FRotator(PlayerRotation.Pitch, PlayerRotation.Yaw, SelectedActors[0]->GetActorRotation().Roll), ECommandType::CommandMove));
 	}
 }
 

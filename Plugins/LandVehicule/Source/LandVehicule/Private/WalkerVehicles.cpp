@@ -1,8 +1,6 @@
 #include "WalkerVehicles.h"
-
 #include "CameraVehicle.h"
 #include "VehiclesAnimInstance.h"
-#include "Kismet/KismetMathLibrary.h"
 
 AWalkerVehicles::AWalkerVehicles()
 {
@@ -35,38 +33,100 @@ void AWalkerVehicles::BeginPlay()
 			Cameras[i - 1]->AttachToComponent(SkeletalBaseVehicle, FAttachmentTransformRules::KeepWorldTransform, SocketAttach);
 			Cameras[i - 1]->SetActorRotation(Cam->GetComponentRotation());
 
-			AnimInstance->TurretAngle.Add(Cameras[i-1]->GetAttachParentSocketName(), 0.f);
+			AnimInstance->TurretAngle.Add(Cameras[i-1]->GetAttachParentSocketName(), FRotator::ZeroRotator);
 			i++;	
 		}
 	}
 
-	SwitchToCamera(Cameras[0]);
+	SwitchToNextCamera();
 }
 
-void AWalkerVehicles::Tick(float DeltaTime)
+void AWalkerVehicles::ApplyCameraRotation(float DeltaYaw, float DeltaPitch)
 {
-	Super::Tick(DeltaTime);
-	
-}
+	if (CurrentCamera && SkeletalBaseVehicle)
+	{
+		FRotator NewCameraRotation = CurrentCamera->GetCameraComponent()->GetRelativeRotation();
+		NewCameraRotation.Pitch = FMath::Clamp(NewCameraRotation.Pitch + DeltaPitch, -80.0f, 80.0f);
 
-void AWalkerVehicles::SetTurretRotation(ACameraVehicle* CurrenCamera, float TurretAngle)
-{
-	if (!SkeletalBaseVehicle && !AnimInstance) return;
+		//CurrentCamera->GetCameraComponent()->SetRelativeRotation(NewCameraRotation);
+		float NewAccumulatedYaw = AccumulatedYaw + DeltaYaw;
+		float NewAccumulatedPitch = AccumulatedPitch + DeltaPitch;
+		NewAccumulatedYaw = FMath::Clamp(NewAccumulatedYaw, -120.0f, 120.0f);
+		NewAccumulatedPitch = FMath::Clamp(NewAccumulatedPitch, -20.0f, 20.0f); 
 
-	AnimInstance->UpdateTurretRotation(TurretAngle, CurrenCamera->GetAttachParentSocketName());
-}
-
-void AWalkerVehicles::SetTurretElevation(float TurretElevation)
-{
+		AccumulatedYaw = NewAccumulatedYaw;
+		AccumulatedPitch = NewAccumulatedPitch;
+	}
 }
 
 void AWalkerVehicles::SwitchToCamera(ACameraVehicle* NewCamera)
 {
-	if (!NewCamera) return;
+	if (!NewCamera || NewCamera->GetIsUsed()) return;
 
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
-	PlayerController->SetViewTargetWithBlend(this, 0.5f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
-	PlayerController->SetViewTargetWithBlend(NewCamera, 0.5f);
+	if (!PlayerController) return;
+
+	for (ACameraVehicle* TempCamera : Cameras)
+	{
+		if (TempCamera && TempCamera->GetIsUsed() && TempCamera->GetCameraController() == PlayerController)
+		{
+			TempCamera->SetIsUsed(false);
+			TempCamera->SetController(nullptr);
+		}
+	}
+
+	NewCamera->SetIsUsed(true);
+	NewCamera->SetController(PlayerController);
+	CurrentCamera = NewCamera;
+	PlayerController->SetViewTargetWithBlend(NewCamera, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
+
+	UE_LOG(LogTemp, Warning, TEXT("Switched to camera: %s for player: %s"), *NewCamera->GetName(), *PlayerController->GetName());
+}
+
+void AWalkerVehicles::SwitchToNextCamera()
+{
+	if (Cameras.IsEmpty()) return;
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController) return;
+
+	for (int32 i = 0; i < Cameras.Num(); i++)
+	{
+		ACameraVehicle* TempCamera = Cameras[i];
+
+		if (TempCamera && TempCamera->GetIsUsed() && TempCamera->GetCameraController() == PlayerController)
+		{
+			TempCamera->SetIsUsed(false);
+			TempCamera->SetController(nullptr);
+
+			for (int32 j = 1; j < Cameras.Num(); j++)
+			{
+				int32 NextIndex = (i + j) % Cameras.Num();
+				ACameraVehicle* NextCamera = Cameras[NextIndex];
+
+				if (NextCamera && !NextCamera->GetIsUsed())
+				{
+					SwitchToCamera(NextCamera);
+					return;
+				}
+			}
+
+			TempCamera->SetIsUsed(true);
+			TempCamera->SetController(PlayerController);
+			return;
+		}
+	}
+
+	for (ACameraVehicle* TempCamera : Cameras)
+	{
+		if (TempCamera && !TempCamera->GetIsUsed())
+		{
+			SwitchToCamera(TempCamera);
+			return;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("No available camera for player: %s"), *PlayerController->GetName());
 }
 
 ACameraVehicle* AWalkerVehicles::GeCameraInArray(int Index)
@@ -74,15 +134,26 @@ ACameraVehicle* AWalkerVehicles::GeCameraInArray(int Index)
 	return Cameras[Index];
 }
 
-float AWalkerVehicles::GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed)
+
+void AWalkerVehicles::SetTurretRotation(ACameraVehicle* CurrenCamera, FRotator TurretAngle)
 {
-	if (!CurrenCamera || !SkeletalBaseVehicle) 
+	if (!SkeletalBaseVehicle || !AnimInstance) return;
+
+	FName TurretName = CurrenCamera->GetAttachParentSocketName();
+	AnimInstance->UpdateTurretRotation(TurretAngle, TurretName);
+}
+
+void AWalkerVehicles::SetTurretElevation(float TurretElevation)
+{
+}
+
+FRotator AWalkerVehicles::GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed)
+{
+	if (!CurrentCamera || !SkeletalBaseVehicle)
 		return CurrentAngle;
 	
-	FRotator CameraRotation = CurrenCamera->GetCameraComponent()->GetComponentRotation();
-
-	float TargetYaw = CameraRotation.Yaw;
-	CurrentAngle = FMath::FInterpTo(CurrentAngle, TargetYaw, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+	CurrentAngle = FRotator(AccumulatedPitch, AccumulatedYaw, SkeletalBaseVehicle->GetSocketRotation(CurrentCamera->GetAttachParentSocketName()).Roll);
+	
 
 	return CurrentAngle;
 }

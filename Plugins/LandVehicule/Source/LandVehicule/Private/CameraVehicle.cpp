@@ -12,7 +12,6 @@ ACameraVehicle::ACameraVehicle()
 void ACameraVehicle::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 void ACameraVehicle::Tick(float DeltaTime)
@@ -33,5 +32,19 @@ bool ACameraVehicle::GetIsUsed()
 void ACameraVehicle::SetIsUsed(bool bIsUsed)
 {
 	IsUsed = bIsUsed;
+	if (!bIsUsed)
+	{
+		OwningPlayer = nullptr;
+	}
+}
+
+void ACameraVehicle::SetController(APlayerController* NewOwner)
+{
+	OwningPlayer = NewOwner;
+}
+
+APlayerController* ACameraVehicle::GetCameraController() const
+{
+	return OwningPlayer;
 }
 

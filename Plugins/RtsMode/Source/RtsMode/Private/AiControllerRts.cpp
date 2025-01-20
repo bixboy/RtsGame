@@ -41,7 +41,7 @@ void AAiControllerRts::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (HaveTargetAttack && OwnerSoldier)
+	if (HasAuthority() && HaveTargetAttack && OwnerSoldier)
 	{
 		if (CurrentCommand.Target)
 		{

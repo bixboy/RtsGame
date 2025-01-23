@@ -37,7 +37,9 @@ public class LandVehicule : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"Slate",
-				"SlateCore",
+				"SlateCore", 
+				"AITestSuite", 
+				"EnhancedInput",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

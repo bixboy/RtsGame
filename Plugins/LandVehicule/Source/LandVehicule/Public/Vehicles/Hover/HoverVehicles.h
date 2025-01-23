@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "VehicleMaster.h"
+#include "Vehicles/VehicleMaster.h"
 #include "HoverVehicles.generated.h"
 
 UCLASS()

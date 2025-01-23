@@ -1,4 +1,4 @@
-﻿#include "HoverVehicles.h"
+﻿#include "Vehicles/Hover/HoverVehicles.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 AHoverVehicles::AHoverVehicles()
@@ -23,11 +23,11 @@ void AHoverVehicles::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
+/*- Hovering -*/
 void AHoverVehicles::Hovering(float DeltaTime)
 {
 	if(EngineOn)
 	{
-		/*- Hovering -*/
 		FHitResult HitResult;
 		const float CurrentDistance = TraceGround(HitResult);
 		const float DistanceError = FloatingDistance - CurrentDistance;

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "WalkerVehicles.h"
+#include "Vehicles/Walker/WalkerVehicles.h"
 #include "Walker_ATAP.generated.h"
 
 UCLASS()

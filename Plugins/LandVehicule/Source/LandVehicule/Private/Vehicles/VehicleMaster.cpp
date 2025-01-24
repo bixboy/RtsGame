@@ -49,15 +49,12 @@ void AVehicleMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 void AVehicleMaster::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
-
-    if (CurrentDriver) return;
     
     if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
     {
         if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
         {
             Subsystem->AddMappingContext(NewMappingContext, 1);
-            CurrentDriver = PlayerController->GetCharacter();
         }
     }
 }
@@ -65,7 +62,20 @@ void AVehicleMaster::PossessedBy(AController* NewController)
 void AVehicleMaster::UnPossessed()
 {
     Super::UnPossessed();
-    
+
+    if (CurrentDriver)
+    {
+        if (APlayerController* PlayerController = Cast<APlayerController>(CurrentDriver))
+        {
+            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+            {
+                Subsystem->RemoveMappingContext(NewMappingContext);
+            }
+        }
+        
+        ReleaseRole("Driver");
+        CurrentDriver = nullptr;
+    }
 }
 
 // Helper Function: Initialize Cameras
@@ -120,13 +130,77 @@ void AVehicleMaster::InitializeCameras()
 void AVehicleMaster::Interact_Implementation(APawn* PlayerInteract)
 {
     IVehiclesInteractions::Interact_Implementation(PlayerInteract);
+    
+    APlayerController* PlayerController = Cast<APlayerController>(PlayerInteract->GetController());
+    if (!PlayerController) return;
 
-    PlayerInteract->GetController()->Possess(this);
-    if (APlayerController* Oui = Cast<APlayerController>(PlayerInteract->GetController()))
+    if (!GetPlayerForRole("Driver"))
     {
-        SwitchToNextCamera(Oui);
+        AssignRole(PlayerController, "Driver");
+        PlayerController->Possess(this);
+
+        PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
+
+        
+        UE_LOG(LogTemp, Log, TEXT("Player %s now controls the vehicle as Driver."), *PlayerController->GetName());
+        return;
     }
+    
+    UE_LOG(LogTemp, Warning, TEXT("Driver role already occupied. Cannot interact."));
+    SwitchToNextCamera(PlayerController);
 }
+
+// ------------------- Role Management ---------------------
+
+#pragma region Roles Management
+
+void AVehicleMaster::AssignRole(APlayerController* PlayerController, FName RoleName)
+{
+    if (!PlayerController) return;
+
+    // Vérifier si le rôle est déjà occupé
+    for (const FVehicleRole& TempRole : VehicleRoles)
+    {
+        if (TempRole.RoleName == RoleName)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Role %s already assigned."), *RoleName.ToString());
+            return;
+        }
+    }
+
+    VehicleRoles.Add({ PlayerController, RoleName });
+    UE_LOG(LogTemp, Log, TEXT("Player %s assigned as %s"), *PlayerController->GetName(), *RoleName.ToString());
+}
+
+APlayerController* AVehicleMaster::GetPlayerForRole(FName RoleName) const
+{
+    for (const FVehicleRole& TempRole : VehicleRoles)
+    {
+        if (TempRole.RoleName == RoleName)
+        {
+            return TempRole.PlayerController;
+        }
+    }
+
+    return nullptr;
+}
+
+void AVehicleMaster::ReleaseRole(FName RoleName)
+{
+    for (int32 i = 0; i < VehicleRoles.Num(); i++)
+    {
+        if (VehicleRoles[i].RoleName == RoleName)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Releasing role: %s"), *RoleName.ToString());
+            VehicleRoles.RemoveAt(i);
+            return;
+        }
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Role %s not found."), *RoleName.ToString());
+}
+
+#pragma endregion
 
 // ------------------- Camera Management -------------------
 #pragma region Cameras

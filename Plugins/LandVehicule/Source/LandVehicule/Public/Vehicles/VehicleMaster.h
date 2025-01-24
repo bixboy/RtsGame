@@ -11,6 +11,18 @@ class UInputMappingContext;
 class UVehiclesAnimInstance;
 class ACameraVehicle;
 
+USTRUCT(BlueprintType)
+struct FVehicleRole
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	APlayerController* PlayerController = nullptr;
+
+	UPROPERTY()
+	FName RoleName;
+};
+
 UCLASS()
 class LANDVEHICULE_API AVehicleMaster : public APawn, public IVehiclesInteractions
 {
@@ -27,6 +39,13 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	void AssignRole(APlayerController* PlayerController, FName RoleName);
+	APlayerController* GetPlayerForRole(FName RoleName) const;
+	void ReleaseRole(FName RoleName);
+
+	UPROPERTY()
+	TArray<FVehicleRole> VehicleRoles;
 
 #pragma region Components
 

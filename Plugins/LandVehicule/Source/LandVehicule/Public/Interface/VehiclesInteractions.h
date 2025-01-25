@@ -4,6 +4,8 @@
 #include "UObject/Interface.h"
 #include "VehiclesInteractions.generated.h"
 
+class ACameraVehicle;
+
 UINTERFACE()
 class UVehiclesInteractions : public UInterface
 {
@@ -18,4 +20,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void Interact(APawn* PlayerInteract);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void UpdateTurretRotation(FVector2D Rotation, FName TurretName);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	ACameraVehicle* GetCurrentCameraVehicle();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void ChangePlace(APlayerController* PlayerController);
 };

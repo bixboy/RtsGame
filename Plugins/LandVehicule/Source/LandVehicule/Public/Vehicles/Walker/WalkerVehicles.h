@@ -18,23 +18,12 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-private:
-	/*- Variables -*/
-	UPROPERTY()
-	FRotator CurrentAngle;
-	UPROPERTY()
-	float AccumulatedYaw = 0.0f;
-	UPROPERTY()
-	float AccumulatedPitch = 0.0f;
-
-	/*- Function -*/
 	UFUNCTION(BlueprintCallable)
-	void SetTurretRotation(ACameraVehicle* CurrenCamera, FRotator TurretAngle);
+	void WalkerMove(FVector2D Direction);
 
-	UFUNCTION(BlueprintCallable)
-	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Walker Movement")
+	float MovementSpeed = 300.0f;
 
-public:
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	FRotator GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed = 1.f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Walker Movement")
+	UAnimMontage* WalkerMovementAnim;
 };

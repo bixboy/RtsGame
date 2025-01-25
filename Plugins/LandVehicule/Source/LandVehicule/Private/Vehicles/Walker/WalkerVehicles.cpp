@@ -17,38 +17,15 @@ void AWalkerVehicles::BeginPlay()
 	SwitchToNextCamera(Cast<APlayerController>(GetController()));
 }
 
-void AWalkerVehicles::ApplyTurretRotation(float DeltaYaw, float DeltaPitch)
+void AWalkerVehicles::WalkerMove(FVector2D Direction)
 {
-	if (CurrentCamera && SkeletalBaseVehicle)
+	FVector MovementDirection = FVector(-Direction.X, -Direction.Y, 0.0f).GetSafeNormal();
+	FVector NewLocation = GetActorLocation() + MovementDirection * MovementSpeed * GetWorld()->GetDeltaSeconds();
+	
+	SetActorLocation(NewLocation);
+	if (!SkeletalBaseVehicle->GetAnimInstance()->IsAnyMontagePlaying())
 	{
-		FRotator NewCameraRotation = CurrentCamera->GetCameraComponent()->GetRelativeRotation();
-		NewCameraRotation.Pitch = FMath::Clamp(NewCameraRotation.Pitch + DeltaPitch, -80.0f, 80.0f);
-
-		//CurrentCamera->GetCameraComponent()->SetRelativeRotation(NewCameraRotation);
-		float NewAccumulatedYaw = AccumulatedYaw + DeltaYaw;
-		float NewAccumulatedPitch = AccumulatedPitch + DeltaPitch;
-		NewAccumulatedYaw = FMath::Clamp(NewAccumulatedYaw, -120.0f, 120.0f);
-		NewAccumulatedPitch = FMath::Clamp(NewAccumulatedPitch, -20.0f, 20.0f); 
-
-		AccumulatedYaw = NewAccumulatedYaw;
-		AccumulatedPitch = NewAccumulatedPitch;
+		SkeletalBaseVehicle->PlayAnimation(WalkerMovementAnim, true);
 	}
-}
-
-void AWalkerVehicles::SetTurretRotation(ACameraVehicle* CurrenCamera, FRotator TurretAngle)
-{
-	if (!SkeletalBaseVehicle || !AnimInstance) return;
-
-	FName TurretName = CurrenCamera->GetAttachParentSocketName();
-	AnimInstance->UpdateTurretRotation(TurretAngle, TurretName);
-}
-
-FRotator AWalkerVehicles::GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed)
-{
-	if (!CurrentCamera || !SkeletalBaseVehicle) return CurrentAngle;
-	
-	CurrentAngle = FRotator(AccumulatedPitch, AccumulatedYaw, SkeletalBaseVehicle->GetSocketRotation(CurrentCamera->GetAttachParentSocketName()).Roll);
-	
-	return CurrentAngle;
 }
 

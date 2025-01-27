@@ -25,7 +25,7 @@ struct FVehicleRole
 	GENERATED_BODY()
 
 	UPROPERTY()
-	APlayerController* PlayerController = nullptr;
+	APawn* Player = nullptr;
 
 	UPROPERTY()
 	EVehiclePlaceType RoleName;
@@ -90,7 +90,10 @@ protected:
 	void SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
 
 	UFUNCTION(BlueprintCallable)
-	void SwitchToNextCamera(APlayerController* PlayerController);
+	void SwitchToNextCamera(APawn* Player);
+
+	UFUNCTION()
+	void SwitchToMainCam(APlayerController* PlayerController);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	ACameraVehicle* GeCameraInArray(FName TurretName);
@@ -140,7 +143,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
 	UInputMappingContext* NewMappingContext;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	APawn* CurrentDriver;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
@@ -187,7 +190,7 @@ public:
 	virtual ACameraVehicle* GetCurrentCameraVehicle_Implementation() override;
 
 	UFUNCTION()
-	virtual void ChangePlace_Implementation(APlayerController* PlayerController) override;
+	virtual void ChangePlace_Implementation(APawn* PlayerController) override;
 
 #pragma endregion
 
@@ -210,12 +213,12 @@ protected:
 
 	/*- Functions -*/
 	UFUNCTION()
-	void AssignRole(APlayerController* PlayerController, EVehiclePlaceType RoleName);
+	void AssignRole(APawn* Player, EVehiclePlaceType RoleName);
 	
 	UFUNCTION(BlueprintCallable)
-	APlayerController* GetPlayerForRole(EVehiclePlaceType RoleName) const;
+	APawn* GetPlayerForRole(EVehiclePlaceType RoleName) const;
 	UFUNCTION()
-	EVehiclePlaceType GetRoleByPlayer(const APlayerController* PlayerController) const;
+	EVehiclePlaceType GetRoleByPlayer(const APawn* Player) const;
 
 	UFUNCTION()
 	void ReleaseRole(EVehiclePlaceType RoleName);

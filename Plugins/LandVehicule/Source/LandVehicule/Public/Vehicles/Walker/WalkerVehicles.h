@@ -20,6 +20,8 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void WalkerMove(FVector2D Direction);
+	UFUNCTION(BlueprintCallable)
+	void WalkerStopMove();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Walker Movement")
 	float MovementSpeed = 300.0f;

@@ -95,23 +95,14 @@ void AVehicleMaster::InitializeCameras()
     }
     
     void AVehicleMaster::UnPossessed()
-{
-    Super::UnPossessed();
-
-    if (CurrentDriver)
     {
-        if (APlayerController* PlayerController = Cast<APlayerController>(CurrentDriver))
+        Super::UnPossessed();
+    
+        if (CurrentDriver)
         {
-            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-            {
-                //Subsystem->RemoveMappingContext(NewMappingContext);
-            }
+            ReleaseRole(EVehiclePlaceType::Driver);
         }
-        
-        ReleaseRole(EVehiclePlaceType::Driver);
-        CurrentDriver = nullptr;
     }
-}
 
 #pragma endregion
 
@@ -130,29 +121,27 @@ void AVehicleMaster::Interact_Implementation(APawn* PlayerInteract)
     if (!GetPlayerForRole(EVehiclePlaceType::Driver))
     {
         CurrentDriver = PlayerInteract;
-        AssignRole(PlayerController, EVehiclePlaceType::Driver);
+        AssignRole(PlayerInteract, EVehiclePlaceType::Driver);
+        
         PlayerController->Possess(this);
-
         PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
         
-        UE_LOG(LogTemp, Log, TEXT("Player %s now controls the vehicle as Driver."), *PlayerController->GetName());
         return;
     }
-    
-    UE_LOG(LogTemp, Warning, TEXT("Driver role already occupied. Cannot interact."));
-    if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+    else if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
     {
         Subsystem->AddMappingContext(NewMappingContext, 1);
 
-        AssignRole(PlayerController, EVehiclePlaceType::Gunner);
-        SwitchToNextCamera(PlayerController);
+        AssignRole(PlayerInteract, EVehiclePlaceType::Gunner);
+        SwitchToNextCamera(PlayerInteract);
     }
 }
 
 void AVehicleMaster::UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName)
 {
-    if (!HaveTurret || Cameras.IsEmpty()) return;
     IVehiclesInteractions::UpdateTurretRotation_Implementation(Rotation, TurretName);
+    
+    if (!HaveTurret || Cameras.IsEmpty()) return;
     
     ApplyTurretRotation(Rotation.X, Rotation.Y, TurretRotationSpeed, GetWorld()->GetTimeSeconds());
 
@@ -165,10 +154,10 @@ ACameraVehicle* AVehicleMaster::GetCurrentCameraVehicle_Implementation()
     return CurrentCamera;
 }
 
-void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerController)
+void AVehicleMaster::ChangePlace_Implementation(APawn* Player)
 {
-    IVehiclesInteractions::ChangePlace_Implementation(PlayerController);
-    SwitchToNextCamera(PlayerController);
+    IVehiclesInteractions::ChangePlace_Implementation(Player);
+    SwitchToNextCamera(Player);
 }
 
 #pragma endregion
@@ -176,9 +165,9 @@ void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerControl
 // ------------------- Role Management ---------------------
 #pragma region Roles Management
 
-    void AVehicleMaster::AssignRole(APlayerController* PlayerController, EVehiclePlaceType RoleName) 
+    void AVehicleMaster::AssignRole(APawn* Player, EVehiclePlaceType RoleName) 
     {
-        if (!PlayerController) return;
+        if (!Player) return;
     
         // Vérifier si le rôle est déjà occupé
         for (const FVehicleRole& TempRole : VehicleRoles)
@@ -189,7 +178,7 @@ void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerControl
             }
         }
     
-        VehicleRoles.Add({ PlayerController, RoleName });
+        VehicleRoles.Add({ Player, RoleName });
     }
 
     void AVehicleMaster::ReleaseRole(EVehiclePlaceType RoleName)
@@ -204,24 +193,24 @@ void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerControl
         }
     }
     
-    APlayerController* AVehicleMaster::GetPlayerForRole(EVehiclePlaceType RoleName) const
+    APawn* AVehicleMaster::GetPlayerForRole(EVehiclePlaceType RoleName) const
     {
         for (const FVehicleRole& TempRole : VehicleRoles)
         {
             if (TempRole.RoleName == RoleName)
             {
-                return TempRole.PlayerController;
+                return TempRole.Player;
             }
         }
     
         return nullptr;
     }
 
-    EVehiclePlaceType AVehicleMaster::GetRoleByPlayer(const APlayerController* PlayerController) const
+    EVehiclePlaceType AVehicleMaster::GetRoleByPlayer(const APawn* Player) const
     {
         for (const FVehicleRole& TempRole : VehicleRoles)
         {
-            if (TempRole.PlayerController == PlayerController) return TempRole.RoleName;
+            if (TempRole.Player == Player) return TempRole.RoleName;
         }
         return EVehiclePlaceType::None;
     }
@@ -254,36 +243,64 @@ void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerControl
         CurrentCamera = NewCamera;
         PlayersInVehicle.FindOrAdd(PlayerController, CurrentCamera);
     
-        if (GetRoleByPlayer(PlayerController) == EVehiclePlaceType::Driver)
+        if (PlayerController->GetPawn() == CurrentDriver)
         {
-            PlayerController->Possess(CurrentDriver);
-            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetPlayerForRole(EVehiclePlaceType::Driver)->GetLocalPlayer()))
+            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
             {
                 Subsystem->AddMappingContext(NewMappingContext, 1);
             }
-            
+
             ReleaseRole(EVehiclePlaceType::Driver);
-            AssignRole(PlayerController, EVehiclePlaceType::Gunner);
+            CurrentDriver = nullptr;
+            AssignRole(PlayerController->GetPawn(), EVehiclePlaceType::Gunner);
         }
     
         PlayerController->SetViewTargetWithBlend(NewCamera, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
-        UE_LOG(LogTemp, Warning, TEXT("Switched to camera: %s for player: %s"), *NewCamera->GetName(), *PlayerController->GetName());
     }
     
-    void AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerController)
+    void AVehicleMaster::SwitchToNextCamera(APawn* Player)
     {
-        if (!HaveTurret || !PlayerController || Cameras.IsEmpty()) return;
+        if (!HaveTurret || !Player || Cameras.IsEmpty()) return;
     
+        APlayerController* PlayerController = Cast<APlayerController>(Player->GetController());
+        if (!PlayerController) return;
+
+        if (this == Player)
+        {
+            PlayerController->Possess(CurrentDriver);
+            PlayerController = Cast<APlayerController>(CurrentDriver->GetController());
+        }
+    
+        // Parcours des caméras pour trouver la caméra actuelle du joueur
         for (int32 i = 0; i < Cameras.Num(); i++)
         {
             ACameraVehicle* TempCamera = Cameras[i];
-    
             if (TempCamera && TempCamera->GetIsUsed() && TempCamera->GetCameraController() == PlayerController)
             {
+                // Libère la caméra actuelle
                 TempCamera->SetIsUsed(false);
                 TempCamera->SetController(nullptr);
     
-                // Find Next Available Camera
+                // Vérifie si c'est la dernière caméra dans la liste
+                if (i == Cameras.Num() - 1)
+                {
+                    if (!CurrentDriver && MainCamera)
+                    {
+                        SwitchToMainCam(PlayerController);
+                        return;
+                    }
+                    else
+                    {
+                        // Si pas de MainCamera, revient à la première caméra
+                        if (Cameras[0])
+                        {
+                            SwitchToCamera(PlayerController, Cameras[0]);
+                        }
+                        return;
+                    }
+                }
+    
+                // Passe à la prochaine caméra disponible
                 for (int32 j = 1; j < Cameras.Num(); j++)
                 {
                     int32 NextIndex = (i + j) % Cameras.Num();
@@ -296,14 +313,14 @@ void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerControl
                     }
                 }
     
-                // If no camera is available, reactivate the current one
+                // Si aucune caméra n'est disponible, réactive la caméra actuelle
                 TempCamera->SetIsUsed(true);
                 TempCamera->SetController(PlayerController);
                 return;
             }
         }
     
-        // Default to the first unused camera
+        // Si aucune caméra n'est assignée, trouve une caméra inutilisée par défaut
         for (ACameraVehicle* TempCamera : Cameras)
         {
             if (TempCamera && !TempCamera->GetIsUsed())
@@ -315,7 +332,12 @@ void AVehicleMaster::ChangePlace_Implementation(APlayerController* PlayerControl
     
         UE_LOG(LogTemp, Warning, TEXT("No available camera for player: %s"), *PlayerController->GetName());
     }
-    
+
+    void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
+    {
+        Execute_Interact(this, PlayerController->GetCharacter());
+    }
+
     ACameraVehicle* AVehicleMaster::GeCameraInArray(FName TurretName)
     {
         if (Cameras.IsEmpty()) return nullptr;

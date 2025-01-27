@@ -28,5 +28,5 @@ public:
 	ACameraVehicle* GetCurrentCameraVehicle();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void ChangePlace(APlayerController* PlayerController);
+	void ChangePlace(APawn* PlayerController);
 };

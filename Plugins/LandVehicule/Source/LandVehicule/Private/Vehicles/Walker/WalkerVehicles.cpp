@@ -1,6 +1,4 @@
 #include "Vehicles/Walker/WalkerVehicles.h"
-#include "CameraVehicle.h"
-#include "VehiclesAnimInstance.h"
 
 AWalkerVehicles::AWalkerVehicles()
 {
@@ -13,8 +11,6 @@ AWalkerVehicles::AWalkerVehicles()
 void AWalkerVehicles::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	SwitchToNextCamera(Cast<APlayerController>(GetController()));
 }
 
 void AWalkerVehicles::WalkerMove(FVector2D Direction)
@@ -27,5 +23,10 @@ void AWalkerVehicles::WalkerMove(FVector2D Direction)
 	{
 		SkeletalBaseVehicle->PlayAnimation(WalkerMovementAnim, true);
 	}
+}
+
+void AWalkerVehicles::WalkerStopMove()
+{
+	SkeletalBaseVehicle->GetAnimInstance()->StopAllMontages(0.f);
 }
 

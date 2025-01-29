@@ -200,6 +200,9 @@ protected:
 	/*- Variables -*/
 	UPROPERTY()
 	TArray<FVehicleRole> VehicleRoles;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Turret")
+	TArray<TObjectPtr<UStaticMeshComponent>> SmTurrets;
 	
 	UPROPERTY()
 	FRotator CurrentAngle;
@@ -224,7 +227,7 @@ protected:
 	void ReleaseRole(EVehiclePlaceType RoleName);
 
 	UFUNCTION(BlueprintCallable)
-	void SetTurretRotation(ACameraVehicle* CurrenCamera, FRotator TurretAngle);
+	void SetTurretRotation(ACameraVehicle* Camera, FRotator TurretAngle);
 
 	UFUNCTION(BlueprintCallable)
 	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime);

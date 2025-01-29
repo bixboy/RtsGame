@@ -14,7 +14,7 @@ AVehicleMaster::AVehicleMaster()
     // Components Setup
     BaseVehicle = CreateDefaultSubobject<UStaticMeshComponent>("BaseVehicle");
     RootComponent = BaseVehicle;
-
+    
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(RootComponent);
     SpringArm->TargetArmLength = CameraDistance;
@@ -38,6 +38,15 @@ void AVehicleMaster::BeginPlay()
 void AVehicleMaster::InitializeCameras()
 {
     int32 CameraIndex = 1;
+    int32 TurretIndex = 0;
+    for (UActorComponent* Component : GetComponentsByTag(UStaticMeshComponent::StaticClass(), "SmTurrets"))
+    {
+        UStaticMeshComponent* MeshComp = Cast<UStaticMeshComponent>(Component);
+        if (MeshComp)
+        {
+            SmTurrets.AddUnique(MeshComp);
+        }
+    }
     
     for (UActorComponent* Component : GetComponentsByTag(UCameraComponent::StaticClass(), "PlaceCamera"))
     {
@@ -60,9 +69,22 @@ void AVehicleMaster::InitializeCameras()
             {
                 FString SocketNameString = FString::Printf(TEXT("Place%d"), CameraIndex);
                 FName SocketAttach = FName(*SocketNameString);
-
+                
                 GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, SocketAttach.ToString());
+                
                 SpawnedCamera->AttachToComponent(SkeletalBaseVehicle, FAttachmentTransformRules::KeepWorldTransform, SocketAttach);
+            }
+            else if (BaseVehicle)
+            {
+                FString SocketNameString = FString::Printf(TEXT("Place%d"), TurretIndex);
+                GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, SocketNameString);
+                
+                if (!SmTurrets.IsEmpty() && SmTurrets.IsValidIndex(TurretIndex))
+                {
+                    SpawnedCamera->AttachToComponent(SmTurrets[TurretIndex], FAttachmentTransformRules::KeepWorldTransform);
+                    TurretIndex++;
+                }
+                
             }
             else SpawnedCamera->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 
@@ -142,10 +164,16 @@ void AVehicleMaster::UpdateTurretRotation_Implementation(FVector2D Rotation, FNa
     IVehiclesInteractions::UpdateTurretRotation_Implementation(Rotation, TurretName);
     
     if (!HaveTurret || Cameras.IsEmpty()) return;
-    
+
     ApplyTurretRotation(Rotation.X, Rotation.Y, TurretRotationSpeed, GetWorld()->GetTimeSeconds());
 
     ACameraVehicle* TempCamera = GeCameraInArray(TurretName);
+    if (!TempCamera)
+    {
+        UE_LOG(LogTemp, Error, TEXT("UpdateTurretRotation: TempCamera is NULL for TurretName: %s"), *TurretName.ToString());
+        return;
+    }
+
     SetTurretRotation(TempCamera, GetTurretAngle(TempCamera, 1.f));
 }
 
@@ -390,7 +418,7 @@ void AVehicleMaster::ChangePlace_Implementation(APawn* Player)
 
 void AVehicleMaster::ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime)
 {
-    if (CurrentCamera && SkeletalBaseVehicle)
+    if (CurrentCamera)
     {
         // Mise à jour des valeurs accumulées avec les décalages donnés
         float TargetYaw = FMath::Clamp(AccumulatedYaw + DeltaYaw, -120.0f, 120.0f);
@@ -406,19 +434,31 @@ void AVehicleMaster::ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float
     }
 }
 
-void AVehicleMaster::SetTurretRotation(ACameraVehicle* CurrenCamera, FRotator TurretAngle)
+void AVehicleMaster::SetTurretRotation(ACameraVehicle* Camera, FRotator TurretAngle)
 {
-    if (!SkeletalBaseVehicle || !AnimInstance) return;
-
-    FName TurretName = CurrenCamera->GetAttachParentSocketName();
-    AnimInstance->UpdateTurretRotation(TurretAngle, TurretName);
+    if (SkeletalBaseVehicle && AnimInstance)
+    {
+        FName TurretName = Camera->GetAttachParentSocketName();
+        AnimInstance->UpdateTurretRotation(TurretAngle, TurretName);   
+    }
+    else if (BaseVehicle)
+    {
+        SmTurrets[Cameras.IndexOfByKey(CurrentCamera)]->SetRelativeRotation(FRotator(0.f, TurretAngle.Yaw, TurretAngle.Pitch));
+    }
 }
 
 FRotator AVehicleMaster::GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed)
 {
-    if (!CurrentCamera || !SkeletalBaseVehicle) return CurrentAngle;
-	
-    CurrentAngle = FRotator(AccumulatedPitch, AccumulatedYaw, SkeletalBaseVehicle->GetSocketRotation(CurrentCamera->GetAttachParentSocketName()).Roll);
+    if (!CurrentCamera) return CurrentAngle;
+
+    if (SkeletalBaseVehicle)
+    {
+        CurrentAngle = FRotator(AccumulatedPitch, AccumulatedYaw, SkeletalBaseVehicle->GetSocketRotation(CurrentCamera->GetAttachParentSocketName()).Roll);
+    }
+    else if (BaseVehicle && !SmTurrets.IsEmpty())
+    {
+        CurrentAngle = FRotator(AccumulatedPitch, AccumulatedYaw, SmTurrets[Cameras.IndexOfByKey(CurrentCamera)]->GetComponentRotation().Roll);
+    }
 	
     return CurrentAngle;
 }

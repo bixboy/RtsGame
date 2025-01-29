@@ -9,6 +9,7 @@ AHoverVehicles::AHoverVehicles()
 void AHoverVehicles::BeginPlay()
 {
 	Super::BeginPlay();
+
 }
 
 void AHoverVehicles::Tick(float DeltaTime)

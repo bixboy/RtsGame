@@ -19,7 +19,7 @@ public:
 	UCameraComponent* GetCameraComponent();
 	
 	UFUNCTION()
-	bool GetIsUsed();
+	bool GetIsUsed() const;
 	UFUNCTION()
 	void SetIsUsed(bool bIsUsed);
 	

@@ -31,6 +31,27 @@ struct FVehicleRole
 	EVehiclePlaceType RoleName;
 };
 
+USTRUCT(BlueprintType)
+struct FTurrets
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	ACameraVehicle* CameraVehicle = nullptr;
+
+	UPROPERTY(BlueprintReadWrite)
+	float AccumulatedYaw = 0.f;
+	UPROPERTY(BlueprintReadWrite)
+	float AccumulatedPitch = 0.f;
+	
+	bool operator==(const FTurrets& Other) const
+	{
+		return CameraVehicle == Other.CameraVehicle && 
+			   AccumulatedYaw == Other.AccumulatedYaw && 
+			   AccumulatedPitch == Other.AccumulatedPitch;
+	}
+};
+
 UCLASS()
 class LANDVEHICULE_API AVehicleMaster : public APawn, public IVehiclesInteractions
 {
@@ -40,7 +61,6 @@ public:
 	AVehicleMaster();
 
 	virtual void PossessedBy(AController* NewController) override;
-	virtual void UnPossessed() override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -77,26 +97,29 @@ protected:
 	float CameraDistance = 700.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
-	TArray<ACameraVehicle*> Cameras;
+	TArray<FTurrets> Turrets;
 
 	UPROPERTY()
-	ACameraVehicle* CurrentCamera;
+	FTurrets CurrentCamera;
 
 	/*- Functions -*/
 	UFUNCTION()
 	void InitializeCameras();
 	
 	UFUNCTION(BlueprintCallable)
-	void SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
+	void SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
 
 	UFUNCTION(BlueprintCallable)
 	void SwitchToNextCamera(APawn* Player);
 
 	UFUNCTION()
 	void SwitchToMainCam(APlayerController* PlayerController);
-
+	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	ACameraVehicle* GeCameraInArray(FName TurretName);
+	ACameraVehicle* GetAttachedCamera(FName ParentName);
+
+	UFUNCTION()
+	int GetCameraIndex(const ACameraVehicle* CameraVehicle);
 
 #pragma endregion
 
@@ -140,6 +163,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
 	int PlacesNumber;
 
+	UPROPERTY()
+	int CurrentPlace;
+
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
 	UInputMappingContext* NewMappingContext;
 
@@ -181,7 +207,7 @@ protected:
 
 public:
 	UFUNCTION()
-	virtual void Interact_Implementation(APawn* PlayerInteract) override;
+	virtual bool Interact_Implementation(APawn* PlayerInteract) override;
 
 	UFUNCTION()
 	virtual void UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName) override;
@@ -190,7 +216,10 @@ public:
 	virtual ACameraVehicle* GetCurrentCameraVehicle_Implementation() override;
 
 	UFUNCTION()
-	virtual void ChangePlace_Implementation(APawn* PlayerController) override;
+	virtual void ChangePlace_Implementation(APawn* Player) override;
+
+	UFUNCTION()
+	virtual void OutOfVehicle_Implementation(APawn* Player) override;
 
 #pragma endregion
 
@@ -206,10 +235,6 @@ protected:
 	
 	UPROPERTY()
 	FRotator CurrentAngle;
-	UPROPERTY()
-	float AccumulatedYaw = 0.0f;
-	UPROPERTY()
-	float AccumulatedPitch = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Turret")
 	float TurretRotationSpeed = 0.07f;
@@ -224,7 +249,7 @@ protected:
 	EVehiclePlaceType GetRoleByPlayer(const APawn* Player) const;
 
 	UFUNCTION()
-	void ReleaseRole(EVehiclePlaceType RoleName);
+	void ReleaseRole(APawn* Player);
 
 	UFUNCTION(BlueprintCallable)
 	void SetTurretRotation(ACameraVehicle* Camera, FRotator TurretAngle);
@@ -234,7 +259,7 @@ protected:
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	FRotator GetTurretAngle(ACameraVehicle* CurrenCamera, float InterpSpeed = 1.f);
+	FRotator GetTurretAngle();
 	
 #pragma endregion	
 };

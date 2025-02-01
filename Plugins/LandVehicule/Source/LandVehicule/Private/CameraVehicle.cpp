@@ -24,7 +24,7 @@ UCameraComponent* ACameraVehicle::GetCameraComponent()
 	return CameraComp;
 }
 
-bool ACameraVehicle::GetIsUsed()
+bool ACameraVehicle::GetIsUsed() const
 {
 	return IsUsed;
 }
@@ -34,7 +34,8 @@ void ACameraVehicle::SetIsUsed(bool bIsUsed)
 	IsUsed = bIsUsed;
 	if (!bIsUsed)
 	{
-		OwningPlayer = nullptr;
+		if (OwningPlayer)
+			OwningPlayer = nullptr;
 	}
 }
 
@@ -45,6 +46,8 @@ void ACameraVehicle::SetController(APlayerController* NewOwner)
 
 APlayerController* ACameraVehicle::GetCameraController() const
 {
-	return OwningPlayer;
+	if (OwningPlayer) return OwningPlayer;
+
+	return nullptr;
 }
 

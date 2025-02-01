@@ -19,7 +19,7 @@ class LANDVEHICULE_API IVehiclesInteractions
 public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void Interact(APawn* PlayerInteract);
+	bool Interact(APawn* PlayerInteract);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void UpdateTurretRotation(FVector2D Rotation, FName TurretName);
@@ -28,5 +28,8 @@ public:
 	ACameraVehicle* GetCurrentCameraVehicle();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void ChangePlace(APawn* PlayerController);
+	void ChangePlace(APawn* Player);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void OutOfVehicle(APawn* Player);
 };

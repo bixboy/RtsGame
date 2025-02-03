@@ -1,9 +1,9 @@
-﻿#include "Widget/FormationSelectorWidget.h"
-
-#include "PlayerControllerRts.h"
+﻿#include "Widget/Formations/FormationSelectorWidget.h"
+#include "Player/PlayerControllerRts.h"
+#include "Components/SlectionComponent.h"
 #include "Components/Slider.h"
 #include "Kismet/GameplayStatics.h"
-#include "Widget/FormationButtonWidget.h"
+#include "Widget/Formations/FormationButtonWidget.h"
 
 void UFormationSelectorWidget::NativeOnInitialized()
 {
@@ -32,7 +32,7 @@ void UFormationSelectorWidget::OnFormationButtonClicked(UCustomButton* Button, i
 {
 	if (PlayerController)
 	{
-		PlayerController->UpdateFormation(static_cast<EFormation>(Index));
+		PlayerController->SelectionComponent->UpdateFormation(static_cast<EFormation>(Index));
 	}
 }
 
@@ -40,6 +40,6 @@ void UFormationSelectorWidget::OnSpacingSliderValueChanged(const float Value)
 {
 	if (PlayerController)
 	{
-		PlayerController->UpdateSpacing(Value);
+		PlayerController->SelectionComponent->UpdateSpacing(Value);
 	}
 }

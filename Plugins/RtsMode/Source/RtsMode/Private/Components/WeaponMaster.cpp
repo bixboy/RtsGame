@@ -1,11 +1,10 @@
 ﻿#include "Components/WeaponMaster.h"
-
 #include "Projetiles.h"
-#include "SoldierRts.h"
+#include "Units/SoldierRts.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 
-// Setup
+// ------------------- Setup   ---------------------
 #pragma region Setup
 
 UWeaponMaster::UWeaponMaster()
@@ -46,26 +45,7 @@ void UWeaponMaster::SetAiOwner_Server_Implementation(ASoldierRts* NewOwner)
 
 #pragma endregion
 
-// Get Direction
-FVector UWeaponMaster::GetDirection()
-{
-	if (!PlayerController) return FVector::ZeroVector;
-
-	APlayerCameraManager* Camera = PlayerController->PlayerCameraManager;
-	const FVector Start = Camera->GetCameraLocation();
-	const FVector End = (UKismetMathLibrary::GetForwardVector(Camera->GetCameraRotation()) * WeaponRange) + Start;
-
-	if (GetOwner()->HasAuthority())
-	{
-		return PerformSingleLineTrace(Start, End, ECollisionChannel::ECC_Visibility).TraceEnd;
-	}
-	else
-	{
-		return FVector::ZeroVector;
-	}
-}
-
-// Shoot Trace
+// ------------------- Shoot Trace   ---------------------
 #pragma region Shoot Trace
 
 TArray<FVector> UWeaponMaster::GetShootTrace(FVector Direction)
@@ -128,7 +108,7 @@ void UWeaponMaster::GetShootTrace_Server_Implementation(const FVector Direction)
 
 #pragma endregion
 
-// Spawn Bullet
+// ------------------- Spawn Bullet   ---------------------
 #pragma region Spawn Bullet
 
 void UWeaponMaster::AIShoot(AActor* Target)
@@ -202,4 +182,23 @@ FHitResult UWeaponMaster::PerformSingleLineTrace(const FVector& Start, const FVe
 
 	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, TraceChannel, TraceParams);
 	return HitResult;
+}
+
+// Get Direction
+FVector UWeaponMaster::GetDirection()
+{
+	if (!PlayerController) return FVector::ZeroVector;
+
+	APlayerCameraManager* Camera = PlayerController->PlayerCameraManager;
+	const FVector Start = Camera->GetCameraLocation();
+	const FVector End = (UKismetMathLibrary::GetForwardVector(Camera->GetCameraRotation()) * WeaponRange) + Start;
+
+	if (GetOwner()->HasAuthority())
+	{
+		return PerformSingleLineTrace(Start, End, ECollisionChannel::ECC_Visibility).TraceEnd;
+	}
+	else
+	{
+		return FVector::ZeroVector;
+	}
 }

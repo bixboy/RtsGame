@@ -1,10 +1,11 @@
 ﻿#include "Widget/HudWidget.h"
 
-#include "PlayerControllerRts.h"
+#include "Player/PlayerControllerRts.h"
 #include "Components/Button.h"
+#include "Components/SlectionComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Widget/FormationSelectorWidget.h"
-#include "Widget/SelectBehaviorWidget.h"
+#include "Widget/Formations/FormationSelectorWidget.h"
+#include "Widget/Behaviors/SelectBehaviorWidget.h"
 
 void UHudWidget::NativeOnInitialized()
 {
@@ -15,9 +16,10 @@ void UHudWidget::NativeOnInitialized()
 	SetFormationSelectionWidget(false);
 	SetBehaviorSelectionWidget(false);
 
-	if (PlayerController)
+	if (PlayerController && PlayerController->SelectionComponent)
 	{
-		PlayerController->OnSelectedUpdate.AddDynamic(this, &UHudWidget::OnSelectionUpdated);
+		SelectionComponent = PlayerController->SelectionComponent;
+		SelectionComponent->OnSelectedUpdate.AddDynamic(this, &UHudWidget::OnSelectionUpdated);
 	}
 }
 
@@ -41,10 +43,10 @@ void UHudWidget::SetBehaviorSelectionWidget(const bool bEnabled) const
 
 void UHudWidget::OnSelectionUpdated()
 {
-	if(PlayerController)
+	if(SelectionComponent)
 	{
-		SetFormationSelectionWidget(PlayerController->HasGroupSelection());
-		if (!PlayerController->GetSelectedActors().IsEmpty())
+		SetFormationSelectionWidget(SelectionComponent->HasGroupSelection());
+		if (!SelectionComponent->GetSelectedActors().IsEmpty())
 		{
 			SetBehaviorSelectionWidget(true);
 		}

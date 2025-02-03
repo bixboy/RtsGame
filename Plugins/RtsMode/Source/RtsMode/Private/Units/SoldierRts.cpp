@@ -1,11 +1,11 @@
-﻿#include "RtsMode/Public/SoldierRts.h"
-#include "AiControllerRts.h"
+﻿#include "RtsMode/Public/Units/SoldierRts.h"
+#include "Units/AI/AiControllerRts.h"
 #include "Components/CommandComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/WeaponMaster.h"
 #include "Net/UnrealNetwork.h"
 
-// Setup
+// ------------------- Setup ---------------------
 #pragma region Setup
 
 ASoldierRts::ASoldierRts()
@@ -14,9 +14,8 @@ ASoldierRts::ASoldierRts()
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	AIControllerClass = AiControllerRtsClass;
-	
+
 	CommandComp = CreateDefaultSubobject<UCommandComponent>(TEXT("CommandComponent"));
-	
 	AreaAttack = CreateDefaultSubobject<USphereComponent>(TEXT("AreaAttack"));
 	AreaAttack->SetupAttachment(RootComponent);
 
@@ -68,7 +67,7 @@ auto ASoldierRts::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 
 #pragma endregion
 
-// Selection
+// ------------------- Selection ---------------------
 #pragma region Selection
 
 void ASoldierRts::Select()
@@ -87,7 +86,7 @@ void ASoldierRts::Highlight(const bool Highlight)
 {
 	TArray<UPrimitiveComponent*> Components;
 	GetComponents<UPrimitiveComponent>(Components);
-	for(UPrimitiveComponent* VisualComp : Components)
+	for (UPrimitiveComponent* VisualComp : Components)
 	{
 		if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(VisualComp))
 		{
@@ -103,37 +102,30 @@ bool ASoldierRts::GetIsSelected() const
 
 #pragma endregion
 
-// Set & Get AiController
+// ------------------- Set & Get AiController ---------------------
 #pragma region Set & Get AiController
 
 void ASoldierRts::SetAIController(AAiControllerRts* AiController)
 {
-	if (!AiController) return;
-	
-	AIController = AiController;
+	if (AiController)
+	{
+		AIController = AiController;
+	}
 }
 
 AAiControllerRts* ASoldierRts::GetAiController() const
 {
-	if (AIController)
-	{
-		return AIController;
-	}
-
-	return nullptr;
+	return AIController;
 }
 
 UCommandComponent* ASoldierRts::GetCommandComponent() const
 {
-	if(CommandComp) return CommandComp;
-
-	return nullptr;
+	return CommandComp;
 }
-
 
 #pragma endregion
 
-//Movement
+// ------------------- Movement ---------------------
 #pragma region Movement
 
 void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
@@ -144,12 +136,13 @@ void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
 
 #pragma endregion
 
-// Attack
+// ------------------- Attack ---------------------
 #pragma region Attack
 
 void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 {
 	IDamageable::TakeDamage_Implementation(DamageOwner);
+
 	if (CombatBehavior == ECombatBehavior::Neutral || CombatBehavior == ECombatBehavior::Aggressive)
 	{
 		FCommandData NewCommandData;
@@ -157,26 +150,26 @@ void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 		NewCommandData.Target = DamageOwner;
 
 		if (!ISelectable::Execute_GetIsInAttack(this))
-			GetCommandComponent()->CommandMoveToLocation(NewCommandData);	
-		
+			GetCommandComponent()->CommandMoveToLocation(NewCommandData);
+
+		// Handle Ally Support
 		for (AActor* Ally : AllyInRange)
 		{
 			const ECombatBehavior TempEnum = Execute_GetBehavior(Ally);
-			if (DamageOwner && Execute_GetCurrentTeam(Ally) == CurrentTeam && !ISelectable::Execute_GetIsInAttack(Ally) && TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive)
+			if (DamageOwner && Execute_GetCurrentTeam(Ally) == CurrentTeam && !ISelectable::Execute_GetIsInAttack(Ally) &&
+				(TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive))
 			{
 				ISelectable::Execute_CommandMove(Ally, NewCommandData);
 			}
 		}
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Red, FString::Printf(TEXT("Take Damage By Melee")));
 }
-
 
 void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if(OtherActor == this) return;
-	
+	if (OtherActor == this) return;
+
 	if (OtherActor->Implements<USelectable>())
 	{
 		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam)
@@ -184,10 +177,10 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 			AllyInRange.AddUnique(OtherActor);
 			return;
 		}
-			
+
 		UpdateActorsInArea();
-		
 		ActorsInRange.AddUnique(OtherActor);
+
 		if (AIController && CombatBehavior == ECombatBehavior::Aggressive && !AIController->GetHaveTarget())
 		{
 			FCommandData CommandData;
@@ -199,25 +192,26 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 }
 
 void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-										UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+                                         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if(OtherActor == this) return;
-	
+	if (OtherActor == this) return;
+
 	if (OtherActor->Implements<USelectable>())
 	{
 		if (Execute_GetCurrentTeam(OtherActor) == CurrentTeam)
 		{
-			if (AllyInRange.Contains(OtherActor))
-				AllyInRange.Remove(OtherActor);
+			AllyInRange.Remove(OtherActor);
 			return;
 		}
-		
+
 		UpdateActorsInArea();
-		
+
 		if (ActorsInRange.Contains(OtherActor))
 			ActorsInRange.Remove(OtherActor);
-		
-		if (CombatBehavior == ECombatBehavior::Aggressive && AIController && AIController->GetHaveTarget() && AIController->GetCurrentCommand().Target == OtherActor)
+
+		// Handle Aggressive Combat Behavior
+		if (CombatBehavior == ECombatBehavior::Aggressive && AIController && AIController->GetHaveTarget() &&
+			AIController->GetCurrentCommand().Target == OtherActor)
 		{
 			AActor* NewTarget = nullptr;
 			if (ActorsInRange.Num() > 0)
@@ -246,11 +240,15 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 	}
 }
 
+#pragma endregion
+
+// ------------------- Behavior ---------------------
+#pragma region Behavior
 void ASoldierRts::SetBehavior_Implementation(const ECombatBehavior NewBehavior)
 {
 	ISelectable::SetBehavior_Implementation(NewBehavior);
 	CombatBehavior = NewBehavior;
-	
+
 	if (AIController)
 	{
 		AIController->SetupVariables();
@@ -283,26 +281,9 @@ bool ASoldierRts::GetIsInAttack_Implementation()
 
 void ASoldierRts::UpdateActorsInArea()
 {
-	TArray<AActor*> ValidActors;
-    
-	for (AActor* Soldier : ActorsInRange)
-	{
-		if (Soldier && IsValid(Soldier))
-		{
-			ValidActors.Add(Soldier);
-		}
-	}
-	ActorsInRange = ValidActors;
-	ValidActors.Empty();
-
-	for (AActor* Ally : AllyInRange)
-	{
-		if (Ally && IsValid(Ally))
-		{
-			ValidActors.Add(Ally);
-		}
-	}
-	AllyInRange = ValidActors;
+	// Remove invalid actors from area lists
+	ActorsInRange.RemoveAll([](AActor* Actor) { return !IsValid(Actor); });
+	AllyInRange.RemoveAll([](AActor* Actor) { return !IsValid(Actor); });
 }
 
 void ASoldierRts::BeginDestroy()
@@ -322,7 +303,9 @@ void ASoldierRts::OnRep_CombatBehavior()
 	OnBehaviorUpdate.Broadcast();
 }
 
-// Getter
+#pragma endregion
+
+// ------------------- Getter ---------------------
 #pragma region Getter
 
 float ASoldierRts::GetAttackRange() const
@@ -340,23 +323,6 @@ ECombatBehavior ASoldierRts::GetCombatBehavior() const
 	return CombatBehavior;
 }
 
-#pragma endregion
-
-#pragma endregion
-
-// Team
-#pragma region Team
-
-ETeams ASoldierRts::GetCurrentTeam_Implementation()
-{
-	return CurrentTeam;
-}
-
-#pragma endregion
-
-// Weapons
-#pragma region Weapons
-
 UWeaponMaster* ASoldierRts::GetCurrentWeapon()
 {
 	return CurrentWeapon;
@@ -368,3 +334,14 @@ bool ASoldierRts::GetHaveWeapon()
 }
 
 #pragma endregion
+
+// ------------------- Team ---------------------
+#pragma region Team
+
+ETeams ASoldierRts::GetCurrentTeam_Implementation()
+{
+	return CurrentTeam;
+}
+
+#pragma endregion
+

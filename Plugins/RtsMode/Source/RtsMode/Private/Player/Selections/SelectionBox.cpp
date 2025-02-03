@@ -1,7 +1,8 @@
-﻿#include "SelectionBox.h"
-#include "PlayerControllerRts.h"
+﻿#include "Player/Selections/SelectionBox.h"
+#include "Player/PlayerControllerRts.h"
 #include "Components/BoxComponent.h"
 #include "Components/DecalComponent.h"
+#include "Components/SlectionComponent.h"
 #include "Interfaces/Selectable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -75,11 +76,11 @@ void ASelectionBox::End()
 
 	if(CenterInBox.Num() == 0)
 	{
-		PlayerController->Handle_Selection(nullptr);	
+		PlayerController->SelectionComponent->Handle_Selection(nullptr);	
 	}
 	else
 	{
-		PlayerController->Handle_Selection(CenterInBox);
+		PlayerController->SelectionComponent->Handle_Selection(CenterInBox);
 	}
 
 	GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Yellow, FString::Printf(TEXT("Current Selection: %i"), CenterInBox.Num()));
@@ -92,7 +93,7 @@ void ASelectionBox::Adjust() const
 {
 	if (!PlayerController || !BoxComponent || !Decal) return;
 
-	const FVector CurrentMouseLocOnTerrain = PlayerController->GetMousePositionOnTerrain();
+	const FVector CurrentMouseLocOnTerrain = PlayerController->SelectionComponent->GetMousePositionOnTerrain();
 	const FVector EndPoint = FVector(CurrentMouseLocOnTerrain.X, CurrentMouseLocOnTerrain.Y, 0.0f);
 
 	FVector NewLocation = UKismetMathLibrary::VLerp(StartLocation, EndPoint, 0.5f);

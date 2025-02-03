@@ -1,37 +1,35 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
 #include "Data/AiData.h"
-#include "Data/FormationDataAsset.h"
-#include "GameFramework/PlayerController.h"
-#include "PlayerControllerRts.generated.h"
+#include "SlectionComponent.generated.h"
 
+class UFormationDataAsset;
 class UHudWidget;
-struct FCommandData;
-class UInputMappingContext;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSelectedUpdatedDelegate);
 
-UCLASS()
-class RTSMODE_API APlayerControllerRts : public APlayerController
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class RTSMODE_API USelectionComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	APlayerControllerRts(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&) const override;
-
+	
 	UFUNCTION()
 	FVector GetMousePositionOnTerrain() const;
 
 protected:
+	UFUNCTION()
 	virtual void BeginPlay() override;
 
 	UFUNCTION(Server, Reliable)
 	void Server_CommandSelected(FCommandData CommandData);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	UInputMappingContext* DefaultMappingContext;
+	UPROPERTY()
+	APlayerController* OwnerController;
 
 // Selection	
 #pragma region Selection
@@ -39,10 +37,10 @@ public:
 	
 	UFUNCTION()
 	void Handle_Selection(AActor* ActorToSelect);
-	void Handle_Selection(TArray<AActor*> ActorsToSelect);
+	void Handle_Selection(const TArray<AActor*> ActorsToSelect);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	TArray<AActor*> GetSelectedActors();
+	TArray<AActor*> GetSelectedActors() const;
 
 	UFUNCTION()
 	void CommandSelected(FCommandData CommandData);
@@ -100,12 +98,12 @@ public:
 	UFUNCTION()
 	void UpdateFormation(EFormation Formation);
 
+	UFUNCTION()
+	void CreateFormationData();
+
 protected:
 
 	/*- Functions -*/
-	
-	UFUNCTION()
-	void CreateFormationData();
 	UFUNCTION()
 	void OnFormationDataLoaded(TArray<FPrimaryAssetId> Formations);
 	
@@ -114,13 +112,17 @@ protected:
 	
 	UFUNCTION()
 	void CalculateOffset(const int Index, FCommandData& CommandData);
+
 	UFUNCTION()
-	bool IsPositionValid(const FVector& Position);
+	void RefreshFormation();
+
 
 	/*- Variables -*/
-
+public:
 	UPROPERTY()
 	TObjectPtr<UAssetManager> AssetManager;
+	
+protected:	
 	UPROPERTY()
 	TArray<UFormationDataAsset*> FormationData;
 
@@ -135,7 +137,9 @@ protected:
 	
 	UPROPERTY(ReplicatedUsing = OnRep_FormationSpacing)
 	float FormationSpacing;
-	
+
+	UPROPERTY()
+	const UFormationDataAsset* CurrentFormationData;
 
 	/*- Server Replication -*/
 
@@ -161,5 +165,6 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_UpdateBehavior(const ECombatBehavior NewBehavior);
 	
-#pragma endregion
+#pragma endregion	
+
 };

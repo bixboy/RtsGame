@@ -1,8 +1,8 @@
-﻿#include "Widget/SelectBehaviorWidget.h"
-
-#include "PlayerControllerRts.h"
+﻿#include "Widget/Behaviors/SelectBehaviorWidget.h"
+#include "Player/PlayerControllerRts.h"
+#include "Components/SlectionComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Widget/BehaviorButtonWidget.h"
+#include "Widget/Behaviors/BehaviorButtonWidget.h"
 
 void USelectBehaviorWidget::NativeOnInitialized()
 {
@@ -23,7 +23,7 @@ void USelectBehaviorWidget::OnBehaviorButtonClicked(UCustomButton* Button, int I
 {
 	if (PlayerController)
 	{
-		PlayerController->UpdateBehavior(static_cast<ECombatBehavior>(Index));
+		PlayerController->SelectionComponent->UpdateBehavior(static_cast<ECombatBehavior>(Index));
 	}
 }
 

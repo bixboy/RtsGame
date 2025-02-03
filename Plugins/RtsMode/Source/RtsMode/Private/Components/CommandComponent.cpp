@@ -1,6 +1,6 @@
 ﻿#include "Components/CommandComponent.h"
-#include "AiControllerRts.h"
-#include "SoldierRts.h"
+#include "Units/AI/AiControllerRts.h"
+#include "Units/SoldierRts.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
@@ -13,19 +13,23 @@ void UCommandComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if ((OwnerActor = Cast<ASoldierRts>(GetOwner())))
+	OwnerActor = Cast<ASoldierRts>(GetOwner());
+	if (OwnerActor)
 	{
 		OwnerCharaMovementComp = OwnerActor->GetCharacterMovement();
 	}
-	
-	if (OwnerCharaMovementComp)
-	{
-		OwnerCharaMovementComp->bOrientRotationToMovement = true;
-		OwnerCharaMovementComp->RotationRate = FRotator(0.f, 640.f, 0.f);
-		OwnerCharaMovementComp->bConstrainToPlane = true;
-		OwnerCharaMovementComp->bSnapToPlaneAtStart = true;
-	}
-	
+
+	InitializeMovementComponent();
+}
+
+void UCommandComponent::InitializeMovementComponent() const
+{
+	if (!OwnerCharaMovementComp) return;
+
+	OwnerCharaMovementComp->bOrientRotationToMovement = true;
+	OwnerCharaMovementComp->RotationRate = FRotator(0.f, 640.f, 0.f);
+	OwnerCharaMovementComp->bConstrainToPlane = true;
+	OwnerCharaMovementComp->bSnapToPlaneAtStart = true;
 }
 
 void UCommandComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -35,10 +39,9 @@ void UCommandComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 	if (OwnerActor->HasAuthority() && ShouldOrientate)
 	{
 		SetOrientation(DeltaTime);
-
 		if (IsOrientated())
 		{
-			ShouldOrientate = 0;
+			ShouldOrientate = false;
 		}
 	}
 }
@@ -46,9 +49,9 @@ void UCommandComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 // Create & Start Commands
 #pragma region Create & Start Commands
 
-void UCommandComponent::SetOwnerAIController(AAiControllerRts* Cast)
+void UCommandComponent::SetOwnerAIController(AAiControllerRts* Controller)
 {
-	OwnerAIController = Cast;
+	OwnerAIController = Controller;
 }
 
 FVector UCommandComponent::GetCommandLocation() const
@@ -58,62 +61,47 @@ FVector UCommandComponent::GetCommandLocation() const
 
 void UCommandComponent::CommandMoveToLocation(const FCommandData CommandData)
 {
+	TargetLocation = CommandData.Location;
+
 	switch (CommandData.Type)
 	{
-	/*- Slow -*/
 	case ECommandType::CommandMoveSlow:
-		{
-			TargetLocation = CommandData.Location;
-			SetWalk();
-			break;	
-		}
-	/*- Fast -*/
+		SetWalk();
+		break;
 	case ECommandType::CommandMoveFast:
-		{
-			TargetLocation = CommandData.Location;
-			SetSprint();
-			break;	
-		}
-	/*- Attack -*/
+		SetSprint();
+		break;
 	case ECommandType::CommandAttack:
-		{
-			TargetLocation = CommandData.Target->GetActorLocation();
-			HaveTargetAttack = true;
-			SetSprint();
-			break;
-		}
-	/*- Patrol -*/
+		HaveTargetAttack = true;
+		SetSprint();
+		TargetLocation = CommandData.Target->GetActorLocation();
+		break;
 	case ECommandType::CommandPatrol:
-		{
-			SetWalk();
-			CommandPatrol(CommandData);
-			return;
-		}
+		SetWalk();
+		CommandPatrol(CommandData);
+		return;
 	default:
-		{
-			TargetLocation = CommandData.Location;
-			SetRun();
-		}
+		SetRun();
+		break;
 	}
-	
+
 	CommandMove(CommandData);
 }
 
 void UCommandComponent::CommandPatrol(const FCommandData CommandData)
 {
-	if(!OwnerAIController)return;
-	
-	OwnerAIController->OnReachedDestination.Clear();
-	
-	OwnerAIController->CommandPatrol(CommandData);
+	if (OwnerAIController)
+	{
+		OwnerAIController->OnReachedDestination.Clear();
+		OwnerAIController->CommandPatrol(CommandData);
+	}
 }
 
 void UCommandComponent::CommandMove(const FCommandData CommandData)
 {
-	if(!OwnerAIController)return;
-	
-	OwnerAIController->OnReachedDestination.Clear();
+	if (!OwnerAIController) return;
 
+	OwnerAIController->OnReachedDestination.Clear();
 	if (!OwnerAIController->OnReachedDestination.IsBound())
 	{
 		OwnerAIController->OnReachedDestination.AddDynamic(this, &UCommandComponent::DestinationReached);
@@ -126,7 +114,7 @@ void UCommandComponent::CommandMove(const FCommandData CommandData)
 
 void UCommandComponent::DestinationReached(const FCommandData CommandData)
 {
-	if(MoveMarker) MoveMarker->Destroy();
+	if (MoveMarker) MoveMarker->Destroy();
 
 	TargetOrientation = CommandData.Rotation;
 
@@ -134,8 +122,8 @@ void UCommandComponent::DestinationReached(const FCommandData CommandData)
 	{
 		TargetOrientation = UKismetMathLibrary::FindLookAtRotation(OwnerActor->GetActorLocation(), CommandData.Target->GetActorLocation());
 	}
-		
-	ShouldOrientate = 1;
+
+	ShouldOrientate = true;
 }
 
 #pragma endregion
@@ -145,23 +133,26 @@ void UCommandComponent::DestinationReached(const FCommandData CommandData)
 
 void UCommandComponent::SetWalk() const
 {
-	if (!OwnerCharaMovementComp) return;
-
-	OwnerCharaMovementComp->MaxWalkSpeed = MaxSpeed * 0.5f;
+	if (OwnerCharaMovementComp)
+	{
+		OwnerCharaMovementComp->MaxWalkSpeed = MaxSpeed * 0.5f;
+	}
 }
 
 void UCommandComponent::SetRun() const
 {
-	if (!OwnerCharaMovementComp) return;
-
-	OwnerCharaMovementComp->MaxWalkSpeed = MaxSpeed;
+	if (OwnerCharaMovementComp)
+	{
+		OwnerCharaMovementComp->MaxWalkSpeed = MaxSpeed;
+	}
 }
 
 void UCommandComponent::SetSprint() const
 {
-	if (!OwnerCharaMovementComp) return;
-
-	OwnerCharaMovementComp->MaxWalkSpeed = MaxSpeed * 1.25f;
+	if (OwnerCharaMovementComp)
+	{
+		OwnerCharaMovementComp->MaxWalkSpeed = MaxSpeed * 1.25f;
+	}
 }
 
 #pragma endregion
@@ -169,25 +160,26 @@ void UCommandComponent::SetSprint() const
 // Orientation
 #pragma region Orientation
 
-void UCommandComponent::SetOrientation(const float DeltaTime)
+void UCommandComponent::SetOrientation(float DeltaTime)
 {
 	if (!OwnerActor) return;
-	
-	const FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(FRotator(OwnerActor->GetActorRotation().Pitch, OwnerActor->GetActorRotation().Yaw, 0.f), TargetOrientation, DeltaTime, 2.f);
+
+	FRotator InterpolatedRotation = UKismetMathLibrary::RInterpTo(
+		FRotator(OwnerActor->GetActorRotation().Pitch, OwnerActor->GetActorRotation().Yaw, 0.f),
+		TargetOrientation,
+		DeltaTime,
+		2.f
+	);
+
 	OwnerActor->SetActorRotation(InterpolatedRotation);
 }
 
 bool UCommandComponent::IsOrientated() const
 {
 	if (!OwnerActor) return false;
-	
-	const FRotator CurrentRotation = OwnerActor->GetActorRotation();
 
-	if(FMath::IsNearlyEqual(CurrentRotation.Yaw, TargetOrientation.Yaw, 0.25f))
-	{
-		return true;
-	}
-	return false;
+	const FRotator CurrentRotation = OwnerActor->GetActorRotation();
+	return FMath::IsNearlyEqual(CurrentRotation.Yaw, TargetOrientation.Yaw, 0.25f);
 }
 
 #pragma endregion
@@ -209,8 +201,10 @@ void UCommandComponent::Client_SetMoveMarker_Implementation(const FVector Locati
 		if (UWorld* World = GetWorld())
 		{
 			MoveMarker = World->SpawnActor<AActor>(MoveMarkerClass, GetPositionTransform(Location), SpawnParams);
-			if (HaveTargetAttack)
+			if (HaveTargetAttack && CommandData.Target)
+			{
 				MoveMarker->AttachToActor(CommandData.Target, FAttachmentTransformRules::KeepWorldTransform);
+			}
 		}
 	}
 }
@@ -220,10 +214,8 @@ FTransform UCommandComponent::GetPositionTransform(const FVector Position) const
 {
 	FHitResult Hit;
 	FCollisionQueryParams CollisionParams;
-	FVector TraceOrigin = Position;
-	TraceOrigin.Z += 10000.f;
-	FVector TraceEnd = Position;
-	TraceEnd.Z -= 10000.f;
+	FVector TraceOrigin = Position + FVector(0.f, 0.f, 10000.f);
+	FVector TraceEnd = Position + FVector(0.f, 0.f, -10000.f);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -240,8 +232,8 @@ FTransform UCommandComponent::GetPositionTransform(const FVector Position) const
 			}
 		}
 	}
+
 	return FTransform::Identity;
 }
 
-#pragma endregion 
-
+#pragma endregion

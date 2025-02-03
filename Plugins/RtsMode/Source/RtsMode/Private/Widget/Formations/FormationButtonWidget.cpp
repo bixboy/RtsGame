@@ -1,5 +1,4 @@
-﻿#include "Widget/FormationButtonWidget.h"
-
+﻿#include "Widget/Formations/FormationButtonWidget.h"
 #include "Components/TextBlock.h"
 
 void UFormationButtonWidget::NativePreConstruct()

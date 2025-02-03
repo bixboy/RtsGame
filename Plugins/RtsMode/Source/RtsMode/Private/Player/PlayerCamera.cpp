@@ -1,9 +1,10 @@
-﻿#include "RtsMode/Public/PlayerCamera.h"
-#include "PlayerControllerRts.h"
-#include "SelectionBox.h"
-#include "SphereRadius.h"
+﻿#include "RtsMode/Public/Player/PlayerCamera.h"
+#include "Player/PlayerControllerRts.h"
+#include "Player/Selections/SelectionBox.h"
+#include "Player/Selections/SphereRadius.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SlectionComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Interfaces/Selectable.h"
 #include "Kismet/GameplayStatics.h"
@@ -38,7 +39,7 @@ void APlayerCamera::BeginPlay()
 	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0.f));
 
 	CreateSelectionBox();
-	CreatSphereRadius();
+	CreateSphereRadius();
 }
 
 void APlayerCamera::Tick(float DeltaTime)
@@ -71,7 +72,7 @@ APlayerControllerRts* APlayerCamera::GetRtsPlayerController()
 	return Player;
 }
 
-// Camera Movement Input
+// ------------------- Camera Movement   ---------------------
 #pragma region Camera Movement Input
 
 void APlayerCamera::MoveForward(float Value)
@@ -90,6 +91,11 @@ void APlayerCamera::MoveRight(float Value)
 	GetTerrainPosition(TargetLocation);
 }
 
+void APlayerCamera::RotateCamera(float Angle)
+{
+	TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(0.f, Angle, 0.f));
+}
+
 void APlayerCamera::Zoom(float Value)
 {
 	if(Value == 0.f) return;
@@ -98,51 +104,17 @@ void APlayerCamera::Zoom(float Value)
 	TargetZoom = FMath::Clamp(Zoom + TargetZoom, MinZoom, MaxZoom);
 }
 
-void APlayerCamera::RotateRight()
+void APlayerCamera::EnableRotation(const bool bRotate)
 {
-	TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(0.f, -45.f, 0.f));
+	CanRotate = bRotate;
 }
 
-void APlayerCamera::RotateLeft()
-{
-	TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(0.f, 45.f, 0.f));
-}
-
-void APlayerCamera::EnableRotation()
-{
-	CanRotate = true;
-}
-
-void APlayerCamera::DisableRotation()
-{
-	CanRotate = false;
-}
-
-void APlayerCamera::RotateHorizontal(float Value)
-{
-	if(Value == 0.f) return;
-	
-	if(CanRotate)
-	{
-		TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(0.f, Value, 0.f));
-	}
-}
-
-void APlayerCamera::RotateVertical(float Value)
-{
-	if(Value == 0.f) return;
-
-	if(CanRotate)
-	{
-		TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(Value, 0.f, 0.f));
-	}
-}
 #pragma endregion
 
-// Camera Movement Utiliti
+// ------------------- Camera Utility   ---------------------
 #pragma region Movement Utiliti
 
-void APlayerCamera::GetTerrainPosition(FVector& TerrainPosition)
+void APlayerCamera::GetTerrainPosition(FVector& TerrainPosition) const
 {
 	FHitResult Hit;
 	FCollisionQueryParams CollisionParams;
@@ -212,8 +184,56 @@ void APlayerCamera::CameraBounds()
 
 #pragma endregion
 
-// Selection
+// ------------------- Selection  ---------------------
 #pragma region Selection
+
+// Left Click
+void APlayerCamera::HandleLeftMouse(EInputEvent InputEvent, float Value)
+{
+	if (!Player) return;
+
+	switch (InputEvent)
+	{
+	case IE_Pressed:
+		Player->SelectionComponent->Handle_Selection(nullptr);
+		BoxSelect = false;
+		LeftMouseHitLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
+		CommandStart();
+		break;
+
+	case IE_Released:
+		if (BoxSelect && SelectionBox)
+		{
+			SelectionBox->End();
+			BoxSelect = false;
+		}
+		else
+		{
+			Player->SelectionComponent->Handle_Selection(GetSelectedObject());
+		}
+		break;
+
+	case IE_Repeat:
+		if (Value == 0.f)
+		{
+			SelectionBox->End();
+			return;
+		}
+
+		if (Player->GetInputKeyTimeDown(EKeys::LeftMouseButton) >= LeftMouseHoldThreshold && SelectionBox)
+		{
+			if (!BoxSelect)
+			{
+				SelectionBox->Start(LeftMouseHitLocation, TargetRotation);
+				BoxSelect = true;
+			}
+		}
+		break;
+
+	default:
+		break;
+	}
+}
 
 AActor* APlayerCamera::GetSelectedObject()
 {
@@ -240,58 +260,6 @@ AActor* APlayerCamera::GetSelectedObject()
 	return nullptr;
 }
 
-void APlayerCamera::LeftMousePressed()
-{
-	if(!Player)
-	{
-		return;
-	}
-
-	Player->Handle_Selection(nullptr);
-	BoxSelect = false;
-	LeftMouseHitLocation = Player->GetMousePositionOnTerrain();
-}
-
-void APlayerCamera::LeftMouseReleased()
-{
-	if (BoxSelect && SelectionBox)
-	{
-		SelectionBox->End();
-		BoxSelect = false;
-	}
-	else
-	{
-		Player->Handle_Selection(GetSelectedObject());
-	}
-}
-
-void APlayerCamera::LeftMouseInputHold(float Value)
-{
-	if (!Player || Value == 0.f)
-	{
-		SelectionBox->End();
-		return;
-	}
-
-	if (Player->GetInputKeyTimeDown(EKeys::LeftMouseButton) >= LeftMouseHoldThreshold && SelectionBox)
-	{
-		if (!BoxSelect && SelectionBox)
-		{
-			SelectionBox->Start(LeftMouseHitLocation, TargetRotation);
-			BoxSelect = true;	
-		}
-	}
-}
-
-void APlayerCamera::RightMousePressed()
-{
-	
-}
-
-void APlayerCamera::RightMouseReleased()
-{
-}
-
 void APlayerCamera::CreateSelectionBox()
 {
 	if(SelectionBox) return;
@@ -309,56 +277,57 @@ void APlayerCamera::CreateSelectionBox()
 	}
 }
 
-#pragma endregion
-
-// Command
-#pragma region Command
-
-/*- Input -*/
-void APlayerCamera::AltRightMousePressed()
+// Alt Click
+void APlayerCamera::HandleAltRightMouse(EInputEvent InputEvent, float Value)
 {
-	if(!Player && !bAltIsPressed) return;
-	
-	LeftMouseHitLocation = Player->GetMousePositionOnTerrain();
-}
+	if (!Player) return;
 
-void APlayerCamera::AltRightMouseReleased()
-{
-	if (SphereRadiusEnable && SphereRadius)
+	switch (InputEvent)
 	{
-		SphereRadius->End();
-		SphereRadiusEnable = false;
+	case IE_Pressed:
+		if (!bAltIsPressed) return;
+		LeftMouseHitLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
+		break;
 
-		Player->CommandSelected(CreatCommandData(ECommandType::CommandPatrol, nullptr, SphereRadius->GetRadius()));
-	}
-}
-
-void APlayerCamera::AltRightMouseHold(float Value)
-{
-	if(!bAltIsPressed)
-	{
-		SphereRadius->End();
-		SphereRadiusEnable = false;
-		return;
-	}
-	
-	if (!Player || Value == 0.f)
-	{
-		SphereRadius->End();
-		return;
-	}
-
-	if (Player->GetInputKeyTimeDown(EKeys::RightMouseButton) >= LeftMouseHoldThreshold && SphereRadius)
-	{
-		if (!SphereRadiusEnable && SphereRadius)
+	case IE_Released:
+		if (SphereRadiusEnable && SphereRadius)
 		{
-			SphereRadius->Start(LeftMouseHitLocation, TargetRotation);
-			SphereRadiusEnable = true;	
+			SphereRadius->End();
+			SphereRadiusEnable = false;
+			Player->SelectionComponent->CommandSelected(CreateCommandData(ECommandType::CommandPatrol, nullptr, SphereRadius->GetRadius()));
 		}
+		break;
+
+	case IE_Repeat:  // Correspond au "Hold"
+		if (!bAltIsPressed)
+		{
+			SphereRadius->End();
+			SphereRadiusEnable = false;
+			return;
+		}
+
+		if (Value == 0.f)
+		{
+			SphereRadius->End();
+			return;
+		}
+
+		if (Player->GetInputKeyTimeDown(EKeys::RightMouseButton) >= LeftMouseHoldThreshold && SphereRadius)
+		{
+			if (!SphereRadiusEnable)
+			{
+				SphereRadius->Start(LeftMouseHitLocation, TargetRotation);
+				SphereRadiusEnable = true;
+			}
+		}
+		break;
+
+	default:
+		break;
 	}
 }
 
-void APlayerCamera::CreatSphereRadius()
+void APlayerCamera::CreateSphereRadius()
 {
 	if(UWorld* World = GetWorld())
 	{
@@ -373,12 +342,16 @@ void APlayerCamera::CreatSphereRadius()
 	}
 }
 
-/*- Commands -*/
+#pragma endregion
+
+// ------------------- Command  ---------------------
+#pragma region Command
+
 void APlayerCamera::CommandStart()
 {
 	if (!Player) return;
 
-	FVector MouseLocation = Player->GetMousePositionOnTerrain();
+	FVector MouseLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
 	CommandLocation = FVector(MouseLocation.X, MouseLocation.Y, MouseLocation.Z);
 }
 
@@ -389,18 +362,18 @@ void APlayerCamera::Command()
 	AActor* ActorEnemy = GetSelectedObject();
 	if (ActorEnemy && ActorEnemy->Implements<USelectable>())
 	{
-		Player->CommandSelected(CreatCommandData(ECommandType::CommandAttack, ActorEnemy));
+		Player->SelectionComponent->CommandSelected(CreateCommandData(ECommandType::CommandAttack, ActorEnemy));
 		return;
 	}
-	Player->CommandSelected(CreatCommandData(ECommandType::CommandMove));
+	Player->SelectionComponent->CommandSelected(CreateCommandData(ECommandType::CommandMove));
 }
 
-FCommandData APlayerCamera::CreatCommandData(const ECommandType Type, AActor* Enemy, const float Radius) const
+FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* Enemy, const float Radius) const
 {
 	if (!Player) return FCommandData();
 	
 	FRotator CommandRotation = FRotator::ZeroRotator;
-	const FVector CommandEndLocation = Player->GetMousePositionOnTerrain();
+	const FVector CommandEndLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
 
 	if ((CommandEndLocation - CommandLocation).Length() > 100.f)
 	{

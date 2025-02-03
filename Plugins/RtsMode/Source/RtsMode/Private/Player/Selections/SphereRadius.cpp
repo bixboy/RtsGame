@@ -1,6 +1,7 @@
-﻿#include "SphereRadius.h"
-#include "PlayerControllerRts.h"
+﻿#include "Player/Selections/SphereRadius.h"
+#include "Player/PlayerControllerRts.h"
 #include "Components/DecalComponent.h"
+#include "Components/SlectionComponent.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -45,7 +46,7 @@ float ASphereRadius::Adjust() const
 {
 	if (!PlayerController || !SphereComponent || !Decal) return 0.f;
 
-	const FVector CurrentMouseLocOnTerrain = PlayerController->GetMousePositionOnTerrain();
+	const FVector CurrentMouseLocOnTerrain = PlayerController->SelectionComponent->GetMousePositionOnTerrain();
 	const FVector EndPoint = FVector(CurrentMouseLocOnTerrain.X, CurrentMouseLocOnTerrain.Y, 0.0f);
 
 	FVector NewLocation = UKismetMathLibrary::VLerp(StartLocation, EndPoint, 0.5f);

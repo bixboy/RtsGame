@@ -60,6 +60,8 @@ class LANDVEHICULE_API AVehicleMaster : public APawn, public IVehiclesInteractio
 public:
 	AVehicleMaster();
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual void PossessedBy(AController* NewController) override;
 
 protected:
@@ -108,9 +110,15 @@ protected:
 	
 	UFUNCTION(BlueprintCallable)
 	void SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
+	UFUNCTION(Server, Reliable)
+	void Server_SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
+	UFUNCTION(Client, Reliable)
+	void Client_SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
 
 	UFUNCTION(BlueprintCallable)
 	void SwitchToNextCamera(APawn* Player);
+	UFUNCTION(Server, Reliable)
+	void Server_SwitchToNextCamera(APawn* Player);
 
 	UFUNCTION()
 	void SwitchToMainCam(APlayerController* PlayerController);
@@ -169,7 +177,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
 	UInputMappingContext* NewMappingContext;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Replicated)
 	APawn* CurrentDriver;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
@@ -227,7 +235,7 @@ public:
 	
 protected:
 	/*- Variables -*/
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	TArray<FVehicleRole> VehicleRoles;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Turret")

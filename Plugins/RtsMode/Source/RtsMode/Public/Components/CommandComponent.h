@@ -22,10 +22,17 @@ public:
 
 	UFUNCTION()
 	void CommandMoveToLocation(const FCommandData CommandData);
+	UFUNCTION()
 	void SetOwnerAIController(AAiControllerRts* Cast);
 
+	UFUNCTION()
 	FVector GetCommandLocation() const;
 
+protected:
+	UFUNCTION()
+	void InitializeMovementComponent() const;
+
+// Commands
 #pragma region Command Functions
 private:
 	UFUNCTION()

@@ -1,8 +1,10 @@
 ﻿#include "Vehicles/VehicleMaster.h"
 #include "CameraVehicle.h"
+#include "CustomPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "VehiclesAnimInstance.h"
 #include "GameFramework/Character.h"
+#include "Net/UnrealNetwork.h"
 
 // ------------------- Setup -------------------
 #pragma region Setup
@@ -102,6 +104,14 @@ void AVehicleMaster::InitializeCameras()
     }
 }
 
+void AVehicleMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(AVehicleMaster, CurrentDriver);
+    DOREPLIFETIME(AVehicleMaster, VehicleRoles);
+}
+
 // Possess
 #pragma region Possess
 
@@ -111,9 +121,9 @@ void AVehicleMaster::InitializeCameras()
         
         if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
         {
-            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+            if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(PlayerController))
             {
-                Subsystem->AddMappingContext(NewMappingContext, 1);
+                CustomPC->Client_AddMappingContext(NewMappingContext);
             }
         }
     }
@@ -129,35 +139,35 @@ bool AVehicleMaster::Interact_Implementation(APawn* PlayerInteract)
 {
     IVehiclesInteractions::Interact_Implementation(PlayerInteract);
     
-    if (PlacesNumber == CurrentPlace || GetRoleByPlayer(PlayerInteract) == EVehiclePlaceType()) return false; 
-    
+    if (PlacesNumber == CurrentPlace || GetRoleByPlayer(PlayerInteract) == EVehiclePlaceType() || !HasAuthority()) return false;
+
     APlayerController* PlayerController = Cast<APlayerController>(PlayerInteract->GetController());
     if (!PlayerController) return false;
-
+    
     if (!GetPlayerForRole(EVehiclePlaceType::Driver))
     {
         CurrentDriver = PlayerInteract;
         AssignRole(PlayerInteract, EVehiclePlaceType::Driver);
-        
+
         PlayerController->Possess(this);
         PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
 
         CurrentPlace ++;
         return true;
     }
-
+    
     if (!HaveTurret) return false;
-    if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+    
+    AssignRole(PlayerInteract, EVehiclePlaceType::Gunner);
+    SwitchToNextCamera(PlayerInteract);
+
+    if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(PlayerController))
     {
-        Subsystem->AddMappingContext(NewMappingContext, 1);
-
-        AssignRole(PlayerInteract, EVehiclePlaceType::Gunner);
-        SwitchToNextCamera(PlayerInteract);
-
-        CurrentPlace ++;
-        return true;
+        CustomPC->Client_AddMappingContext(NewMappingContext);
     }
-    return false;
+
+    CurrentPlace++;
+    return true;
 }
 
 void AVehicleMaster::UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName)
@@ -300,6 +310,12 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
         if (!HaveTurret || Turrets.IsEmpty()) return;
         if (!PlayerController || !NewCamera.CameraVehicle || NewCamera.CameraVehicle->GetIsUsed()) return;
 
+        if (!HasAuthority())  
+        {
+            Server_SwitchToCamera(PlayerController, NewCamera);
+            return;
+        }
+
         // Désactiver la caméra actuelle
         if (FTurrets* CurrentTurret = Turrets.FindByPredicate([PlayerController](const FTurrets& Turret)
             {
@@ -327,15 +343,15 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
         }
 
         // Mettre à jour la caméra actuelle
-        CurrentCamera = NewCamera;
+        Client_SwitchToCamera(PlayerController, NewCamera);
         PlayersInVehicle.FindOrAdd(PlayerController, CurrentCamera.CameraVehicle);
 
         // Si le joueur contrôlait le véhicule en tant que conducteur
         if (PlayerController->GetPawn() == CurrentDriver)
         {
-            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+            if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(PlayerController))
             {
-                Subsystem->AddMappingContext(NewMappingContext, 1);
+                CustomPC->Client_AddMappingContext(NewMappingContext);
             }
 
             ReleaseRole(CurrentDriver);
@@ -346,10 +362,29 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
         // Changer la vue du joueur vers la nouvelle caméra
         PlayerController->SetViewTargetWithBlend(NewCamera.CameraVehicle, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
     }
+
+    void AVehicleMaster::Server_SwitchToCamera_Implementation(APlayerController* PlayerController, const FTurrets& NewCamera)
+    {
+        SwitchToCamera(PlayerController, NewCamera);
+    }
+
+    void AVehicleMaster::Client_SwitchToCamera_Implementation(APlayerController* PlayerController, const FTurrets& NewCamera)
+    {
+        if (!NewCamera.CameraVehicle) return;
+        CurrentCamera = NewCamera;
+
+    GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Blue, CurrentCamera.CameraVehicle->GetName());
+    }
     
     void AVehicleMaster::SwitchToNextCamera(APawn* Player)
     {
         if (!HaveTurret || !Player || Turrets.IsEmpty()) return;
+        
+        if (!HasAuthority())
+        {
+            Server_SwitchToNextCamera(Player);
+            return;
+        }
     
         APlayerController* PlayerController = Cast<APlayerController>(Player->GetController());
         if (!PlayerController) return;
@@ -422,7 +457,12 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
         UE_LOG(LogTemp, Warning, TEXT("No available camera for player: %s"), *PlayerController->GetName());
     }
 
-    void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
+void AVehicleMaster::Server_SwitchToNextCamera_Implementation(APawn* Player)
+{
+    SwitchToNextCamera(Player);
+}
+
+void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
     {
         if (!GetPlayerForRole(EVehiclePlaceType::Driver))
         {

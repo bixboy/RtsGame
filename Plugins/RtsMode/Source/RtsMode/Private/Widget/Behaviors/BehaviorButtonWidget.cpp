@@ -1,5 +1,4 @@
-﻿#include "Widget/BehaviorButtonWidget.h"
-
+﻿#include "Widget/Behaviors/BehaviorButtonWidget.h"
 #include "Components/TextBlock.h"
 
 void UBehaviorButtonWidget::NativePreConstruct()

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "CustomButtonWidget.h"
+#include "Widget/CustomButtonWidget.h"
 #include "Data/AiData.h"
 #include "BehaviorButtonWidget.generated.h"
 

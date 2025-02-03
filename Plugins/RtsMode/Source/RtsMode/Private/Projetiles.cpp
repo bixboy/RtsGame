@@ -13,7 +13,6 @@ void AProjetiles::SetOwnerActor(AActor* NewOwner)
 void AProjetiles::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 

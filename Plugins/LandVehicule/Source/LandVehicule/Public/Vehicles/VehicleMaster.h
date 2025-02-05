@@ -29,6 +29,12 @@ struct FVehicleRole
 
 	UPROPERTY()
 	EVehiclePlaceType RoleName;
+
+	bool operator==(const FVehicleRole& Other) const
+	{
+		return	Player == Other.Player &&
+				RoleName == Other.RoleName;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -116,10 +122,8 @@ protected:
 	void Client_SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
 
 	UFUNCTION(BlueprintCallable)
-	void SwitchToNextCamera(APawn* Player);
-	UFUNCTION(Server, Reliable)
-	void Server_SwitchToNextCamera(APawn* Player);
-
+	void SwitchToNextCamera(APlayerController* Player);
+	
 	UFUNCTION()
 	void SwitchToMainCam(APlayerController* PlayerController);
 	
@@ -128,6 +132,9 @@ protected:
 
 	UFUNCTION()
 	int GetCameraIndex(const ACameraVehicle* CameraVehicle);
+	
+	UFUNCTION()
+	FTurrets GetAvailableCamera(int startIndex);
 
 #pragma endregion
 
@@ -215,7 +222,7 @@ protected:
 
 public:
 	UFUNCTION()
-	virtual bool Interact_Implementation(APawn* PlayerInteract) override;
+	virtual bool Interact_Implementation(ACustomPlayerController* PlayerInteract) override;
 
 	UFUNCTION()
 	virtual void UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName) override;
@@ -224,10 +231,10 @@ public:
 	virtual ACameraVehicle* GetCurrentCameraVehicle_Implementation() override;
 
 	UFUNCTION()
-	virtual void ChangePlace_Implementation(APawn* Player) override;
+	virtual void ChangePlace_Implementation(ACustomPlayerController* Player) override;
 
 	UFUNCTION()
-	virtual void OutOfVehicle_Implementation(APawn* Player) override;
+	virtual void OutOfVehicle_Implementation(ACustomPlayerController* PlayerController) override;
 
 #pragma endregion
 

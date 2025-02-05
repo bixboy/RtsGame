@@ -4,6 +4,7 @@
 #include "UObject/Interface.h"
 #include "VehiclesInteractions.generated.h"
 
+class ACustomPlayerController;
 class ACameraVehicle;
 
 UINTERFACE()
@@ -19,17 +20,18 @@ class LANDVEHICULE_API IVehiclesInteractions
 public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	bool Interact(APawn* PlayerInteract);
+	bool Interact(ACustomPlayerController* PlayerInteract);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void OutOfVehicle(ACustomPlayerController* PlayerController);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void ChangePlace(ACustomPlayerController* Player);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void UpdateTurretRotation(FVector2D Rotation, FName TurretName);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	ACameraVehicle* GetCurrentCameraVehicle();
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void ChangePlace(APawn* Player);
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void OutOfVehicle(APawn* Player);
+	
 };

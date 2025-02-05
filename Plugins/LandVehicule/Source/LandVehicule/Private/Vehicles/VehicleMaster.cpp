@@ -123,6 +123,7 @@ void AVehicleMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
         {
             if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(PlayerController))
             {
+                SetOwner(PlayerController);
                 CustomPC->Client_AddMappingContext(NewMappingContext);
             }
         }
@@ -135,19 +136,18 @@ void AVehicleMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 // ------------------- Interaction -------------------
 #pragma region Interfaces
 
-bool AVehicleMaster::Interact_Implementation(APawn* PlayerInteract)
+bool AVehicleMaster::Interact_Implementation(ACustomPlayerController* PlayerController)
 {
-    IVehiclesInteractions::Interact_Implementation(PlayerInteract);
-    
-    if (PlacesNumber == CurrentPlace || GetRoleByPlayer(PlayerInteract) == EVehiclePlaceType() || !HasAuthority()) return false;
+    IVehiclesInteractions::Interact_Implementation(PlayerController);
 
-    APlayerController* PlayerController = Cast<APlayerController>(PlayerInteract->GetController());
-    if (!PlayerController) return false;
+    APawn* Player = PlayerController->GetPawn();
+    
+    if (PlacesNumber == CurrentPlace || GetRoleByPlayer(Player) == EVehiclePlaceType() || !HasAuthority()) return false;
     
     if (!GetPlayerForRole(EVehiclePlaceType::Driver))
     {
-        CurrentDriver = PlayerInteract;
-        AssignRole(PlayerInteract, EVehiclePlaceType::Driver);
+        CurrentDriver = Player;
+        AssignRole(Player, EVehiclePlaceType::Driver);
 
         PlayerController->Possess(this);
         PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
@@ -158,8 +158,8 @@ bool AVehicleMaster::Interact_Implementation(APawn* PlayerInteract)
     
     if (!HaveTurret) return false;
     
-    AssignRole(PlayerInteract, EVehiclePlaceType::Gunner);
-    SwitchToNextCamera(PlayerInteract);
+    AssignRole(Player, EVehiclePlaceType::Gunner);
+    SwitchToNextCamera(PlayerController);
 
     if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(PlayerController))
     {
@@ -170,61 +170,25 @@ bool AVehicleMaster::Interact_Implementation(APawn* PlayerInteract)
     return true;
 }
 
-void AVehicleMaster::UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName)
+void AVehicleMaster::OutOfVehicle_Implementation(ACustomPlayerController* PlayerController)
 {
-    IVehiclesInteractions::UpdateTurretRotation_Implementation(Rotation, TurretName);
-    
-    if (!HaveTurret || Turrets.IsEmpty()) return;
+    IVehiclesInteractions::OutOfVehicle_Implementation(PlayerController);
 
-    ApplyTurretRotation(Rotation.X, Rotation.Y, TurretRotationSpeed, GetWorld()->GetTimeSeconds());
-
-    ACameraVehicle* TempCamera = GetAttachedCamera(TurretName);
-    if (!TempCamera)
-    {
-        UE_LOG(LogTemp, Error, TEXT("UpdateTurretRotation: TempCamera is NULL for TurretName: %s"), *TurretName.ToString());
-        return;
-    }
-
-    SetTurretRotation(TempCamera, GetTurretAngle());
-}
-
-ACameraVehicle* AVehicleMaster::GetCurrentCameraVehicle_Implementation()
-{
-    return CurrentCamera.CameraVehicle;
-}
-
-void AVehicleMaster::ChangePlace_Implementation(APawn* Player)
-{
-    IVehiclesInteractions::ChangePlace_Implementation(Player);
-    SwitchToNextCamera(Player);
-}
-
-void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
-{
-    IVehiclesInteractions::OutOfVehicle_Implementation(Player);
-
-    APlayerController* PlayerController = Cast<APlayerController>(Player->GetController());
-    if (!PlayerController) return;
+    APawn* Player = PlayerController->GetPawn();
+    if (!Player) return;
     
     if (this == Player)
     {
         if (CurrentDriver)
         {
             CurrentDriver->SetActorTransform(Player->GetActorTransform());
-            PlayerController->Possess(CurrentDriver);
             
-            if (APlayerController* TempController = Cast<APlayerController>(CurrentDriver->GetController()))
-            {
-                if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(TempController->GetLocalPlayer()))
-                {
-                    Subsystem->RemoveMappingContext(NewMappingContext);
-                }
-            }
+            PlayerController->Possess(CurrentDriver);
+            PlayerController->Client_RemoveMappingContext(NewMappingContext);
             
             ReleaseRole(CurrentDriver);
             CurrentDriver = nullptr;
             CurrentPlace --;
-            return;
         }
     }
     else
@@ -234,15 +198,34 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
         PlayerController->SetViewTargetWithBlend(Player, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.0f, false);
         ReleaseRole(Player);
         CurrentCamera.CameraVehicle->SetIsUsed(false);
-
-        if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-        {
-            Subsystem->RemoveMappingContext(NewMappingContext);
-        }
+        
+        PlayerController->Client_RemoveMappingContext(NewMappingContext);
         
         CurrentPlace --;
-        return;
     }
+}
+
+void AVehicleMaster::ChangePlace_Implementation(ACustomPlayerController* Player)
+{
+    IVehiclesInteractions::ChangePlace_Implementation(Player);
+
+    SwitchToNextCamera(Player);
+}
+
+void AVehicleMaster::UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName)
+{
+    IVehiclesInteractions::UpdateTurretRotation_Implementation(Rotation, TurretName);
+    
+    if (!HaveTurret || Turrets.IsEmpty()) return;
+
+    GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "ouou");
+    ApplyTurretRotation(Rotation.X, Rotation.Y, TurretRotationSpeed, GetWorld()->GetTimeSeconds());
+    SetTurretRotation(CurrentCamera.CameraVehicle, GetTurretAngle());
+}
+
+ACameraVehicle* AVehicleMaster::GetCurrentCameraVehicle_Implementation()
+{
+    return CurrentCamera.CameraVehicle;
 }
 
 #pragma endregion
@@ -268,14 +251,15 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
 
     void AVehicleMaster::ReleaseRole(APawn* Player)
     {
-        for (int32 i = 0; i < VehicleRoles.Num(); i++)
+        FVehicleRole RoleToRemove;
+        for (FVehicleRole TempRole : VehicleRoles)
         {
-            if (VehicleRoles[i].Player == Player)
+            if (TempRole.Player == Player)
             {
-                VehicleRoles.RemoveAt(i);
-                return;
+                RoleToRemove = TempRole;
             }
         }
+        VehicleRoles.Remove(RoleToRemove);
     }
     
     APawn* AVehicleMaster::GetPlayerForRole(EVehiclePlaceType RoleName) const
@@ -309,13 +293,13 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
     {
         if (!HaveTurret || Turrets.IsEmpty()) return;
         if (!PlayerController || !NewCamera.CameraVehicle || NewCamera.CameraVehicle->GetIsUsed()) return;
-
+    
         if (!HasAuthority())  
         {
             Server_SwitchToCamera(PlayerController, NewCamera);
             return;
         }
-
+    
         // Désactiver la caméra actuelle
         if (FTurrets* CurrentTurret = Turrets.FindByPredicate([PlayerController](const FTurrets& Turret)
             {
@@ -371,23 +355,17 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
     void AVehicleMaster::Client_SwitchToCamera_Implementation(APlayerController* PlayerController, const FTurrets& NewCamera)
     {
         if (!NewCamera.CameraVehicle) return;
-        CurrentCamera = NewCamera;
 
-    GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Blue, CurrentCamera.CameraVehicle->GetName());
+        CurrentCamera = NewCamera;
+        GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Blue, "New Camera = " + CurrentCamera.CameraVehicle->GetName());
     }
     
-    void AVehicleMaster::SwitchToNextCamera(APawn* Player)
+    void AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerController)
     {
-        if (!HaveTurret || !Player || Turrets.IsEmpty()) return;
-        
-        if (!HasAuthority())
-        {
-            Server_SwitchToNextCamera(Player);
-            return;
-        }
+        if (!HaveTurret || !PlayerController || Turrets.IsEmpty()) return;
     
-        APlayerController* PlayerController = Cast<APlayerController>(Player->GetController());
-        if (!PlayerController) return;
+        APawn* Player = PlayerController->GetPawn();
+        if (!Player) return;
 
         if (this == Player)
         {
@@ -406,35 +384,22 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
                 Turret.CameraVehicle->SetController(nullptr);
     
                 // Vérifie si c'est la dernière caméra dans la liste
-                if (i == Turrets.Num() - 1)
+                if (i == Turrets.Num() - 1 || !GetAvailableCamera(i).CameraVehicle)
                 {
+                    GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Blue, MainCamera->GetName());
                     if (!CurrentDriver && MainCamera)
                     {
                         SwitchToMainCam(PlayerController);
                         return;
                     }
-                    else
-                    {
-                        // Si pas de MainCamera, revient à la première caméra
-                        if (Turrets[0].CameraVehicle)
-                        {
-                            SwitchToCamera(PlayerController, Turrets[0]);
-                        }
-                        return;
-                    }
                 }
-    
+                
                 // Passe à la prochaine caméra disponible
-                for (int32 j = 1; j < Turrets.Num(); j++)
+                FTurrets NextAvailableCamera = GetAvailableCamera(i);
+                if (NextAvailableCamera.CameraVehicle)
                 {
-                    int32 NextIndex = (i + j) % Turrets.Num();
-                    FTurrets NextCamera = Turrets[NextIndex];
-    
-                    if (NextCamera.CameraVehicle && !NextCamera.CameraVehicle->GetIsUsed())
-                    {
-                        SwitchToCamera(PlayerController, NextCamera);
-                        return;
-                    }
+                    SwitchToCamera(PlayerController, NextAvailableCamera);
+                    return;
                 }
     
                 // Si aucune caméra n'est disponible, réactive la caméra actuelle
@@ -457,14 +422,9 @@ void AVehicleMaster::OutOfVehicle_Implementation(APawn* Player)
         UE_LOG(LogTemp, Warning, TEXT("No available camera for player: %s"), *PlayerController->GetName());
     }
 
-void AVehicleMaster::Server_SwitchToNextCamera_Implementation(APawn* Player)
-{
-    SwitchToNextCamera(Player);
-}
-
-void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
+    void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
     {
-        if (!GetPlayerForRole(EVehiclePlaceType::Driver))
+        if (!CurrentDriver)
         {
             CurrentDriver = PlayerController->GetCharacter();
             AssignRole(PlayerController->GetCharacter(), EVehiclePlaceType::Driver);
@@ -482,7 +442,7 @@ void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
         {
             if (Turret.CameraVehicle->GetAttachParentSocketName() == ParentName)
             {
-            return Turret.CameraVehicle;
+                return Turret.CameraVehicle;
             }
         }
         return nullptr;
@@ -498,6 +458,22 @@ void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
             }
         }
         return 0;
+    }
+
+    FTurrets AVehicleMaster::GetAvailableCamera(int startIndex)
+    {
+        // Passe à la prochaine caméra disponible
+        for (int32 j = 1; j < Turrets.Num(); j++)
+        {
+            int32 NextIndex = (startIndex + j) % Turrets.Num();
+            FTurrets NextCamera = Turrets[NextIndex];
+        
+            if (NextCamera.CameraVehicle && !NextCamera.CameraVehicle->GetIsUsed())
+            {
+                return NextCamera;
+            }
+        }
+        return FTurrets();
     }
 
 #pragma endregion

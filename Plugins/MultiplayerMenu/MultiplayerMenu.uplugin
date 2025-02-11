@@ -1,0 +1,56 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "MultiplayerMenu",
+	"Description": "",
+	"Category": "Other",
+	"CreatedBy": "Bixboy",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "MultiplayerMenu",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Networking",
+				"Sockets",
+				"Engine",
+				"CommonUI",
+				"CommonGame",
+				"CommonUser",
+				"ModularGameplay",
+				"OnlineSubsystem"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "CommonUI",
+			"Enabled": true
+		},
+		{
+			"Name": "CommonGame",
+			"Enabled": true
+		},
+		{
+			"Name": "CommonUser",
+			"Enabled": true
+		},
+		{
+			"Name": "ModularGameplay",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystem",
+			"Enabled": true
+		}
+	]
+}

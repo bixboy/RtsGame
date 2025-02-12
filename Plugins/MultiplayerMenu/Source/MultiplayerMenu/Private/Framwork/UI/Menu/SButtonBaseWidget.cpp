@@ -3,7 +3,7 @@
 #include "CommonBorder.h"
 #include "Framwork/Data/StaticGameData.h"
 
-void USButtonBaseWidget::SetButtonBlock(const FText& InText)
+void USButtonBaseWidget::SetButtonText(const FText& InText)
 {
 	bOverride_ButtonText = InText.IsEmpty();
 	ButtonText = InText;

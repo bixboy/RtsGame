@@ -29,6 +29,7 @@ public class MultiplayerMenu : ModuleRules
 				"Networking",
 				"NetCore",
 				"CommonUI",
+				"CommonUser",
 				"UMG",
 				"OnlineSubsystem"
 				// ... add other public dependencies that you statically link with here ...
@@ -41,7 +42,6 @@ public class MultiplayerMenu : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"CommonUser",
 				"CommonGame",
 				"ModularGameplayActors",
 				"GameplayTags"

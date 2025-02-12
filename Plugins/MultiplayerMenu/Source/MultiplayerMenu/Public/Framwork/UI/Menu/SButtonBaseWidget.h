@@ -13,7 +13,7 @@ class MULTIPLAYERMENU_API USButtonBaseWidget : public UCommonButtonBase
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void SetButtonBlock(const FText& InText);
+	void SetButtonText(const FText& InText);
 
 protected:
 	virtual void NativePreConstruct() override;

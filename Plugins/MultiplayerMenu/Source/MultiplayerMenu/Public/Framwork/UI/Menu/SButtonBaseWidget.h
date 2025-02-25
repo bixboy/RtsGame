@@ -6,6 +6,8 @@
 class UCommonBorder;
 class UCommonTextBlock;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnButtonClickedDelegate);
+
 UCLASS(Abstract)
 class MULTIPLAYERMENU_API USButtonBaseWidget : public UCommonButtonBase
 {
@@ -15,6 +17,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetButtonText(const FText& InText);
 
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnButtonClickedDelegate OnButtonClickedDelegate;
+
 protected:
 	virtual void NativePreConstruct() override;
 
@@ -22,6 +27,8 @@ protected:
 	
 	void OnButtonHovered();
 	void OnButtonUnHovered();
+
+	void OnButtonClicked();
 
 	void ApplyMaterial() const;
 	void UpdateButtonText(const FText& InText);

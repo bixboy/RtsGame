@@ -1,5 +1,5 @@
 ﻿#include "Framwork/Managers/SGameState.h"
-
+#include "CommonActivatableWidget.h"
 #include "Framwork/Data/SGameData.h"
 #include "Net/UnrealNetwork.h"
 
@@ -18,15 +18,19 @@ void ASGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 
 void ASGameState::SetGameData(USGameData* NewGameData)
 {
+	if (!HasAuthority()) return;
+	
 	if (NewGameData)
 	{
-		GameData = NewGameData;	
+		GameData = NewGameData;
+		OnRep_GameData();
 	}
 }
 
 bool ASGameState::ShouldShowMenu() const
 {
-	if (GameData) return GameData->bShowMenu;
+	if (GameData)
+		return GameData->bShowMenu;
 
 	return false;
 }
@@ -35,7 +39,7 @@ TSoftClassPtr<UCommonActivatableWidget> ASGameState::GetMenuClass() const
 {
 	if (GameData)
 		return GameData->MainMenuClass;
-
+	
 	return nullptr;
 }
 

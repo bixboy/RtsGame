@@ -7,6 +7,7 @@
 class UCommonUserWidget;
 class UCommonActivatableWidget;
 
+
 UCLASS()
 class MULTIPLAYERMENU_API USGameData : public UPrimaryDataAsset
 {

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "CommonTabListWidgetBase.h"
+#include "FindSessionsCallbackProxy.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "SGameSessionEntry.generated.h"
 
@@ -23,15 +24,15 @@ protected:
 	UFUNCTION()
 	void OnSessionSelected();
 	
-	UFUNCTION()
-	void OnJoinSessionComplete(const FOnlineResultInformation& Result);
+	UFUNCTION(BlueprintNativeEvent)
+	void JoinSession(FBlueprintSessionResult Session);
 
 	UFUNCTION()
 	void OnGameDataLoaded();
 
 
 	UPROPERTY()
-	UCommonSession_SearchResult* SessionSearchResult;
+	FBlueprintSessionResult SessionSearchResult;
 	UPROPERTY()
 	FPrimaryAssetId GameDataId;
 	

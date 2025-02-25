@@ -5,6 +5,7 @@
 #include "SMenuMultiplayerWidget.generated.h"
 
 
+class UOverlay;
 class USMenuJoinSessionWidget;
 class USMenuhostSessionWidget;
 class USButtonBaseWidget;
@@ -25,8 +26,14 @@ protected:
 	UFUNCTION()
 	void OnJoinButtonClicked();
 	UFUNCTION()
-	void OnExitButtonClicked();
+	void ReturnToMenu();
 	
+	UFUNCTION()
+	void OnExitButtonClicked();
+
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UOverlay* MenuOverlay;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* HostButton;
@@ -38,9 +45,10 @@ protected:
 	USButtonBaseWidget* ExitButton;
 
 	
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
-	TSoftClassPtr<USMenuhostSessionWidget> HostWidgetClass;
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
-	TSoftClassPtr<USMenuJoinSessionWidget> JoinWidgetClass;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	USMenuhostSessionWidget* HostWidget;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	USMenuJoinSessionWidget* JoinWidget;
 	
 };

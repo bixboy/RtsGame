@@ -1,13 +1,14 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/PlayerController.h"
+#include "CommonPlayerController.h"
 #include "SPlayerController.generated.h"
 
+class USMenuMultiplayerWidget;
 class UCommonActivatableWidget;
 
 UCLASS()
-class MULTIPLAYERMENU_API ASPlayerController : public APlayerController
+class MULTIPLAYERMENU_API ASPlayerController : public ACommonPlayerController
 {
 	GENERATED_BODY()
 	
@@ -16,5 +17,12 @@ public:
 
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
-	void ShowMenu(const TSoftClassPtr<UCommonActivatableWidget>& MenuClass);
+	
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	UFUNCTION()
+	void ShowMenu(const TSubclassOf<UCommonActivatableWidget> MenuClass);
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<USMenuMultiplayerWidget> MenuWidgetClass;
 };

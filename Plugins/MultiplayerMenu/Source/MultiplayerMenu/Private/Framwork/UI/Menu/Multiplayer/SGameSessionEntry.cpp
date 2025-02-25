@@ -1,10 +1,8 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SGameSessionEntry.h"
-
-#include "CommonGameInstance.h"
+#include "AdvancedSessionsLibrary.h"
 #include "CommonSessionSubsystem.h"
-#include "Engine/AssetManager.h"
-#include "Framwork/Data/SGameData.h"
-#include "Framwork/Data/StaticGameData.h"
+#include "JoinSessionCallbackProxy.h"
+#include "Framwork/Data/BlueprintSessionResultObject.h"
 #include "Framwork/UI/Menu/Multiplayer/SGameSessionButton.h"
 
 void USGameSessionEntry::NativeOnInitialized()
@@ -17,88 +15,68 @@ void USGameSessionEntry::NativeOnInitialized()
 
 void USGameSessionEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
-	SessionSearchResult = Cast<UCommonSession_SearchResult>(ListItemObject);
-
-	if (SessionSearchResult)
+	if (!ListItemObject)
 	{
-		FString GameDataName;
-		bool bDataFound;
-		
-		SessionSearchResult->GetStringSetting(S_MP_SETTINGS_GAMEMODE, GameDataName, bDataFound);
+		UE_LOG(LogTemp, Error, TEXT("ListItemObject est nul."));
+		return;
+	}
 
-		if (bDataFound)
-		{
-			const FPrimaryAssetType Type(USGameData::StaticClass()->GetFName());
-			GameDataId = FPrimaryAssetId(Type, FName(*GameDataName));
-
-			if (GameDataId.IsValid())
-			{
-				if (UAssetManager* AssetManager = UAssetManager::GetIfInitialized())
-				{
-					const TArray<FName> Bundles;
-					const FStreamableDelegate DataLoadedDelegate = FStreamableDelegate::CreateUObject(this, &USGameSessionEntry::OnGameDataLoaded);
-					AssetManager->LoadPrimaryAsset(GameDataId, Bundles, DataLoadedDelegate);
-				}
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("GameDataAssetID Is Not Valid!"));
-			}
-		}
+	if (UBlueprintSessionResultObject* SessionResult = Cast<UBlueprintSessionResultObject>(ListItemObject))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("Session Search Result"));
+	
+		SessionSearchResult = SessionResult->SessionResult;
+		OnGameDataLoaded();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Échec du cast de ListItemObject en FBlueprintSessionResult."));
 	}
 }
 
 void USGameSessionEntry::OnSessionSelected()
 {
-	if (!GetOwningPlayer() || !GetOwningPlayer()->GetWorld())
-		return;
-
-	if (const UCommonGameInstance* GameInstance = Cast<UCommonGameInstance>(GetOwningPlayer()->GetWorld()->GetGameInstance()))
-	{
-		if (UCommonSessionSubsystem* SessionSubsystem = GameInstance->GetSubsystem<UCommonSessionSubsystem>())
-		{
-			JoinSessionHandle = SessionSubsystem->OnJoinSessionCompleteEvent.AddUObject(this, &USGameSessionEntry::OnJoinSessionComplete);
-			SessionSubsystem->JoinSession(GetOwningPlayer(), SessionSearchResult);
-		}
-	}
+	JoinSession(SessionSearchResult);
 }
 
-void USGameSessionEntry::OnJoinSessionComplete(const FOnlineResultInformation& Result)
+void USGameSessionEntry::JoinSession_Implementation(FBlueprintSessionResult Session)
 {
-	if (!GetOwningPlayer() || !GetOwningPlayer()->GetWorld())
-		return;
-
-	if (Result.bWasSuccessful)
-	{
-		if (const UCommonGameInstance* GameInstance = Cast<UCommonGameInstance>(GetOwningPlayer()->GetWorld()->GetGameInstance()))
-		{
-			if (UCommonSessionSubsystem* SessionSubsystem = GameInstance->GetSubsystem<UCommonSessionSubsystem>())
-			{
-				SessionSubsystem->OnJoinSessionCompleteEvent.Remove(JoinSessionHandle);
-			}
-		}
-	}
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("Start Join Session"));
 }
 
 void USGameSessionEntry::OnGameDataLoaded()
 {
-	if (GameDataId.IsValid())
+	// Récupérer les paramètres supplémentaires de la session
+	TArray<FSessionPropertyKeyPair> ExtraSettings;
+	UAdvancedSessionsLibrary::GetExtraSettings(SessionSearchResult, ExtraSettings);
+
+	FString GameName;
+	FString MapName;
+
+	// Parcourir les paramètres pour trouver "GameName" et "MapName"
+	for (const FSessionPropertyKeyPair& Setting : ExtraSettings)
 	{
-		if (UAssetManager* AssetManager = UAssetManager::GetIfInitialized())
+		if (Setting.Key == "GameName")
 		{
-			if (const USGameData* GameData = Cast<USGameData>(AssetManager->GetPrimaryAssetObject(GameDataId)))
-			{
-				if (SessionButton)
-				{
-					SessionButton->SetTextDisplays(
-						GameData->GameName,
-						GameData->GameMap,
-						FText::AsNumber(SessionSearchResult->GetPingInMs()),
-						FText::AsNumber(SessionSearchResult->GetMaxPublicConnections() - SessionSearchResult->GetNumOpenPublicConnections()),
-						FText::AsNumber(SessionSearchResult->GetMaxPublicConnections())
-					);
-				}
-			}
+			GameName = Setting.Data.ToString();
 		}
+		else if (Setting.Key == "MapName")
+		{
+			MapName = Setting.Data.ToString();
+		}
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, FString::Printf(TEXT("GameName: %s, MapName: %s"), *GameName, *MapName));
+
+	// Mettre à jour les informations du bouton de session
+	if (SessionButton)
+	{
+		SessionButton->SetTextDisplays(
+			FText::FromString(GameName),
+			FText::FromString(MapName),
+			FText::AsNumber(SessionSearchResult.OnlineResult.PingInMs),
+			FText::AsNumber(SessionSearchResult.OnlineResult.Session.SessionSettings.NumPublicConnections - SessionSearchResult.OnlineResult.Session.NumOpenPublicConnections),
+			FText::AsNumber(SessionSearchResult.OnlineResult.Session.SessionSettings.NumPublicConnections)
+		);
 	}
 }

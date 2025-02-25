@@ -16,8 +16,17 @@ void UGameUIManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if (!CurrentPolicy && !DefaultUIPolicyClass.IsNull())
 	{
-		TSubclassOf<UGameUIPolicy> PolicyClass = DefaultUIPolicyClass.LoadSynchronous();
-		SwitchToPolicy(NewObject<UGameUIPolicy>(this, PolicyClass));
+		if (const TSubclassOf<UGameUIPolicy> PolicyClass = DefaultUIPolicyClass.LoadSynchronous())
+		{
+			UGameUIPolicy* NewPolicy = NewObject<UGameUIPolicy>(this, PolicyClass);
+			if (!NewPolicy)
+			{
+				UE_LOG(LogTemp, Error, TEXT("NewObject<UGameUIPolicy> failed!"));
+				return;
+			}
+			UE_LOG(LogTemp, Log, TEXT("Created new UI Policy instance: %s"), *NewPolicy->GetName());
+			SwitchToPolicy(NewPolicy);
+		}
 	}
 }
 

@@ -1,14 +1,23 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SMenuhostSessionWidget.h"
-
+#include "OnlineSessionSettings.h"
+#include "OnlineSubsystem.h"
 #include "CommonGameInstance.h"
 #include "CommonSessionSubsystem.h"
 #include "CommonTextBlock.h"
 #include "CommonUserSubsystem.h"
+#include "CreateSessionCallbackProxyAdvanced.h"
+#include "OnlineSubsystemUtils.h"
 #include "PrimaryGameLayout.h"
+#include "Components/EditableText.h"
+#include "Components/Slider.h"
 #include "Framwork/Data/SGameData.h"
 #include "Framwork/UI/Menu/SButtonBaseWidget.h"
 #include "Framwork/UI/Menu/Multiplayer/SGameDisplayListWidget.h"
 #include "Framwork/UI/Menu/Multiplayer/SGameDisplayWidget.h"
+#include "Kismet/GameplayStatics.h"
+
+/*---------------- Setup -------------------*/
+#pragma region Setup
 
 void USMenuhostSessionWidget::NativeOnInitialized()
 {
@@ -17,167 +26,77 @@ void USMenuhostSessionWidget::NativeOnInitialized()
 	NetMode = ECommonSessionOnlineMode::Online;
 	InitTextDisplays();
 
+	// Settings
 	if (ChangeNetModeButton)
-	{
 		ChangeNetModeButton->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnNetWorkModeButtonClicked);
-	}
 	
 	if (ChangeSetting1Button)
 		ChangeSetting1Button->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnSetting1Changed);
+	
 	if (ChangeSetting2Button)
 		ChangeSetting2Button->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnSetting2Changed);
 
-	if (LaunchButton)
-		LaunchButton->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnlaunchGame);
-	if (BackButton)
-		BackButton->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnBackGame);
+	if (TimeSlider)
+		TimeSlider->OnValueChanged.AddDynamic(this, &USMenuhostSessionWidget::OnSliderChange);
 
-	if (GameList)
-	{
-		GameList->OnGameListCreated.AddDynamic(this, &USMenuhostSessionWidget::OnGameListCreated);
-		GameList->OnGameSelected.AddDynamic(this, &USMenuhostSessionWidget::OnGameSelected);
-	}
+	// Buttons
+	if (LaunchButton)
+		LaunchButton->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnLaunchGame);
+
+	if (SelectedGameTitleText)
+		SelectedGameTitleText->OnTextCommitted.AddDynamic(this, &USMenuhostSessionWidget::OnGameNameChange);
 }
 
-void USMenuhostSessionWidget::InitTextDisplays() const
+void USMenuhostSessionWidget::InitTextDisplays()
 {
 	if (NetWorkModeText)
 		NetWorkModeText->SetText(UEnum::GetDisplayValueAsText(NetMode));
 
 	if (GameSetting1Text)
-		GameSetting1Text->SetText(UEnum::GetDisplayValueAsText(Setting1));
+	{
+		FString Text = FString::FromInt(GameSettings.MaxPlayers) + TEXT(" Players");
+		GameSetting1Text->SetText(FText::FromString(Text));
+		
+		Setting1 = ESettingMaxPlayers::Max2;
+	}
+	
 	if (GameSetting2Text)
-		GameSetting1Text->SetText(UEnum::GetDisplayValueAsText(Setting2));
-}
-
-void USMenuhostSessionWidget::AttenptOnlineLogin()
-{
-	if (!GetOwningPlayer() || !GetOwningPlayer()->GetWorld())
-		return;
-
-	if (const UCommonGameInstance* GameInstance = Cast<UCommonGameInstance>(GetOwningPlayer()->GetWorld()->GetGameInstance()))
 	{
-		if (UCommonUserSubsystem* UserSubsystem = GameInstance->GetSubsystem<UCommonUserSubsystem>())
-		{
-			UserSubsystem->OnUserInitializeComplete.AddDynamic(this, &USMenuhostSessionWidget::OnUserOnlineLogin);
-			UserSubsystem->TryToLoginForOnlinePlay(0);
-		}
+		FString Text = FString::FromInt(GameSettings.PlayerLife) + TEXT(" Life");
+		GameSetting2Text->SetText(FText::FromString(Text));
+
+		Setting2 = ESettingPlayerHealth::PlayerHealth2;
+	}
+
+	if (GameSetting3Text && TimeSlider)
+	{
+		int Minutes = 2;
+		int Seconds = 30;
+		GameSetting3Text->SetText(FText::FromString(FString::Printf(TEXT("%d:%02d"), Minutes, Seconds)));
+
+		TimeSlider->SetValue(160);
+		GameSettings.RoundDuration = 160;
 	}
 }
 
-void USMenuhostSessionWidget::OnUserOnlineLogin(const UCommonUserInfo* UserInfo, bool bSuccess, FText Error,
-	ECommonUserPrivilege RequestedPrivilege, ECommonUserOnlineContext OnlineContext)
+void USMenuhostSessionWidget::SetActivated(const bool bActivate)
 {
-	if (bSuccess)
-	{
-		HostSession();
-	}
+	if (bActivate)
+		SetVisibility(ESlateVisibility::Visible);
 	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed To Login Online"))
-	}
+		SetVisibility(ESlateVisibility::Collapsed);
 }
 
-void USMenuhostSessionWidget::HostSession()
-{
-	if (!GetOwningPlayer() || !GetOwningPlayer()->GetWorld())
-		return;
+#pragma endregion
 
-	if (const UCommonGameInstance* GameInstance = Cast<UCommonGameInstance>(GetOwningPlayer()->GetWorld()->GetGameInstance()))
-	{
-		if (UCommonSessionSubsystem* SessionSubsystem = GameInstance->GetSubsystem<UCommonSessionSubsystem>())
-		{
-			SessionSubsystem->OnCreateSessionCompleteEvent.AddUObject(this, &USMenuhostSessionWidget::OnSessionCreated);
-			UCommonSession_HostSessionRequest* Request = CreateHostingRequest();
-			SessionSubsystem->HostSession(GetOwningPlayer(), Request);
-		}
-	}
+void USMenuhostSessionWidget::OnGameNameChange(const FText& Text, ETextCommit::Type CommitMethod)
+{
+	GameSettings.GameName = Text.ToString();
 }
 
-UCommonSession_HostSessionRequest* USMenuhostSessionWidget::CreateHostingRequest() const
+void USMenuhostSessionWidget::OnLaunchGame()
 {
-	UCommonSession_HostSessionRequest* Request = NewObject<UCommonSession_HostSessionRequest>();
-
-	if (GameDataId.IsValid())
-	{
-		if (const UAssetManager* AssetManager = UAssetManager::GetIfInitialized())
-		{
-			if (const USGameData* GameData = Cast<USGameData>(AssetManager->GetPrimaryAssetObject(GameDataId)))
-			{
-				const FString GameDataName = GameDataId.PrimaryAssetName.ToString();
-				Request->ModeNameForAdvertisement = GameDataName;
-				Request->OnlineMode = ECommonSessionOnlineMode::Online;
-				Request->bUseLobbies = true;
-				Request->MapID = GameData->MapID;
-				Request->ExtraArgs = GameData->ExtraArgs;
-				Request->MaxPlayerCount = GameData->MaxPlayerCount;
-			}
-		}
-	}
-
-	return Request;
-}
-
-void USMenuhostSessionWidget::OnSessionCreated(const FOnlineResultInformation& Result)
-{
-	if (Result.bWasSuccessful)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Session Created"))
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Failed to Create Session"))
-	}
-}
-
-void USMenuhostSessionWidget::OnlaunchGame()
-{
-	AttenptOnlineLogin();
-}
-
-void USMenuhostSessionWidget::OnBackGame()
-{
-	if (const UWorld* World = GetWorld())
-	{
-		if (UPrimaryGameLayout* RootLayout = UPrimaryGameLayout::GetPrimaryGameLayoutForPrimaryPlayer(World))
-		{
-			RootLayout->FindAndRemoveWidgetFromLayer(this);
-		}
-	}
-}
-
-void USMenuhostSessionWidget::OnSetting1Changed()
-{
-	switch (Setting1)
-	{
-		case ESetting1::Set1:
-			Setting1 = ESetting1::Set2;
-			break;
-		case ESetting1::Set2:
-			Setting1 = ESetting1::Set1;
-			break;
-		default: ;
-	}
-
-	if (GameSetting1Text)
-		GameSetting1Text->SetText(UEnum::GetDisplayValueAsText(Setting1));
-}
-
-void USMenuhostSessionWidget::OnSetting2Changed()
-{
-	switch (Setting2)
-	{
-	case ESetting2::Set3:
-		Setting2 = ESetting2::Set4;
-		break;
-	case ESetting2::Set4:
-		Setting2 = ESetting2::Set3;
-		break;
-	default: ;
-	}
-
-	if (GameSetting2Text)
-		GameSetting2Text->SetText(UEnum::GetDisplayValueAsText(Setting2));
+	HostSession();
 }
 
 void USMenuhostSessionWidget::OnNetWorkModeButtonClicked()
@@ -186,14 +105,14 @@ void USMenuhostSessionWidget::OnNetWorkModeButtonClicked()
 	{
 		case ECommonSessionOnlineMode::Offline:
 			NetMode = ECommonSessionOnlineMode::LAN;
-			return;
+			break;
 		case ECommonSessionOnlineMode::LAN:
 			NetMode = ECommonSessionOnlineMode::Online;
-			return;
+			break;
 		case ECommonSessionOnlineMode::Online:
 			NetMode = ECommonSessionOnlineMode::Offline;
-			return;
-		default: NetMode = ECommonSessionOnlineMode::LAN;
+			break;
+		default: NetMode = ECommonSessionOnlineMode::Offline;
 	}
 
 	if (NetWorkModeText)
@@ -202,32 +121,165 @@ void USMenuhostSessionWidget::OnNetWorkModeButtonClicked()
 	}
 }
 
+/*---------------- Settings ------------------------*/
+#pragma region Settings
 
-
-void USMenuhostSessionWidget::OnGameListCreated()
+// Setting Max Player
+void USMenuhostSessionWidget::OnSetting1Changed()
 {
-	TArray<UWidget*> DisplayWidgets = GameList->GetGameListWidgetList();
-	if (DisplayWidgets.IsValidIndex(0))
+	switch (Setting1)
 	{
-		if (const USGameDisplayWidget* DisplayWidget = Cast<USGameDisplayWidget>(DisplayWidgets[0]))
-		{
-			const FPrimaryAssetId& DisplayGameData = DisplayWidget->GetGameDataAsset();
-			OnGameSelected(DisplayGameData);
-		}
+	case ESettingMaxPlayers::Max1:
+		Setting1 = ESettingMaxPlayers::Max2;
+		GameSettings.MaxPlayers = 2;
+		break;
+		
+	case ESettingMaxPlayers::Max2:
+		Setting1 = ESettingMaxPlayers::Max3;
+		GameSettings.MaxPlayers = 3;
+		break;
+		
+	case ESettingMaxPlayers::Max3:
+		Setting1 = ESettingMaxPlayers::Max1;
+		GameSettings.MaxPlayers = 4;
+		break;
+		
+	default: ;
+	}
+	
+	if (GameSetting1Text)
+	{
+		FString Text = FString::FromInt(GameSettings.MaxPlayers) + TEXT(" Players");
+		GameSetting1Text->SetText(FText::FromString(Text));
 	}
 }
 
-void USMenuhostSessionWidget::OnGameSelected(const FPrimaryAssetId& SelectedGameData)
+// Setting Lifes
+void USMenuhostSessionWidget::OnSetting2Changed()
 {
-	if (!SelectedGameData.IsValid())
-		return;
-
-	if (const UAssetManager* AssetManager = UAssetManager::GetIfInitialized())
+	switch (Setting2)
 	{
-		if (const USGameData* GameData = Cast<USGameData>(AssetManager->GetPrimaryAssetObject(SelectedGameData)))
-		{
-			if (SelectedGameTitleText && GameData)
-				SelectedGameTitleText->SetText(GameData->GameName);
-		}
+		case ESettingPlayerHealth::PlayerHealth1:
+			Setting2 = ESettingPlayerHealth::PlayerHealth2;
+			GameSettings.PlayerLife = 2;
+			break;
+		
+		case ESettingPlayerHealth::PlayerHealth2:
+			Setting2 = ESettingPlayerHealth::PlayerHealth3;
+			GameSettings.PlayerLife = 3;
+			break;
+		
+		case ESettingPlayerHealth::PlayerHealth3:
+			Setting2 = ESettingPlayerHealth::PlayerHealth4;
+			GameSettings.PlayerLife = 4;
+			break;
+		
+		case ESettingPlayerHealth::PlayerHealth4:
+			Setting2 = ESettingPlayerHealth::PlayerHealth5;
+			GameSettings.PlayerLife = 5;
+			break;
+		
+		case ESettingPlayerHealth::PlayerHealth5:
+			Setting2 = ESettingPlayerHealth::PlayerHealth6;
+			GameSettings.PlayerLife = 6;
+			break;
+		
+		case ESettingPlayerHealth::PlayerHealth6:
+			Setting2 = ESettingPlayerHealth::PlayerHealth7;
+			GameSettings.PlayerLife = 7;
+			break;
+		
+		case ESettingPlayerHealth::PlayerHealth7:
+			Setting2 = ESettingPlayerHealth::PlayerHealth1;
+			GameSettings.PlayerLife = 8;
+			break;
+	default: ;
+	}
+
+	if (GameSetting2Text)
+	{
+		FString Text = FString::FromInt(GameSettings.PlayerLife) + TEXT(" Life");
+		GameSetting2Text->SetText(FText::FromString(Text));
 	}
 }
+
+// Time Slider
+void USMenuhostSessionWidget::OnSliderChange(float Value)
+{
+	 int RoundedValue = FMath::RoundToInt(Value / 30.0f) * 30;
+    
+    // Mettre à jour la durée du round
+    GameSettings.RoundDuration = RoundedValue;
+
+    // Calculer les minutes et secondes
+    int Minutes = RoundedValue / 60;
+    int Seconds = RoundedValue % 60;
+    
+    // Mettre à jour l'affichage (supposons que vous ayez un UTextBlock* nommé DurationText)
+    if (GameSetting3Text)
+    {
+        GameSetting3Text->SetText(FText::FromString(FString::Printf(TEXT("%d:%02d"), Minutes, Seconds)));
+    }
+}
+
+#pragma endregion
+
+/*---------------- Hosting Session ----------------*/
+#pragma region Hosting Session
+
+void USMenuhostSessionWidget::HostSession()
+{
+    UE_LOG(LogTemp, Log, TEXT("HostSession: Début de la fonction."));
+	
+    UWorld* World = GetWorld();
+	APlayerController* PlayerController = World->GetFirstPlayerController();
+	
+    TArray<FSessionPropertyKeyPair> SessionProperties;
+    SessionProperties.Add(FSessionPropertyKeyPair(TEXT("GameName"), GameSettings.GameName));
+    SessionProperties.Add(FSessionPropertyKeyPair(TEXT("MapName"), GameSettings.MapName));
+	
+    // Créer la session
+    UCreateSessionCallbackProxyAdvanced* CreateSessionProxy = UCreateSessionCallbackProxyAdvanced::CreateAdvancedSession(
+        World,
+        SessionProperties,
+        PlayerController,
+        GameSettings.MaxPlayers,
+        0,
+        false,
+		true,
+		false,
+		true,
+		true,
+		true,
+		false,
+		false,
+		false,
+		true,
+		false,
+		true
+    );
+
+    if (CreateSessionProxy)
+    {
+        UE_LOG(LogTemp, Log, TEXT("HostSession: CreateSessionProxy créé avec succès."));
+
+        CreateSessionProxy->OnSuccess.AddDynamic(this, &USMenuhostSessionWidget::OnCreateSessionSuccess);
+        CreateSessionProxy->OnFailure.AddDynamic(this, &USMenuhostSessionWidget::OnCreateSessionFailure);
+
+    	CreateSessionProxy->Activate();
+
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("HostSession: Échec de la création du CreateSessionProxy."));
+    }
+	
+}
+
+void USMenuhostSessionWidget::OnCreateSessionFailure()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Session creation failed"));
+	UE_LOG(LogTemp, Error, TEXT("Session creation failed"));
+}
+
+#pragma endregion

@@ -31,7 +31,14 @@ public class MultiplayerMenu : ModuleRules
 				"CommonUI",
 				"CommonUser",
 				"UMG",
-				"OnlineSubsystem"
+				"OnlineSubsystem",
+				"OnlineSubsystemUtils",
+				"CommonGame",
+				"AdvancedSessions",
+				"AdvancedSteamSessions",
+                "OnlineSubsystemSteam",
+                "Slate", 
+                "SlateCore"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

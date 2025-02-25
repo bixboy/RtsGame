@@ -27,18 +27,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "CommonGame",
-			"Enabled": true
-		},
-		{
-			"Name": "CommonUser",
-			"Enabled": true
-		},
-		{
-			"Name": "MultiplayerMenu",
-			"Enabled": true
-		},
-		{
 			"Name": "CommonUI",
 			"Enabled": true
 		}

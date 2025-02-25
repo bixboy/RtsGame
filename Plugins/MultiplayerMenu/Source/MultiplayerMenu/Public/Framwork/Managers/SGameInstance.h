@@ -1,11 +1,11 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "CommonGameInstance.h"
+#include "AdvancedFriendsGameInstance.h"
 #include "SGameInstance.generated.h"
 
 UCLASS()
-class MULTIPLAYERMENU_API USGameInstance : public UCommonGameInstance
+class MULTIPLAYERMENU_API USGameInstance : public UAdvancedFriendsGameInstance
 {
 	GENERATED_BODY()
 

@@ -5,22 +5,53 @@
 #include "CommonUserSubsystem.h"
 #include "SMenuhostSessionWidget.generated.h"
 
+class UEditableText;
+class USlider;
 class USButtonBaseWidget;
 class UCommonTextBlock;
 class USGameDisplayListWidget;
 
-UENUM()
-enum ESetting1
+USTRUCT()
+struct FGameSettings
 {
-	Set1,
-	Set2
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	FString GameName = "None";
+
+	UPROPERTY()
+	FString MapName = "In Selection";
+	
+	UPROPERTY()
+	int32 MaxPlayers = 2;
+	
+	UPROPERTY()
+	int PlayerLife = 2;
+
+	UPROPERTY()
+	float RoundDuration;
+	
 };
 
 UENUM()
-enum ESetting2
+enum ESettingMaxPlayers
 {
-	Set3,
-	Set4
+	Max1,
+	Max2,
+	Max3
+};
+
+UENUM()
+enum ESettingPlayerHealth
+{
+	PlayerHealth1,
+	PlayerHealth2,
+	PlayerHealth3,
+	PlayerHealth4,
+	PlayerHealth5,
+	PlayerHealth6,
+	PlayerHealth7,
 };
 
 UCLASS(Abstract)
@@ -31,80 +62,92 @@ class MULTIPLAYERMENU_API USMenuhostSessionWidget : public UCommonActivatableWid
 public:
 	virtual void NativeOnInitialized() override;
 
+	UFUNCTION()
+	void SetActivated(bool bActivate);
+
+	UPROPERTY(EditAnywhere)
+	FPrimaryAssetId LobbyLevel;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Sessions)
+	void OnCreateSessionSuccess();
+
 protected:
 	UFUNCTION()
-	void InitTextDisplays() const;
-	
-	UFUNCTION()
-	void AttenptOnlineLogin();
-	
-	UFUNCTION()
-	void OnUserOnlineLogin(const UCommonUserInfo* UserInfo, bool bSuccess, FText Error,
-							ECommonUserPrivilege RequestedPrivilege, ECommonUserOnlineContext OnlineContext);
+	void InitTextDisplays();
 
-	
 	UFUNCTION()
 	void HostSession();
-	
+
 	UFUNCTION()
-	UCommonSession_HostSessionRequest* CreateHostingRequest() const;
-	
-	UFUNCTION()
-	void OnSessionCreated(const FOnlineResultInformation& OnlineResultInformation);
+	void OnCreateSessionFailure();
 
 	UPROPERTY()
 	FPrimaryAssetId GameDataId;
 
-	// Game List
-	UFUNCTION()
-	void OnGameListCreated();
-	UFUNCTION()
-	void OnGameSelected(const FPrimaryAssetId& SelectedGameData);
 	
+	/*- Game Name -*/
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	USGameDisplayListWidget* GameList;
+	UEditableText* SelectedGameTitleText;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UCommonTextBlock* SelectedGameTitleText;
-
-	// Launch
 	UFUNCTION()
-	void OnlaunchGame();
+	void OnGameNameChange(const FText& Text, ETextCommit::Type CommitMethod);
+
+	
+	/*- Launch Game -*/
+	UFUNCTION()
+	void OnLaunchGame();
 	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* LaunchButton;
 
+public:
 	// Back
-	UFUNCTION()
-	void OnBackGame();
-	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* BackButton;
 
-	/** General Settings **/
-	UPROPERTY()
-	TEnumAsByte<ESetting1> Setting1;
-	UPROPERTY()
-	TEnumAsByte<ESetting2> Setting2;
-
-
-	UFUNCTION()
-	void OnSetting1Changed();
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UCommonTextBlock* GameSetting1Text;
 	
+protected:
+	/*- General Settings -*/
+	UPROPERTY()
+	TEnumAsByte<ESettingMaxPlayers> Setting1;
+	UPROPERTY()
+	TEnumAsByte<ESettingPlayerHealth> Setting2;
+	
+
+	UPROPERTY()
+	FGameSettings GameSettings;
+
+	//Setting 1
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* ChangeSetting1Button;
 
-	UFUNCTION()
-	void OnSetting2Changed();
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UCommonTextBlock* GameSetting2Text;
+	UCommonTextBlock* GameSetting1Text;
+
+	UFUNCTION()
+	void OnSetting1Changed();
 	
+	//Setting 2
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* ChangeSetting2Button;
 
-	/** NetMode Settings **/
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UCommonTextBlock* GameSetting2Text;
+
+	UFUNCTION()
+	void OnSetting2Changed();
+
+	//Setting 3
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	USlider* TimeSlider;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UCommonTextBlock* GameSetting3Text;
+
+	UFUNCTION()
+	void OnSliderChange(float Value);
+
+	/*- NetMode Settings -*/
 	UFUNCTION()
 	void OnNetWorkModeButtonClicked();
 

@@ -1,52 +1,67 @@
 ﻿#include "Framwork/SPlayerController.h"
-
 #include "PrimaryGameLayout.h"
-#include "Framwork/Data/StaticGameData.h"
 #include "Framwork/Managers/SGameState.h"
+#include "Framwork/UI/Menu/Multiplayer/SMenuMultiplayerWidget.h"
+#include "OnlineSessionSettings.h"
+#include "OnlineSubsystemUtils.h"
+#include "Interfaces/OnlineSessionInterface.h"
 
 ASPlayerController::ASPlayerController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	
 }
 
 void ASPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
-
-	if (IsLocalController())
-	{
-		if (const UWorld* WorldContext = GetWorld())
-		{
-			if (const ASGameState* SGameState = SGameState = Cast<ASGameState>(WorldContext->GetGameState()))
-			{
-				ShowMenu(SGameState->GetMenuClass());
-			}
-		}	
-	}
 	
+	if (MenuWidgetClass)
+	{
+		ShowMenu(MenuWidgetClass);
+
+		FInputModeUIOnly InputMode;
+		SetInputMode(InputMode);
+		bShowMouseCursor = true;
+	}
 }
 
-void ASPlayerController::ShowMenu(const TSoftClassPtr<UCommonActivatableWidget>& MenuClass)
+void ASPlayerController::ShowMenu(const TSubclassOf<UCommonActivatableWidget> MenuClass)
 {
 	if (MenuClass == nullptr)
 		return;
-
-	if (const UWorld* WorldContext = GetWorld())
+    
+	UWorld* WorldContext = GetWorld();
+	if (!WorldContext)
+		return;
+    
+	// Crée le widget en utilisant le PlayerController comme owning object
+	UCommonActivatableWidget* MenuWidget = CreateWidget<UCommonActivatableWidget>(this, MenuClass.Get());
+	if (MenuWidget)
 	{
-		if (UPrimaryGameLayout* RootLayout = UPrimaryGameLayout::GetPrimaryGameLayoutForPrimaryPlayer(WorldContext))
+		MenuWidget->AddToViewport();
+		UE_LOG(LogTemp, Warning, TEXT("Menu successfully added to viewport"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Failed to add menu to viewport"));
+		UE_LOG(LogTemp, Warning, TEXT("Failed to create menu widget"));
+	}
+}
+
+void ASPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	if (HasAuthority()) // Assurez-vous que le code s'exécute uniquement sur le serveur
+	{
+		IOnlineSessionPtr Sessions = Online::GetSubsystem(GetWorld())->GetSessionInterface();
+		if (Sessions.IsValid())
 		{
-			RootLayout->PushWidgetToLayerStackAsync<UCommonActivatableWidget>(UILayerTags::TAG_UI_LAYER_MENU, true, MenuClass,
-				[this](EAsyncWidgetLayerState State, UCommonActivatableWidget* Screen)
-				{
-					switch (State)
-					{
-						case EAsyncWidgetLayerState::AfterPush:
-							return;
-						
-						case EAsyncWidgetLayerState::Canceled:
-							return;
-					}
-				});
+			FName SessionName(TEXT("Session1"));
+			FNamedOnlineSession* Session = Sessions->GetNamedSession(SessionName);
+			if (Session && Session->RegisteredPlayers.Num() == 0)
+			{
+				Sessions->DestroySession(SessionName);
+			}
 		}
 	}
 }

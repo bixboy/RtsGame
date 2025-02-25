@@ -158,6 +158,7 @@ void ASGameMode::OnGameReady()
 
 void ASGameMode::InitialisePlayer()
 {
+	// Init Player Data
 	for (int i = 0; i < SessionPlayers.Num(); i++)
 	{
 		if ((SessionPlayers[i]) && (!SessionPlayers[i]->GetPawn()))

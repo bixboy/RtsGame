@@ -16,6 +16,7 @@ class MULTIPLAYERMENU_API ASGameState : public AGameStateBase
 
 public:
 	ASGameState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()

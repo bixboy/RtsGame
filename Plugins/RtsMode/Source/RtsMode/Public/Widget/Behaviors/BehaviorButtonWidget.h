@@ -14,5 +14,5 @@ public:
 	virtual void NativePreConstruct() override;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	TEnumAsByte<ECombatBehavior> CombatBehavior;
+	ECombatBehavior CombatBehavior;
 };

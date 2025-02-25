@@ -19,7 +19,10 @@ void USButtonBaseWidget::NativePreConstruct()
 void USButtonBaseWidget::InitButton()
 {
 	OnHovered().AddUObject(this, &USButtonBaseWidget::OnButtonHovered);
+	
 	OnUnhovered().AddUObject(this, &USButtonBaseWidget::OnButtonUnHovered);
+
+	OnPressed().AddUObject(this, &USButtonBaseWidget::OnButtonClicked);
 
 	ApplyMaterial();
 	UpdateButtonText(ButtonText);
@@ -31,7 +34,7 @@ void USButtonBaseWidget::OnButtonHovered()
 	if(ButtonBorder)
 	{
 		if(UMaterialInstanceDynamic* MaterialInstance = ButtonBorder->GetDynamicMaterial())
-			MaterialInstance->SetScalarParameterValue("", 1.f);
+			MaterialInstance->SetScalarParameterValue(S_MAT_PARAM_NAME_HOVER, 1.f);
 	}
 }
 
@@ -40,8 +43,13 @@ void USButtonBaseWidget::OnButtonUnHovered()
 	if(ButtonBorder)
 	{
 		if(UMaterialInstanceDynamic* MaterialInstance = ButtonBorder->GetDynamicMaterial())
-			MaterialInstance->SetScalarParameterValue("", 0.f);
+			MaterialInstance->SetScalarParameterValue(S_MAT_PARAM_NAME_HOVER, 0.f);
 	}
+}
+
+void USButtonBaseWidget::OnButtonClicked()
+{
+	OnButtonClickedDelegate.Broadcast();
 }
 
 void USButtonBaseWidget::ApplyMaterial() const

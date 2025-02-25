@@ -35,7 +35,6 @@ UGameUIManagerSubsystem* UGameUIPolicy::GetOwningUIManager() const
 
 UWorld* UGameUIPolicy::GetWorld() const
 {
-    // Vérifie que l'UI Manager existe
     UGameUIManagerSubsystem* UIManager = GetOwningUIManager();
     if (!UIManager)
     {
@@ -43,7 +42,6 @@ UWorld* UGameUIPolicy::GetWorld() const
         return nullptr;
     }
 
-    // Vérifie que GameInstance existe
     UGameInstance* GameInstance = UIManager->GetGameInstance();
     if (!GameInstance)
     {
@@ -51,15 +49,7 @@ UWorld* UGameUIPolicy::GetWorld() const
         return nullptr;
     }
 
-    // Vérifie que le monde est valide
-    UWorld* World = GameInstance->GetWorld();
-    if (!World)
-    {
-        UE_LOG(LogTemp, Error, TEXT("UGameUIPolicy::GetWorld() - GetWorld() est nullptr!"));
-        return nullptr;
-    }
-
-    return World;
+    return GameInstance->GetWorld();
 }
 
 UPrimaryGameLayout* UGameUIPolicy::GetRootLayout(const UCommonLocalPlayer* LocalPlayer) const

@@ -167,6 +167,8 @@ void USMenuJoinSessionWidget::OnSessionSearchFailed(const TArray<FBlueprintSessi
 #pragma endregion
 
 /*--------------------------------- Join Session By ID -------------------------------------*/
+#pragma region Search Sessions By ID
+
 void USMenuJoinSessionWidget::OnJoinByID()
 {
 	if (!SessionIdOverlay->IsVisible())
@@ -226,3 +228,5 @@ void USMenuJoinSessionWidget::OnJoinSessionIdIsFound_Implementation()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Session found"));
 }
+
+#pragma endregion

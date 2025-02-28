@@ -81,6 +81,12 @@ protected:
 	UFUNCTION()
 	void OnCreateSessionFailure();
 
+	UFUNCTION()
+	void OnCreteSessionSuccessGenerateId();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	FString GenerateTruncatedGuid();
+
 	UPROPERTY()
 	FPrimaryAssetId GameDataId;
 
@@ -159,5 +165,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* ChangeNetModeButton;
+
+	/*- Utility -*/
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	FString GetLevelPath(FSoftObjectPath Level);
 	
 };

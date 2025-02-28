@@ -34,6 +34,9 @@ protected:
 	void UpdateButtonText(const FText& InText);
 	void SetButtonSettings() const;
 
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	UWidgetAnimation* PressedAnimation;
+
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
 	UCommonTextBlock* ButtonTextBlock;
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))

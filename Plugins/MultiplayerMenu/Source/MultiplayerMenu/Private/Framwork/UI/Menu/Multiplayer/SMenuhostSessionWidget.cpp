@@ -263,17 +263,15 @@ void USMenuhostSessionWidget::HostSession()
     {
         UE_LOG(LogTemp, Log, TEXT("HostSession: CreateSessionProxy créé avec succès."));
 
-        CreateSessionProxy->OnSuccess.AddDynamic(this, &USMenuhostSessionWidget::OnCreateSessionSuccess);
+        CreateSessionProxy->OnSuccess.AddDynamic(this, &USMenuhostSessionWidget::OnCreteSessionSuccessGenerateId);
         CreateSessionProxy->OnFailure.AddDynamic(this, &USMenuhostSessionWidget::OnCreateSessionFailure);
 
     	CreateSessionProxy->Activate();
-
     }
     else
     {
         UE_LOG(LogTemp, Error, TEXT("HostSession: Échec de la création du CreateSessionProxy."));
     }
-	
 }
 
 void USMenuhostSessionWidget::OnCreateSessionFailure()
@@ -282,4 +280,46 @@ void USMenuhostSessionWidget::OnCreateSessionFailure()
 	UE_LOG(LogTemp, Error, TEXT("Session creation failed"));
 }
 
+void USMenuhostSessionWidget::OnCreteSessionSuccessGenerateId()
+{
+	/* FString SessionIdStr = GenerateTruncatedGuid();
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, SessionIdStr);
+	
+	IOnlineSessionPtr SessionInterface = Online::GetSubsystem(GetWorld())->GetSessionInterface();
+
+	if (SessionInterface)
+		SessionInterface->CreateSessionIdFromString(SessionIdStr); */
+
+	OnCreateSessionSuccess();
+}
+
+FString USMenuhostSessionWidget::GenerateTruncatedGuid()
+{
+	FGuid Guid = FGuid::NewGuid();
+
+	uint64* Ptr = reinterpret_cast<uint64*>(&Guid);
+	uint64 HalfGuid = Ptr[0];
+
+	// Convertit en hex 64 bits => ~16 caractères
+	return FString::Printf(TEXT("%016llX"), HalfGuid);
+}
+
 #pragma endregion
+
+FString USMenuhostSessionWidget::GetLevelPath(FSoftObjectPath Level)
+{
+	FString LevelPath = Level.GetAssetPathString();
+
+	int32 LastDotIndex;
+	if (LevelPath.FindLastChar('.', LastDotIndex))
+	{
+		LevelPath = LevelPath.Left(LastDotIndex) + TEXT("?listen");
+	}
+	else
+	{
+		LevelPath += TEXT("?listen");
+	}
+
+	return LevelPath;
+	
+}

@@ -15,6 +15,7 @@ void UHudWidget::NativeOnInitialized()
 
 	SetFormationSelectionWidget(false);
 	SetBehaviorSelectionWidget(false);
+	SetUnitsSelectionWidget(true);
 
 	if (PlayerController && PlayerController->SelectionComponent)
 	{
@@ -38,6 +39,14 @@ void UHudWidget::SetBehaviorSelectionWidget(const bool bEnabled) const
 	{
 		BehaviorSelector->SetVisibility(bEnabled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		Btn_SwitchBehavior->SetVisibility(bEnabled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UHudWidget::SetUnitsSelectionWidget(bool bEnabled) const
+{
+	if (UnitsSelector)
+	{
+		BehaviorSelector->SetVisibility(bEnabled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
 

@@ -1,8 +1,6 @@
 ﻿#include "Framwork/UI/Menu/GameMenu/SPlayerLobbyWidget.h"
-
-#include "AdvancedSessionsLibrary.h"
 #include "Components/ListView.h"
-#include "Framwork/UI/Menu/GameMenu/SPlayerLobbyEntry.h"
+#include "Framwork/Data/SPlayerData.h"
 
 
 void USPlayerLobbyWidget::NativeConstruct()
@@ -10,12 +8,18 @@ void USPlayerLobbyWidget::NativeConstruct()
 	Super::NativeConstruct();
 }
 
-void USPlayerLobbyWidget::AddPlayerToWidget(APlayerController* NewController)
+void USPlayerLobbyWidget::UpdatePlayerList(TArray<FPlayerInfo> PlayersList)
 {
-	// Créez une nouvelle instance de l'entrée de lobby.
-	if (USPlayerLobbyEntry* NewEntry = CreateWidget<USPlayerLobbyEntry>(this, PlayerLobbyEntryClass))
+	PlayerLobbyView->ClearListItems();
+	
+	for (FPlayerInfo Player : PlayersList)
 	{
-		PlayerLobbyEntries.AddUnique(NewEntry);
-		PlayerLobbyView->AddItem(NewEntry);
+		if (USPlayerData* NewPlayerData = NewObject<USPlayerData>(this))
+		{
+			NewPlayerData->PlayerInfo = Player;
+			
+			PlayerLobbyView->AddItem(NewPlayerData);
+			PlayerLobbyEntries.Add(NewPlayerData);
+		}
 	}
 }

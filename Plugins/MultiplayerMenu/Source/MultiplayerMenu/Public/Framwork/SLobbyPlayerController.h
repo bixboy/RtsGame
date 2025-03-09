@@ -1,10 +1,13 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
+#include "InputActionValue.h"
 #include "GameFramework/PlayerController.h"
 #include "SLobbyPlayerController.generated.h"
 
+class USChatComponent;
+class ASLobbyPlayerState;
 class USMenuLobbyWidget;
+
 
 USTRUCT(BlueprintType)
 struct FPlayerInfo
@@ -12,16 +15,18 @@ struct FPlayerInfo
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = "PlayerInfo")
-	APlayerController* PlayerController;
+	ASLobbyPlayerState* PlayerState;
 
 	UPROPERTY(BlueprintReadWrite, Category = "PlayerInfo")
 	FString PlayerName;
 
 	UPROPERTY(BlueprintReadWrite, Category = "PlayerInfo")
-	int32 PlayerId;
-
-	UPROPERTY(BlueprintReadWrite, Category = "PlayerInfo")
 	bool bIsReady;
+
+	bool operator==(const FPlayerInfo& Other) const
+	{
+		return (PlayerName == Other.PlayerName) && (PlayerState == Other.PlayerState);
+	}
 
 };
 
@@ -34,23 +39,35 @@ public:
 	ASLobbyPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void BeginPlay() override;
+	
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void Server_SetPlayerReady();
+
+	UFUNCTION(Client, Reliable)
+	void Client_UpdateWidget(const TArray<FPlayerInfo>& PlayersInfo);
 
 	UFUNCTION()
-	void OnPlayerJoinSession(APlayerController* NewController);
+	FPlayerInfo GetPlayerInfo();
 
-	UPROPERTY()
-	FPlayerInfo PlayerInfo;
+	UFUNCTION()
+	USChatComponent* GetChatComponent();
 
 protected:
 	UFUNCTION()
 	void SetupWidget();
 
-	UFUNCTION()
-	void RefreshPlayerList();
+	UFUNCTION(Server, Reliable)
+	void Server_SetPlayerInfo();
+
+	UPROPERTY()
+	FPlayerInfo PlayerInfo;
 
 	UPROPERTY()
 	USMenuLobbyWidget* LobbyWidget;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Widget")
 	TSubclassOf<USMenuLobbyWidget> LobbyWidgetClass;
+
+	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = true))
+	USChatComponent* ChatComponent;
 };

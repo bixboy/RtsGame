@@ -1,14 +1,16 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/AiData.h"
 #include "SlectionComponent.generated.h"
 
+class ASoldierRts;
 class UFormationDataAsset;
 class UHudWidget;
 
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSelectedUpdatedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUnitUpdatedDelegate);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class RTSMODE_API USelectionComponent : public UActorComponent
@@ -19,7 +21,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&) const override;
 	
 	UFUNCTION()
-	FVector GetMousePositionOnTerrain() const;
+	FHitResult GetMousePositionOnTerrain() const;
 
 protected:
 	UFUNCTION()
@@ -31,8 +33,9 @@ protected:
 	UPROPERTY()
 	APlayerController* OwnerController;
 
-// Selection	
+// ------------------- Selection ---------------------------
 #pragma region Selection
+	
 public:
 	
 	UFUNCTION()
@@ -83,7 +86,7 @@ protected:
 
 #pragma endregion	
 
-// Formation
+// ------------------- Formation ---------------------------
 #pragma region Formation
 public:
 	UFUNCTION()
@@ -125,24 +128,23 @@ public:
 protected:	
 	UPROPERTY()
 	TArray<UFormationDataAsset*> FormationData;
-
-	UPROPERTY()
-	TObjectPtr<UHudWidget> Hud;
+	
 	UPROPERTY(EditAnywhere, Category = "Settings|UI")
 	TSubclassOf<UUserWidget> HudClass;
 
+	UPROPERTY()
+	TObjectPtr<UHudWidget> Hud;
+
+	UPROPERTY(ReplicatedUsing = OnRep_FormationSpacing)
+	float FormationSpacing;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentFormation)
 	TEnumAsByte<EFormation> CurrentFormation = EFormation::Square;
-	
-	UPROPERTY(ReplicatedUsing = OnRep_FormationSpacing)
-	float FormationSpacing;
 
 	UPROPERTY()
 	const UFormationDataAsset* CurrentFormationData;
 
 	/*- Server Replication -*/
-
 	UFUNCTION(Server, Reliable)
 	void Server_UpdateSpacing(const float NewSpacing);
 	UFUNCTION(Server, Reliable)
@@ -155,7 +157,7 @@ protected:
 	
 #pragma endregion
 
-// Behavior
+// ------------------- Behavior ---------------------------
 #pragma region Behavior
 public:
 	UFUNCTION()
@@ -164,6 +166,31 @@ public:
 protected:
 	UFUNCTION(Server, Reliable)
 	void Server_UpdateBehavior(const ECombatBehavior NewBehavior);
+	
+#pragma endregion
+
+// ------------------- Spawn Units ---------------------------
+#pragma region Spawn Units
+	
+public:
+	UFUNCTION()
+	void SpawnUnits();
+
+	UFUNCTION(Server, Reliable)
+	void ChangeUnitClass(TSubclassOf<ASoldierRts> UnitClass);
+	
+	UPROPERTY()
+	FOnUnitUpdatedDelegate OnUnitUpdated;
+
+protected:
+	UFUNCTION(Server, Reliable)
+	void Server_SpawnUnits(FVector HitLocation);
+
+	UFUNCTION()
+	void OnRep_UnitClass();
+
+	UPROPERTY(Replicated, ReplicatedUsing = OnRep_UnitClass)
+	TSubclassOf<ASoldierRts> UnitToSpawn;
 	
 #pragma endregion	
 

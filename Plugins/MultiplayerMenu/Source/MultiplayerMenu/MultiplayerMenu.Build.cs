@@ -27,13 +27,12 @@ public class MultiplayerMenu : ModuleRules
 			{
 				"Core",
 				"Networking",
+				"EnhancedInput",
 				"NetCore",
 				"CommonUI",
-				"CommonUser",
 				"UMG",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils",
-				"CommonGame",
 				"AdvancedSessions",
 				"AdvancedSteamSessions",
                 "OnlineSubsystemSteam",
@@ -50,8 +49,6 @@ public class MultiplayerMenu : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"CommonGame",
-				"ModularGameplayActors",
 				"GameplayTags"
 				// ... add private dependencies that you statically link with here ...	
 			}

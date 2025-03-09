@@ -1,8 +1,6 @@
 ﻿#pragma once
 
-#include "CommonSessionSubsystem.h"
 #include "CommonActivatableWidget.h"
-#include "CommonUserSubsystem.h"
 #include "SMenuhostSessionWidget.generated.h"
 
 class UEditableText;
@@ -31,7 +29,17 @@ public:
 
 	UPROPERTY()
 	float RoundDuration;
+
+	UPROPERTY()
+	bool IsPrivateGame = false;
 	
+};
+
+UENUM()
+enum ESessionAccess
+{
+	Public,
+	Private
 };
 
 UENUM()
@@ -78,6 +86,9 @@ protected:
 	UFUNCTION()
 	void HostSession();
 
+	UFUNCTION(BlueprintImplementableEvent, Category = Sessions)
+	void DestroySession(APlayerController* Controller);
+
 	UFUNCTION()
 	void OnCreateSessionFailure();
 
@@ -118,6 +129,8 @@ protected:
 	TEnumAsByte<ESettingMaxPlayers> Setting1;
 	UPROPERTY()
 	TEnumAsByte<ESettingPlayerHealth> Setting2;
+	UPROPERTY()
+	TEnumAsByte<ESessionAccess> Setting3;
 	
 
 	UPROPERTY()
@@ -155,16 +168,13 @@ protected:
 
 	/*- NetMode Settings -*/
 	UFUNCTION()
-	void OnNetWorkModeButtonClicked();
-
-	UPROPERTY()
-	ECommonSessionOnlineMode NetMode;
+	void OnSessionAccessButtonClicked();
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UCommonTextBlock* NetWorkModeText;
+	UCommonTextBlock* SessionAccessText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	USButtonBaseWidget* ChangeNetModeButton;
+	USButtonBaseWidget* ChangeSessionAccessButton;
 
 	/*- Utility -*/
 	UFUNCTION(BlueprintCallable, BlueprintPure)

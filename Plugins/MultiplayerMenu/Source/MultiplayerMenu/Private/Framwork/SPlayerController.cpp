@@ -1,6 +1,4 @@
 ﻿#include "Framwork/SPlayerController.h"
-#include "PrimaryGameLayout.h"
-#include "Framwork/Managers/SGameState.h"
 #include "Framwork/UI/Menu/Multiplayer/SMenuMultiplayerWidget.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
@@ -10,9 +8,11 @@ ASPlayerController::ASPlayerController(const FObjectInitializer& ObjectInitializ
 {
 }
 
-void ASPlayerController::OnPossess(APawn* InPawn)
+void ASPlayerController::BeginPlay()
 {
-	Super::OnPossess(InPawn);
+	Super::BeginPlay();
+
+	DestroySession(this);
 	
 	if (MenuWidgetClass)
 	{
@@ -24,6 +24,7 @@ void ASPlayerController::OnPossess(APawn* InPawn)
 	}
 }
 
+
 void ASPlayerController::ShowMenu(const TSubclassOf<UCommonActivatableWidget> MenuClass)
 {
 	if (MenuClass == nullptr)
@@ -32,7 +33,7 @@ void ASPlayerController::ShowMenu(const TSubclassOf<UCommonActivatableWidget> Me
 	UWorld* WorldContext = GetWorld();
 	if (!WorldContext)
 		return;
-    
+	
 	// Crée le widget en utilisant le PlayerController comme owning object
 	UCommonActivatableWidget* MenuWidget = CreateWidget<UCommonActivatableWidget>(this, MenuClass.Get());
 	if (MenuWidget)

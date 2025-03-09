@@ -1,5 +1,4 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SGameDisplayWidget.h"
-
 #include "Framwork/UI/Menu/Multiplayer/SButtonGameWidget.h"
 
 void USGameDisplayWidget::NativeOnInitialized()

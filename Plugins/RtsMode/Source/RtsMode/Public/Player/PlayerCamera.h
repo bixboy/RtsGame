@@ -1,10 +1,14 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "InputActionValue.h"
 #include "Data/AiData.h"
 #include "GameFramework/Pawn.h"
 #include "PlayerCamera.generated.h"
 
+class UInputAction;
+class UInputMappingContext;
+class UFloatingPawnMovement;
 class ASphereRadius;
 class ASelectionBox;
 class APlayerControllerRts;
@@ -18,16 +22,82 @@ class RTSMODE_API APlayerCamera : public APawn
 
 public:
 	APlayerCamera();
+	
 	virtual void BeginPlay() override;
+
+	virtual void NotifyControllerChanged() override;
+	
+	virtual void CustomInitialized();
+	
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	APlayerControllerRts* GetRtsPlayerController();
 
-private:
-	UFUNCTION()
-	void CameraBounds();
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UFloatingPawnMovement> PawnMovementComponent;
 
+protected:
+//------------------------------------ Inputs ------------------------------------
+#pragma region Inputs
+	
+protected:
+	virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputMappingContext> InputMappingContext;
+	
+	/*- Input Action -*/
+	
+	//MOVEMENTS
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> MoveAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> ZoomAction;
+
+	//ROTATION
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> EnableRotateAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> RotateHorizontalAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> RotateVerticalAction;
+	
+
+	//SELECTION
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> SelectAction;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> SelectHoldAction;
+
+	//COMMAND
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> CommandAction;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> AltCommandAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> AltCommandActionTrigger;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> PatrolCommandAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> DeleteCommandAction;
+
+	//SPAWN
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> SpawnUnitAction;
+
+#pragma endregion	
+
+	
+//------------------------------------ Camera ------------------------------------
 #pragma region Camera Components
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	USceneComponent* SceneComponent;
@@ -43,18 +113,24 @@ private:
 	
 protected:
 	/** Déplacements de la caméra */
+	UFUNCTION()
+	void Input_OnMove(const FInputActionValue& ActionValue);
+	
 	UFUNCTION(BlueprintCallable)
-	void MoveForward(float Value);
-	UFUNCTION(BlueprintCallable)
-	void MoveRight(float Value);
-	UFUNCTION(BlueprintCallable)
-	void Zoom(float Value);
+	void Input_Zoom(const FInputActionValue& ActionValue);
+
+	UFUNCTION()
+	void CameraBounds();
 
 	/** Rotation de la caméra */
-	UFUNCTION(BlueprintCallable)
-	void RotateCamera(float Angle);
-	UFUNCTION(BlueprintCallable)
-	void EnableRotation(bool bRotate);
+	UFUNCTION()
+	void Input_RotateHorizontal(const FInputActionValue& ActionValue);
+	
+	UFUNCTION()
+	void Input_RotateVertical(const FInputActionValue& ActionValue);
+
+	UFUNCTION()
+	void Input_EnableRotate(const FInputActionValue& ActionValue);
 	
 
 	/** Gestion du Edge Scroll */
@@ -64,10 +140,13 @@ protected:
 	/** Position ciblée de la caméra */
 	UPROPERTY()
 	FVector TargetLocation;
+	
 	UPROPERTY()
 	FRotator TargetRotation;
+	
 	UPROPERTY()
 	float TargetZoom;
+	
 	UPROPERTY()
 	bool CanRotate;
 
@@ -80,40 +159,75 @@ protected:
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float CameraSpeed = 20.0f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float EdgeScrollSpeed = 2.0f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float RotateSpeed = 2.f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float RotatePitchMin = 10.f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float RotatePitchMax = 80.f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float ZoomSpeed = 2.f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float MinZoom = 500.f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	float MaxZoom = 4000.f;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Camera")
 	bool CanEdgeScroll = false;
 #pragma endregion
 
+	
+//------------------------------------ Selection ------------------------------------
 #pragma region Selection
+	
 protected:
+	// Left Click
 	UFUNCTION(BlueprintCallable)
 	AActor* GetSelectedObject();
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION()
+	void Input_SquareSelection();
+
+	UFUNCTION()
+	void Input_LeftMouseReleased();
+
+	UFUNCTION()
+	void Input_LeftMouseInputHold(const FInputActionValue& ActionValue);
+
+	UFUNCTION()
 	void HandleLeftMouse(EInputEvent InputEvent, float Value);
+
 	
+	// Alt Click
 	UFUNCTION(BlueprintCallable)
 	void HandleAltRightMouse(EInputEvent InputEvent, float Value);
 
 	UFUNCTION()
+	void Input_AltFunction();
+
+	UFUNCTION()
+	void Input_AltFunctionRelease();
+
+	UFUNCTION()
+	void Input_AltFunctionHold(const FInputActionValue& ActionValue);
+
+	UFUNCTION()
 	void CreateSelectionBox();
+	
 	UFUNCTION()
 	void CreateSphereRadius();
 
+	
+	// Variables
 	UPROPERTY()
 	APlayerControllerRts* Player;
 
@@ -132,32 +246,59 @@ protected:
 	UPROPERTY()
 	FVector LeftMouseHitLocation;
 
+	UPROPERTY()
+	bool MouseProjectionIsGrounded;
+
 	UPROPERTY(BlueprintReadWrite)
 	bool bAltIsPressed = false;
+	
 #pragma endregion
 
 #pragma region Command
-protected:
-	/** Démarre une commande */
+
+	UFUNCTION()
+	void Input_PatrolZone(const FInputActionValue& ActionValue);
+
+	UFUNCTION()
+	void Input_OnDestroySelected();
+
+	UFUNCTION(Server, Reliable)
+	void Server_DestroyActor(const TArray<AActor*>& ActorToDestroy);
+
 	UFUNCTION(BlueprintCallable)
 	void CommandStart();
 
-	/** Exécute une commande */
 	UFUNCTION(BlueprintCallable)
 	void Command();
 
-	/** Crée une commande avec des paramètres */
 	UFUNCTION()
 	FCommandData CreateCommandData(const ECommandType Type, AActor* Enemy = nullptr, float Radius = 0.f) const;
 
-	/** Variables pour les commandes */
+	
 	UPROPERTY(EditAnywhere, Category = "Settings|Command")
 	TSubclassOf<ASphereRadius> SphereRadiusClass;
+	
 	UPROPERTY()
 	ASphereRadius* SphereRadius;
+	
 	UPROPERTY()
 	bool SphereRadiusEnable;
+	
 	UPROPERTY()
 	FVector CommandLocation;
 #pragma endregion
+
+#pragma region Spawn Units
+	
+protected:
+	UFUNCTION()
+	void Input_OnSpawnUnits();
+
+	UFUNCTION()
+	void OnIsInSpawnUnits();
+
+	UPROPERTY()
+	bool bIsInSpawnUnits = true;
+	
+#pragma endregion	
 };

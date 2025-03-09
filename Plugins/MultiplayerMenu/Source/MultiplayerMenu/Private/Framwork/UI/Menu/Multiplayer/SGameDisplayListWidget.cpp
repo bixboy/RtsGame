@@ -1,11 +1,9 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SGameDisplayListWidget.h"
-
 #include "Components/VerticalBox.h"
 #include "Engine/AssetManager.h"
 #include "Framwork/Data/SGameData.h"
 #include "Framwork/Data/StaticGameData.h"
 #include "Framwork/UI/Menu/Multiplayer/SGameDisplayWidget.h"
-#include "Kismet/GameplayStatics.h"
 
 void USGameDisplayListWidget::NativeConstruct()
 {

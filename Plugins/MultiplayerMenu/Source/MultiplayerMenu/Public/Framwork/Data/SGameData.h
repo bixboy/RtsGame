@@ -5,8 +5,6 @@
 #include "SGameData.generated.h"
 
 class UCommonUserWidget;
-class UCommonActivatableWidget;
-
 
 UCLASS()
 class MULTIPLAYERMENU_API USGameData : public UPrimaryDataAsset
@@ -48,9 +46,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category= GameData)
 	bool bIncludeGameList = true;
-
-	UPROPERTY(EditAnywhere, Category= UI)
-	TSoftClassPtr<UCommonActivatableWidget> MainMenuClass;
 
 	UPROPERTY(EditAnywhere, Category= UI)
 	TSoftClassPtr<UCommonUserWidget> GameDisplayWidgetClass;

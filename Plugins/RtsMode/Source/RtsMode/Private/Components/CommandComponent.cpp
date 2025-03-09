@@ -66,23 +66,36 @@ void UCommandComponent::CommandMoveToLocation(const FCommandData CommandData)
 	switch (CommandData.Type)
 	{
 	case ECommandType::CommandMoveSlow:
-		SetWalk();
-		break;
+		{
+			TargetLocation = CommandData.Location;
+			SetWalk();
+			break;	
+		}
 	case ECommandType::CommandMoveFast:
-		SetSprint();
-		break;
+		{
+			TargetLocation = CommandData.Location;
+			SetSprint();
+			break;	
+		}
 	case ECommandType::CommandAttack:
-		HaveTargetAttack = true;
-		SetSprint();
-		TargetLocation = CommandData.Target->GetActorLocation();
-		break;
+		{
+			TargetLocation = CommandData.Target->GetActorLocation();
+			HaveTargetAttack = true;
+			SetSprint();
+			break;	
+		}
 	case ECommandType::CommandPatrol:
-		SetWalk();
-		CommandPatrol(CommandData);
-		return;
+		{
+			SetWalk();
+			CommandPatrol(CommandData);
+			return;
+		}
 	default:
-		SetRun();
-		break;
+		{
+			TargetLocation = CommandData.Location;
+			SetRun();
+			break;
+		}
 	}
 
 	CommandMove(CommandData);

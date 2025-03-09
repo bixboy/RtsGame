@@ -1,11 +1,13 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SMenuJoinSessionWidget.h"
+
+#include "AdvancedSessionsLibrary.h"
 #include "OnlineSubsystem.h"
 #include "CommonBorder.h"
-#include "PrimaryGameLayout.h"
 #include "Framwork/UI/Menu/SButtonBaseWidget.h"
 #include "CommonListView.h"
 #include "FindSessionsCallbackProxyAdvanced.h"
 #include "OnlineSubsystemUtils.h"
+#include "Components/BackgroundBlur.h"
 #include "Components/EditableText.h"
 #include "Components/EditableTextBox.h"
 #include "Components/Overlay.h"
@@ -22,13 +24,13 @@ void USMenuJoinSessionWidget::NativeOnInitialized()
 		RefreshButton->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::OnRefreshList);
 
 	if (JoinByID)
-		JoinByID->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::OnJoinByID);
+		JoinByID->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::ShowJoinByID);
 
 	if (JoinSessionIdButton)
-		JoinSessionIdButton->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::OnSearchSessionById);
+		JoinSessionIdButton->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::OnStartSearchSessionById);
 
 	if (BackSessionIdButton)
-		BackSessionIdButton->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::OnJoinByID);
+		BackSessionIdButton->OnClicked().AddUObject(this, &USMenuJoinSessionWidget::ShowJoinByID);
 
 	SetSessionIdDisplay(false);
 	SetSpinnerDisplay(false);
@@ -63,7 +65,10 @@ void USMenuJoinSessionWidget::SetSpinnerDisplay(const bool bSpinnerState) const
 void USMenuJoinSessionWidget::OnRefreshList()
 {
 	if (!bSearchInProgress)
+	{
 		StartSearch();
+		bSessionIdSearch = false;
+	}
 }
 
 /*--------------------------------- Search Sessions -------------------------------------*/
@@ -71,54 +76,77 @@ void USMenuJoinSessionWidget::OnRefreshList()
 
 void USMenuJoinSessionWidget::StartSearch()
 {
-	    UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::StartSearch] - Start Search"));
+	UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::StartSearch] - Start Search"));
 
-    if (bSearchInProgress || !GetOwningPlayer() || !GetOwningPlayer()->GetWorld() || !ListView)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::StartSearch] - Search Failed"));
-        return;
-    }
+	if (!GetOwningPlayer() || !GetOwningPlayer()->GetWorld() || !ListView) return;
 
-    bSearchInProgress = true;
-    NoSessionsDisplay->SetVisibility(ESlateVisibility::Collapsed);
-    SetSpinnerDisplay(true);
+	if (!bSessionIdSearch)
+	{
+		bSearchInProgress = true;
+		NoSessionsDisplay->SetVisibility(ESlateVisibility::Collapsed);
 
-    // Récupérer le PlayerController
-    APlayerController* PlayerController = GetOwningPlayer();
-    if (!PlayerController)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[USMenuJoinSessionWidget::StartSearch] - Invalid PlayerController"));
-        return;
-    }
+		ListView->ClearListItems();
+		SetSpinnerDisplay(true);	
+	}
 
-    // Définir les filtres de recherche si nécessaire
-    TArray<FSessionsSearchSetting> SearchFilters;
-    // Exemple : Ajouter un filtre pour une propriété spécifique
-    // FSessionPropertyKeyPair MapFilter;
-    // MapFilter.Key = FName("MapName");
-    // MapFilter.Value = FString("YourMapName");
-    // SearchFilters.Add(MapFilter);
+	APlayerController* PlayerController = GetOwningPlayer();
+	if (!PlayerController)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[USMenuJoinSessionWidget::StartSearch] - PlayerController invalid"));
+		
+		bSearchInProgress = false;
+		SetSpinnerDisplay(false);
+		return;
+	}
 
-    // Lancer la recherche de sessions
-    UFindSessionsCallbackProxyAdvanced* FindSessionProxy = UFindSessionsCallbackProxyAdvanced::FindSessionsAdvanced(
-        GetWorld(),
-        PlayerController,
-        100,				 
-        false,				 
-        EBPServerPresenceSearchType::AllServers,				 
-        SearchFilters,      
-        false,				 
-        false,				 
-        false,				
-        true,
-        0
-    );
+	if (!bSearchInProgress || !bSessionIdSearch)
+	{
+		// Définir les filtres de recherche si nécessaire
+		TArray<FSessionsSearchSetting> SearchFilters;
+		
+		// Filtre pour exclure les sessions privées
+		FSessionPropertyKeyPair AccessFilter;
+		AccessFilter.Key = FName("SessionAccess");
+		AccessFilter.Data = 0;
+		FSessionsSearchSetting FilterSetting;
+		FilterSetting.PropertyKeyPair = AccessFilter;
+		FilterSetting.ComparisonOp = EOnlineComparisonOpRedux::Equals;
+		//SearchFilters.Add(FilterSetting);
+
+		// Lancer la recherche de sessions
+		FindSessionProxy = UFindSessionsCallbackProxyAdvanced::FindSessionsAdvanced(
+			GetWorld(),
+			PlayerController,
+			100,				 
+			false,				 
+			EBPServerPresenceSearchType::AllServers,				 
+			SearchFilters,      
+			false,				 
+			false,				 
+			false,				
+			true,
+			0
+		);	
+	}
 
     if (FindSessionProxy)
     {
-        FindSessionProxy->OnSuccess.AddDynamic(this, &USMenuJoinSessionWidget::OnSessionSearchComplete);
-        FindSessionProxy->OnFailure.AddDynamic(this, &USMenuJoinSessionWidget::OnSessionSearchFailed);
-        FindSessionProxy->Activate();
+    	FindSessionProxy->OnSuccess.Clear();
+    	FindSessionProxy->OnFailure.Clear();
+    	FindSessionProxy->OnFailure.AddDynamic(this, &USMenuJoinSessionWidget::OnSessionSearchFailed);
+    	
+	    if (!bSessionIdSearch && bSearchInProgress)
+	    {
+	    	UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::StartSearch] - Bind to Search"));
+	    	FindSessionProxy->OnSuccess.AddDynamic(this, &USMenuJoinSessionWidget::OnSessionSearchComplete);
+	    	FindSessionProxy->Activate();   
+	    }
+    	else
+	    {
+    		UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::StartSearch] - Bind to ID"));
+    		FindSessionProxy->OnSuccess.AddDynamic(this, &USMenuJoinSessionWidget::JoinSessionByID);
+    		FindSessionProxy->Activate();   
+	    }
     }
     else
     {
@@ -128,19 +156,49 @@ void USMenuJoinSessionWidget::StartSearch()
     }
 }
 
+//Search Session Callback
 void USMenuJoinSessionWidget::OnSessionSearchComplete(const TArray<FBlueprintSessionResult>& Results)
 {
 	SessionsList = Results;
-	
 	bSearchInProgress = false;
 	SetSpinnerDisplay(false);
     
 	TArray<UObject*> WrappedResults;
 	for (const FBlueprintSessionResult& Result : Results)
 	{
-		UBlueprintSessionResultObject* Wrapper = NewObject<UBlueprintSessionResultObject>(this);
-		Wrapper->SessionResult = Result;
-		WrappedResults.Add(Wrapper);
+		bool bIsPrivate = false;
+
+		TArray<FSessionPropertyKeyPair> ExtraSettings;
+		UAdvancedSessionsLibrary::GetExtraSettings(Result, ExtraSettings);
+		for (const FSessionPropertyKeyPair& Setting : ExtraSettings)
+		{
+			if (Setting.Key == "GameName")
+			{
+				FString GameName;
+				Setting.Data.GetValue(GameName);
+				if (GameName.IsEmpty())
+				{
+					bIsPrivate = true;
+					break;	
+				}
+			}
+			
+			if (Setting.Key == "SessionAccess")
+			{
+				int32 SessionAccessValue;
+				Setting.Data.GetValue(SessionAccessValue);
+				bIsPrivate = (SessionAccessValue != 0);
+				break;
+			}
+		}
+
+		// Ajouter à la liste uniquement si la session n'est pas privée
+		if (!bIsPrivate)
+		{
+			UBlueprintSessionResultObject* Wrapper = NewObject<UBlueprintSessionResultObject>(this);
+			Wrapper->SessionResult = Result;
+			WrappedResults.Add(Wrapper);
+		}
 	}
     
 	if (WrappedResults.Num() > 0)
@@ -151,45 +209,74 @@ void USMenuJoinSessionWidget::OnSessionSearchComplete(const TArray<FBlueprintSes
 	}
 	else
 	{
+		OnSessionSearchFailed(Results);
 		NoSessionsDisplay->SetVisibility(ESlateVisibility::Visible);
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::OnSessionSearchComplete] - Success Session Search"))
 }
 
 void USMenuJoinSessionWidget::OnSessionSearchFailed(const TArray<FBlueprintSessionResult>& Results)
 {
 	NoSessionsDisplay->SetVisibility(ESlateVisibility::Visible);
+	SessionIdBlur->SetVisibility(ESlateVisibility::Collapsed);
 
 	bSearchInProgress = false;
+	bSessionIdSearch = false;
+	SessionId = "None";
+	
 	SetSpinnerDisplay(false);
 	
 	UE_LOG(LogTemp, Error, TEXT("[USMenuJoinSessionWidget::OnSessionSearchComplete] - Failed Session Search"))
 }
+
 #pragma endregion
 
 /*--------------------------------- Join Session By ID -------------------------------------*/
 #pragma region Search Sessions By ID
 
-void USMenuJoinSessionWidget::OnJoinByID()
+void USMenuJoinSessionWidget::ShowJoinByID()
 {
+	if (bSessionIdSearch) return; 
+	
 	if (!SessionIdOverlay->IsVisible())
 		SetSessionIdDisplay(true);
 	else
 		SetSessionIdDisplay(false);
 }
 
-void USMenuJoinSessionWidget::OnSearchSessionById()
-{
-	JoinSessionByID(SessionIdEditableText->GetText().ToString());
-}
-
 void USMenuJoinSessionWidget::SetSessionIdDisplay(bool bNewDisplay) const
 {
+	if (bSessionIdSearch) return;
+	
 	if (SessionIdOverlay)
 		SessionIdOverlay->SetVisibility(bNewDisplay ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
+void USMenuJoinSessionWidget::OnStartSearchSessionById()
+{
+	if (bSessionIdSearch) return;
+	
+	SessionId = SessionIdEditableText->GetText().ToString();
+	
+	SessionIdBlur->SetVisibility(ESlateVisibility::Visible);
+	bSessionIdSearch = true;
+
+	if (!bSearchInProgress)
+	{
+		StartSearch();	
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::OnSearchSessionById] - Change Bind to ID"));
+		
+		FindSessionProxy->OnSuccess.Clear();
+		FindSessionProxy->OnSuccess.AddDynamic(this, &USMenuJoinSessionWidget::JoinSessionByID);	
+	}
+}
+
 // Utility ID Session
-void USMenuJoinSessionWidget::JoinSessionByID(const FString& NewSessionId)
+void USMenuJoinSessionWidget::JoinSessionByID(const TArray<FBlueprintSessionResult>& Results)
 {
 	IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld());
 	if (!OnlineSubsystem)
@@ -201,12 +288,12 @@ void USMenuJoinSessionWidget::JoinSessionByID(const FString& NewSessionId)
 
 	bool bFound = false;
 
-	for (const FBlueprintSessionResult& Result : SessionsList)
+	for (const FBlueprintSessionResult& Result : Results)
 	{
 		if (!Result.OnlineResult.GetSessionIdStr().IsEmpty())
 		{
 			FString CurrentSessionId = Result.OnlineResult.GetSessionIdStr();
-			if (CurrentSessionId == NewSessionId)
+			if (CurrentSessionId == SessionId)
 			{
 				SessionById = Result;
 				bFound = true;
@@ -217,9 +304,17 @@ void USMenuJoinSessionWidget::JoinSessionByID(const FString& NewSessionId)
 
 	if (!bFound || !SessionById.OnlineResult.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Aucune session trouvée avec l'ID : %s"), *NewSessionId);
+		UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::JoinSessionByID] - Aucune session trouvée avec l'ID : %s"), *SessionId);
+		
+		SessionIdBlur->SetVisibility(ESlateVisibility::Collapsed);
+		SetSpinnerDisplay(false);
+
+		bSearchInProgress = false;
+		bSessionIdSearch = false;
+		
 		return;
 	}
+	bSessionIdSearch = false;
 	
 	OnJoinSessionIdIsFound();
 }

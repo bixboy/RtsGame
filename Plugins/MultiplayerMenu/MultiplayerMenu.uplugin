@@ -20,13 +20,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Networking",
-				"Sockets",
-				"Engine",
 				"CommonUI",
-				"CommonGame",
-				"CommonUser",
-				"ModularGameplay",
 				"OnlineSubsystem",
 				"AdvancedSessions",
 				"AdvancedSteamSessions",
@@ -37,18 +31,6 @@
 	"Plugins": [
 		{
 			"Name": "CommonUI",
-			"Enabled": true
-		},
-		{
-			"Name": "CommonGame",
-			"Enabled": true
-		},
-		{
-			"Name": "CommonUser",
-			"Enabled": true
-		},
-		{
-			"Name": "ModularGameplay",
 			"Enabled": true
 		},
 		{

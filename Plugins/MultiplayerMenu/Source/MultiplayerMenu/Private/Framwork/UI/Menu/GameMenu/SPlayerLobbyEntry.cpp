@@ -1,25 +1,28 @@
 ﻿#include "Framwork/UI/Menu/GameMenu/SPlayerLobbyEntry.h"
-#include "CommonTextBlock.h"
+#include "Components/TextBlock.h"
 #include "Framwork/SLobbyPlayerController.h"
+#include "Framwork/Data/SPlayerData.h"
 
-void USPlayerLobbyEntry::NativeConstruct()
+
+void USPlayerLobbyEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
-	Super::NativeConstruct();
+	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
 
-	Controller = Cast<ASLobbyPlayerController>(GetOwningPlayer());
-
-	PlayerNameText->SetText(FText::FromString(Controller->PlayerInfo.PlayerName));
+	PlayerData = Cast<USPlayerData>(ListItemObject);
+	UpdateEntry();
 }
 
-void USPlayerLobbyEntry::SetPlayerReady(bool bReady)
+void USPlayerLobbyEntry::UpdateEntry()
 {
-	Controller->PlayerInfo.bIsReady = bReady;
-	if (Controller->PlayerInfo.bIsReady)
-	{
-		PlayerReadyText->SetText(FText::FromString("Ready"));
-	}
-	else
-	{
-		PlayerReadyText->SetText(FText::FromString("Not ready."));
-	}
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, PlayerData->PlayerInfo.PlayerName);
+	
+	PlayerNameText->SetText(FText::FromString(PlayerData->PlayerInfo.PlayerName));
+	SetPlayerReady();
 }
+
+void USPlayerLobbyEntry::SetPlayerReady()
+{
+	bool bIsReady = PlayerData->PlayerInfo.bIsReady;
+	PlayerReadyText->SetText(FText::FromString(bIsReady ? "Ready" : "Not ready"));
+}
+

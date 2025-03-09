@@ -4,8 +4,9 @@
 #include "CommonUserWidget.h"
 #include "SPlayerLobbyWidget.generated.h"
 
+class USPlayerData;
+struct FPlayerInfo;
 class UListView;
-class USPlayerLobbyEntry;
 
 UCLASS(Abstract)
 class MULTIPLAYERMENU_API USPlayerLobbyWidget : public UCommonUserWidget
@@ -14,19 +15,14 @@ class MULTIPLAYERMENU_API USPlayerLobbyWidget : public UCommonUserWidget
 
 public:
 	virtual void NativeConstruct() override;
-
+	
 	UFUNCTION()
-	void AddPlayerToWidget(APlayerController* NewController);
+	void UpdatePlayerList(TArray<FPlayerInfo> PlayersList);
 
 protected:
-
 	UPROPERTY()
-	TArray<USPlayerLobbyEntry*> PlayerLobbyEntries;
-
-	UPROPERTY(EditAnywhere, Category = "Settings|Widget")
-	TSubclassOf<USPlayerLobbyEntry> PlayerLobbyEntryClass;
+	TArray<USPlayerData*> PlayerLobbyEntries;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UListView* PlayerLobbyView;
-	
 };

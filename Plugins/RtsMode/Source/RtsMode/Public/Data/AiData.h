@@ -1,6 +1,6 @@
 ﻿#pragma once
-
 #include "AIData.generated.h"
+
 
 UENUM(BlueprintType)
 enum ECommandType

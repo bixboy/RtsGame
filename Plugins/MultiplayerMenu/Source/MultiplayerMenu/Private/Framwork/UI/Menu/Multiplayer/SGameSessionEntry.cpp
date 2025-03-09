@@ -1,7 +1,5 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SGameSessionEntry.h"
 #include "AdvancedSessionsLibrary.h"
-#include "CommonSessionSubsystem.h"
-#include "JoinSessionCallbackProxy.h"
 #include "Framwork/Data/BlueprintSessionResultObject.h"
 #include "Framwork/UI/Menu/Multiplayer/SGameSessionButton.h"
 

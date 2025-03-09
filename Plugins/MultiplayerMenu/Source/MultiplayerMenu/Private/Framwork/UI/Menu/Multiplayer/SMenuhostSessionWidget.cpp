@@ -1,20 +1,12 @@
 ﻿#include "Framwork/UI/Menu/Multiplayer/SMenuhostSessionWidget.h"
-#include "OnlineSessionSettings.h"
-#include "OnlineSubsystem.h"
-#include "CommonGameInstance.h"
-#include "CommonSessionSubsystem.h"
+
+#include "AdvancedSessionsLibrary.h"
 #include "CommonTextBlock.h"
-#include "CommonUserSubsystem.h"
 #include "CreateSessionCallbackProxyAdvanced.h"
-#include "OnlineSubsystemUtils.h"
-#include "PrimaryGameLayout.h"
 #include "Components/EditableText.h"
 #include "Components/Slider.h"
-#include "Framwork/Data/SGameData.h"
 #include "Framwork/UI/Menu/SButtonBaseWidget.h"
-#include "Framwork/UI/Menu/Multiplayer/SGameDisplayListWidget.h"
-#include "Framwork/UI/Menu/Multiplayer/SGameDisplayWidget.h"
-#include "Kismet/GameplayStatics.h"
+
 
 /*---------------- Setup -------------------*/
 #pragma region Setup
@@ -22,13 +14,12 @@
 void USMenuhostSessionWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-
-	NetMode = ECommonSessionOnlineMode::Online;
+	
 	InitTextDisplays();
 
 	// Settings
-	if (ChangeNetModeButton)
-		ChangeNetModeButton->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnNetWorkModeButtonClicked);
+	if (ChangeSessionAccessButton)
+		ChangeSessionAccessButton->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnSessionAccessButtonClicked);
 	
 	if (ChangeSetting1Button)
 		ChangeSetting1Button->OnClicked().AddUObject(this, &USMenuhostSessionWidget::OnSetting1Changed);
@@ -49,8 +40,6 @@ void USMenuhostSessionWidget::NativeOnInitialized()
 
 void USMenuhostSessionWidget::InitTextDisplays()
 {
-	if (NetWorkModeText)
-		NetWorkModeText->SetText(UEnum::GetDisplayValueAsText(NetMode));
 
 	if (GameSetting1Text)
 	{
@@ -77,6 +66,22 @@ void USMenuhostSessionWidget::InitTextDisplays()
 		TimeSlider->SetValue(160);
 		GameSettings.RoundDuration = 160;
 	}
+
+	if (SessionAccessText)
+	{
+		FString Text = TEXT("Public");
+		SessionAccessText->SetText(FText::FromString(Text));
+
+		Setting3 = ESessionAccess::Public;
+		GameSettings.IsPrivateGame = false;
+	}
+
+	if (SelectedGameTitleText)
+	{
+		FString NameText;
+		UAdvancedSessionsLibrary::GetPlayerName(GetWorld()->GetFirstPlayerController(), NameText);
+		GameSettings.GameName = NameText + " Game";
+	}
 }
 
 void USMenuhostSessionWidget::SetActivated(const bool bActivate)
@@ -91,34 +96,22 @@ void USMenuhostSessionWidget::SetActivated(const bool bActivate)
 
 void USMenuhostSessionWidget::OnGameNameChange(const FText& Text, ETextCommit::Type CommitMethod)
 {
-	GameSettings.GameName = Text.ToString();
+	if (Text.IsEmpty())
+	{
+		FString NameText;
+		UAdvancedSessionsLibrary::GetPlayerName(GetWorld()->GetFirstPlayerController(), NameText);
+
+		GameSettings.GameName = NameText + " Game";
+	}
+	else
+	{
+		GameSettings.GameName = Text.ToString();	
+	}
 }
 
 void USMenuhostSessionWidget::OnLaunchGame()
 {
 	HostSession();
-}
-
-void USMenuhostSessionWidget::OnNetWorkModeButtonClicked()
-{
-	switch (NetMode)
-	{
-		case ECommonSessionOnlineMode::Offline:
-			NetMode = ECommonSessionOnlineMode::LAN;
-			break;
-		case ECommonSessionOnlineMode::LAN:
-			NetMode = ECommonSessionOnlineMode::Online;
-			break;
-		case ECommonSessionOnlineMode::Online:
-			NetMode = ECommonSessionOnlineMode::Offline;
-			break;
-		default: NetMode = ECommonSessionOnlineMode::Offline;
-	}
-
-	if (NetWorkModeText)
-	{
-		NetWorkModeText->SetText(UEnum::GetDisplayValueAsText(NetMode));
-	}
 }
 
 /*---------------- Settings ------------------------*/
@@ -222,6 +215,40 @@ void USMenuhostSessionWidget::OnSliderChange(float Value)
     }
 }
 
+// Session Access
+void USMenuhostSessionWidget::OnSessionAccessButtonClicked()
+{
+	switch (Setting3)
+	{
+	case ESessionAccess::Public:
+		Setting3 = ESessionAccess::Private;
+		GameSettings.IsPrivateGame = true;
+		break;
+		
+	case ESessionAccess::Private:
+		Setting3 = ESessionAccess::Public;
+		GameSettings.IsPrivateGame = false;
+		break;
+		
+	default: ;
+	}
+	
+	if (GameSetting1Text)
+	{
+		FString Text;
+		if (GameSettings.IsPrivateGame)
+		{
+			Text = TEXT("Private");
+		}
+		else
+		{
+			Text = TEXT("Public");
+		}
+		
+		SessionAccessText->SetText(FText::FromString(Text));
+	}
+}
+
 #pragma endregion
 
 /*---------------- Hosting Session ----------------*/
@@ -233,10 +260,13 @@ void USMenuhostSessionWidget::HostSession()
 	
     UWorld* World = GetWorld();
 	APlayerController* PlayerController = World->GetFirstPlayerController();
+
+	DestroySession(PlayerController);
 	
     TArray<FSessionPropertyKeyPair> SessionProperties;
     SessionProperties.Add(FSessionPropertyKeyPair(TEXT("GameName"), GameSettings.GameName));
     SessionProperties.Add(FSessionPropertyKeyPair(TEXT("MapName"), GameSettings.MapName));
+	SessionProperties.Add(FSessionPropertyKeyPair(TEXT("SessionAccess"), GameSettings.IsPrivateGame ? 1 : 0));
 	
     // Créer la session
     UCreateSessionCallbackProxyAdvanced* CreateSessionProxy = UCreateSessionCallbackProxyAdvanced::CreateAdvancedSession(

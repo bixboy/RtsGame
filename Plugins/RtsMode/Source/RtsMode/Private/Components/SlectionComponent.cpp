@@ -5,7 +5,9 @@
 #include "Engine/StreamableManager.h"
 #include "Interfaces/Selectable.h"
 #include "Net/UnrealNetwork.h"
+#include "Units/SoldierRts.h"
 #include "Widget/HudWidget.h"
+
 
 void USelectionComponent::BeginPlay()
 {
@@ -21,9 +23,10 @@ void USelectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME_CONDITION(USelectionComponent, SelectedActors, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(USelectionComponent, CurrentFormation, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(USelectionComponent, FormationSpacing, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(USelectionComponent, UnitToSpawn, COND_OwnerOnly);
 }
 
-FVector USelectionComponent::GetMousePositionOnTerrain() const
+FHitResult USelectionComponent::GetMousePositionOnTerrain() const
 {
     FVector WorldLocation, WorldDirection;
     OwnerController->DeprojectMousePositionToWorld(WorldLocation, WorldDirection);
@@ -31,10 +34,11 @@ FVector USelectionComponent::GetMousePositionOnTerrain() const
     FHitResult OutHit;
     if (GetWorld()->LineTraceSingleByChannel(OutHit, WorldLocation, WorldLocation + (WorldDirection * 100000.f), ECollisionChannel::ECC_GameTraceChannel1) && OutHit.bBlockingHit)
     {
-        return OutHit.Location;
+        if (OutHit.bBlockingHit)
+            return OutHit;
     }
 
-    return FVector::ZeroVector;
+    return FHitResult();
 }
 
 void USelectionComponent::CommandSelected(FCommandData CommandData)
@@ -118,6 +122,7 @@ void USelectionComponent::Server_Select_Group_Implementation(const TArray<AActor
 
     SelectedActors.Append(ValidatedActors);
     OnRep_Selected();
+    ValidatedActors.Empty();
 }
 
 void USelectionComponent::Server_Select_Implementation(AActor* ActorToSelect)
@@ -127,6 +132,7 @@ void USelectionComponent::Server_Select_Implementation(AActor* ActorToSelect)
     if (ActorToSelect && ActorToSelect->Implements<USelectable>())
     {
         SelectedActors.Add(ActorToSelect);
+        
         OnRep_Selected();
         Client_Select(ActorToSelect);
     }
@@ -138,6 +144,7 @@ void USelectionComponent::Server_DeSelect_Implementation(AActor* ActorToDeSelect
     {
         SelectedActors.Remove(ActorToDeSelect);
         OnRep_Selected();
+        
         Client_Deselect(ActorToDeSelect);
         Cast<ISelectable>(ActorToDeSelect)->Deselect();
     }
@@ -186,7 +193,7 @@ void USelectionComponent::Client_Deselect_Implementation(AActor* ActorToDeselect
 
 #pragma endregion
 
-// ------------------- Formation   ---------------------
+// ------------------- Formation ---------------------
 #pragma region Formation
 
 bool USelectionComponent::HasGroupSelection() const
@@ -356,13 +363,14 @@ void USelectionComponent::RefreshFormation()
         const AActor* FirstActor = SelectedActors[0];
         const FRotator PlayerRotation = OwnerController->GetPawn()->GetActorRotation();
         const FRotator CommandRotation(PlayerRotation.Pitch, PlayerRotation.Yaw, FirstActor->GetActorRotation().Roll);
+        
         CommandSelected(FCommandData(FirstActor->GetActorLocation(), CommandRotation, ECommandType::CommandMove));
     }
 }
 
 #pragma endregion
 
-// ------------------- Behavior   ---------------------
+// ------------------- Behavior ---------------------
 #pragma region Behavior
 
 void USelectionComponent::UpdateBehavior(const ECombatBehavior NewBehavior)
@@ -395,3 +403,37 @@ void USelectionComponent::Server_UpdateBehavior_Implementation(const ECombatBeha
 }
 
 #pragma endregion
+
+// ------------------- Spawn units ---------------------
+#pragma region Spawn Units
+
+void USelectionComponent::SpawnUnits()
+{
+    const FHitResult HitResult = GetMousePositionOnTerrain();
+    if (!HitResult.bBlockingHit)
+        return;
+    
+    Server_SpawnUnits(HitResult.Location);
+}
+
+void USelectionComponent::ChangeUnitClass_Implementation(TSubclassOf<ASoldierRts> UnitClass)
+{
+    UnitToSpawn = UnitClass;
+}
+
+void USelectionComponent::OnRep_UnitClass()
+{
+    OnUnitUpdated.Broadcast();
+}
+
+void USelectionComponent::Server_SpawnUnits_Implementation(FVector HitLocation)
+{
+    FActorSpawnParameters SpawnParams;
+    ASoldierRts* Unit = GetWorld()->SpawnActor<ASoldierRts>(UnitToSpawn, HitLocation, FRotator::ZeroRotator, SpawnParams);
+    if (Unit)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, TEXT("Spawned Unit"));
+    }
+}
+
+#pragma endregion 

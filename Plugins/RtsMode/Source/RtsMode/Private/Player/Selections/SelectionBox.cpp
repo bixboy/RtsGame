@@ -93,7 +93,7 @@ void ASelectionBox::Adjust() const
 {
 	if (!PlayerController || !BoxComponent || !Decal) return;
 
-	const FVector CurrentMouseLocOnTerrain = PlayerController->SelectionComponent->GetMousePositionOnTerrain();
+	const FVector CurrentMouseLocOnTerrain = PlayerController->SelectionComponent->GetMousePositionOnTerrain().Location;
 	const FVector EndPoint = FVector(CurrentMouseLocOnTerrain.X, CurrentMouseLocOnTerrain.Y, 0.0f);
 
 	FVector NewLocation = UKismetMathLibrary::VLerp(StartLocation, EndPoint, 0.5f);

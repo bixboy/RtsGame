@@ -1,14 +1,22 @@
 ﻿#include "RtsMode/Public/Player/PlayerCamera.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystemInterface.h"
+#include "EnhancedInputSubsystems.h"
 #include "Player/PlayerControllerRts.h"
 #include "Player/Selections/SelectionBox.h"
 #include "Player/Selections/SphereRadius.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SlectionComponent.h"
+#include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Interfaces/Selectable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+
+
+//----------------------- Setup ----------------------------
+#pragma region Setup
 
 APlayerCamera::APlayerCamera()
 {
@@ -16,6 +24,8 @@ APlayerCamera::APlayerCamera()
 
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	RootComponent = SceneComponent;
+
+	PawnMovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("PawnMovementComponent"));
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->SetupAttachment(RootComponent);
@@ -30,17 +40,77 @@ void APlayerCamera::BeginPlay()
 {
 	Super::BeginPlay();
 
+	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0.f));
+
+	if(!Player) return;
+
+	Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::OnIsInSpawnUnits);
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetHideCursorDuringCapture(false);
+	Player->SetInputMode(InputMode);
+	Player->bShowMouseCursor = true;
+
+	CustomInitialized();
+	CreateSelectionBox();
+	CreateSphereRadius();
+}
+
+void APlayerCamera::CustomInitialized()
+{
 	TargetLocation = GetActorLocation();
 	TargetZoom = 3000.f;
 	
 	const FRotator Rotation = SpringArm->GetRelativeRotation();
 	TargetRotation = FRotator(Rotation.Pitch + -50.f,  Rotation.Yaw, 0.f);
-
-	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0.f));
-
-	CreateSelectionBox();
-	CreateSphereRadius();
 }
+
+void APlayerCamera::SetupPlayerInputComponent(UInputComponent* Input)
+{
+	Super::SetupPlayerInputComponent(Input);
+
+	auto* EnhancedInput{ Cast<UEnhancedInputComponent>(Input) };
+	if (IsValid(EnhancedInput))
+	{
+		UE_LOG(LogTemp, Display, TEXT("EnhancedInputComponent is valid"));
+
+		//MOVEMENTS
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_OnMove);
+		EnhancedInput->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_Zoom);
+
+		//ROTATION
+		EnhancedInput->BindAction(EnableRotateAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_EnableRotate);
+		EnhancedInput->BindAction(RotateHorizontalAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_RotateHorizontal);
+		EnhancedInput->BindAction(RotateVerticalAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_RotateVertical);
+
+		//SELECTION
+		EnhancedInput->BindAction(SelectAction, ETriggerEvent::Started, this, &APlayerCamera::Input_SquareSelection);
+		
+		EnhancedInput->BindAction(SelectAction, ETriggerEvent::Completed, this, &APlayerCamera::Input_LeftMouseReleased);
+		EnhancedInput->BindAction(SelectHoldAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_LeftMouseInputHold);
+
+
+		//COMMANDS
+		EnhancedInput->BindAction(CommandAction, ETriggerEvent::Started, this, &APlayerCamera::CommandStart);
+		EnhancedInput->BindAction(CommandAction, ETriggerEvent::Completed, this, &APlayerCamera::Command);
+
+		EnhancedInput->BindAction(AltCommandAction, ETriggerEvent::Started, this, &APlayerCamera::Input_AltFunction);
+		EnhancedInput->BindAction(AltCommandAction, ETriggerEvent::Completed, this, &APlayerCamera::Input_AltFunctionRelease);
+		EnhancedInput->BindAction(AltCommandActionTrigger, ETriggerEvent::Triggered, this, &APlayerCamera::Input_AltFunctionHold);
+		
+		EnhancedInput->BindAction(PatrolCommandAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_PatrolZone);
+		EnhancedInput->BindAction(DeleteCommandAction, ETriggerEvent::Triggered, this, &APlayerCamera::Input_OnDestroySelected);
+
+		//SPAWN
+		EnhancedInput->BindAction(SpawnUnitAction, ETriggerEvent::Completed, this, &APlayerCamera::Input_OnSpawnUnits);
+
+	}else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EnhancedInputComponent is NOT valid"));
+	}
+}
+
+#pragma endregion
 
 void APlayerCamera::Tick(float DeltaTime)
 {
@@ -48,8 +118,8 @@ void APlayerCamera::Tick(float DeltaTime)
 	EdgeScroll();
 	CameraBounds();
 	
-	const FVector InterpolatedLocation = UKismetMathLibrary::VInterpTo(GetActorLocation(), TargetLocation, DeltaTime, CameraSpeed);
-	SetActorLocation(FVector(InterpolatedLocation.X, InterpolatedLocation.Y, 0.f));
+	//const FVector InterpolatedLocation = UKismetMathLibrary::VInterpTo(GetActorLocation(), TargetLocation, DeltaTime, CameraSpeed);
+	//SetActorLocation(FVector(InterpolatedLocation.X, InterpolatedLocation.Y, 0.f));
 
 	const float InterpolatedZoom = UKismetMathLibrary::FInterpTo(SpringArm->TargetArmLength, TargetZoom, DeltaTime, ZoomSpeed);
 	SpringArm->TargetArmLength = InterpolatedZoom;
@@ -67,51 +137,106 @@ void APlayerCamera::Tick(float DeltaTime)
 	}
 }
 
+void APlayerCamera::NotifyControllerChanged()
+{
+	const auto* PreviousPlayer{ Cast<APlayerController>(PreviousController) };
+	if (IsValid(PreviousPlayer))
+	{
+		auto* InputSubsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PreviousPlayer->GetLocalPlayer()) };
+		if (IsValid(InputSubsystem))
+		{
+			InputSubsystem->RemoveMappingContext(InputMappingContext);
+		}
+	}
+
+	auto* NewPlayer{ Cast<APlayerController>(GetController()) };
+	if (IsValid(NewPlayer))
+	{
+		NewPlayer->InputYawScale_DEPRECATED = 1.0f;
+		NewPlayer->InputPitchScale_DEPRECATED = 1.0f;
+		NewPlayer->InputRollScale_DEPRECATED = 1.0f;
+
+		auto* InputSubsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(NewPlayer->GetLocalPlayer()) };
+		if (IsValid(InputSubsystem))
+		{
+			UE_LOG(LogTemp, Display, TEXT("InputSubsystem is valid"));
+
+			FModifyContextOptions Options;
+			Options.bNotifyUserSettings = true;
+
+			InputSubsystem->AddMappingContext(InputMappingContext, 0, Options);
+		}else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("InputSubsystem is NOT valid"));
+		}
+	}
+
+	Super::NotifyControllerChanged();
+}
+
 APlayerControllerRts* APlayerCamera::GetRtsPlayerController()
 {
 	return Player;
 }
 
-// ------------------- Camera Movement   ---------------------
+// ------------------- Camera Movement ---------------------
 #pragma region Camera Movement Input
 
-void APlayerCamera::MoveForward(float Value)
+// MOVEMENT
+void APlayerCamera::Input_OnMove(const FInputActionValue& ActionValue)
 {
-	if(Value == 0.f) return;
+	FVector2d InputVector = ActionValue.Get<FVector2D>();
 
-	TargetLocation += SpringArm->GetForwardVector() * Value * CameraSpeed;
-	GetTerrainPosition(TargetLocation);
+	FVector MovementVector = FVector();
+	MovementVector += SpringArm->GetForwardVector() * InputVector.Y;
+	MovementVector += SpringArm->GetRightVector() * InputVector.X;
+	MovementVector *= CameraSpeed * GetWorld()->GetDeltaSeconds();
+	MovementVector.Z = 0;
+	
+	FVector NextPosition = GetActorLocation() + MovementVector;
+	SetActorLocation(NextPosition);
+	GetTerrainPosition(NextPosition);
 }
 
-void APlayerCamera::MoveRight(float Value)
+// ZOOM
+void APlayerCamera::Input_Zoom(const FInputActionValue& ActionValue)
 {
-	if(Value == 0.f) return;
+	float Value = ActionValue.Get<float>();
 
-	TargetLocation += SpringArm->GetRightVector() * Value * CameraSpeed;
-	GetTerrainPosition(TargetLocation);
-}
-
-void APlayerCamera::RotateCamera(float Angle)
-{
-	TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(0.f, Angle, 0.f));
-}
-
-void APlayerCamera::Zoom(float Value)
-{
 	if(Value == 0.f) return;
 
 	const float Zoom = Value * 100.f;
 	TargetZoom = FMath::Clamp(Zoom + TargetZoom, MinZoom, MaxZoom);
 }
 
-void APlayerCamera::EnableRotation(const bool bRotate)
+// ROTATION
+void APlayerCamera::Input_RotateHorizontal(const FInputActionValue& ActionValue)
 {
-	CanRotate = bRotate;
+	float Value = ActionValue.Get<float>() * RotateSpeed * GetWorld()->GetDeltaSeconds();
+	
+	if(Value == 0.f || !CanRotate) return;
+	
+	TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(0.f, Value, 0.f));
+}
+
+void APlayerCamera::Input_RotateVertical(const FInputActionValue& ActionValue)
+{
+	float Value = ActionValue.Get<float>() * RotateSpeed * GetWorld()->GetDeltaSeconds();
+
+	if(Value == 0.f || !CanRotate) return;
+
+	TargetRotation = UKismetMathLibrary::ComposeRotators(TargetRotation, FRotator(Value, 0.f, 0.f));
+}
+
+void APlayerCamera::Input_EnableRotate(const FInputActionValue& ActionValue)
+{
+	bool Value = ActionValue.Get<bool>();
+	CanRotate = Value;
 }
 
 #pragma endregion
 
-// ------------------- Camera Utility   ---------------------
+// ------------------- Camera Utility ----------------------
 #pragma region Movement Utiliti
 
 void APlayerCamera::GetTerrainPosition(FVector& TerrainPosition) const
@@ -149,20 +274,20 @@ void APlayerCamera::EdgeScroll()
 		//Right/Left
 		if(MousePosition.X > 0.98f && MousePosition.X > 1.f)
 		{
-			MoveRight(EdgeScrollSpeed);
+			Input_OnMove(EdgeScrollSpeed);
 		}
 		else if(MousePosition.X < 0.02f && MousePosition.X < 0.f)
 		{
-			MoveRight(-EdgeScrollSpeed);	
+			Input_OnMove(-EdgeScrollSpeed);	
 		}
 		//Forward/BackWard
 		if(MousePosition.Y > 0.98f && MousePosition.Y > 1.f)
 		{
-			MoveForward(-EdgeScrollSpeed);
+			Input_OnMove(-EdgeScrollSpeed);
 		}
 		else if(MousePosition.Y < 0.02f && MousePosition.Y < 0.f)
 		{
-			MoveForward(EdgeScrollSpeed);
+			Input_OnMove(EdgeScrollSpeed);
 		}	
 	}
 }
@@ -184,54 +309,89 @@ void APlayerCamera::CameraBounds()
 
 #pragma endregion
 
-// ------------------- Selection  ---------------------
+// ------------------- Selection ---------------------------
 #pragma region Selection
 
 // Left Click
+void APlayerCamera::Input_LeftMouseReleased()
+{
+	if(!MouseProjectionIsGrounded) return;
+
+	HandleLeftMouse(IE_Released, 0.f);
+}
+
+void APlayerCamera::Input_LeftMouseInputHold(const FInputActionValue& ActionValue)
+{
+	if(!MouseProjectionIsGrounded) return;
+	
+	float Value = ActionValue.Get<float>();
+	HandleLeftMouse(IE_Repeat, Value);
+}
+
+void APlayerCamera::Input_SquareSelection()
+{
+	if(!Player) return;
+
+	Player->SelectionComponent->Handle_Selection(nullptr);
+	BoxSelect = false;
+
+	Player->SelectionComponent->ChangeUnitClass(nullptr);
+	bIsInSpawnUnits = false;
+
+	FHitResult Hit = Player->SelectionComponent->GetMousePositionOnTerrain();
+	
+	MouseProjectionIsGrounded = Hit.bBlockingHit;
+	
+	if(MouseProjectionIsGrounded) LeftMouseHitLocation = Hit.Location;
+}
+
 void APlayerCamera::HandleLeftMouse(EInputEvent InputEvent, float Value)
 {
-	if (!Player) return;
+	if (!Player || !MouseProjectionIsGrounded) return;
 
 	switch (InputEvent)
 	{
-	case IE_Pressed:
-		Player->SelectionComponent->Handle_Selection(nullptr);
-		BoxSelect = false;
-		LeftMouseHitLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
-		CommandStart();
-		break;
-
-	case IE_Released:
-		if (BoxSelect && SelectionBox)
-		{
-			SelectionBox->End();
+		case IE_Pressed:
+			Player->SelectionComponent->Handle_Selection(nullptr);
 			BoxSelect = false;
-		}
-		else
-		{
-			Player->SelectionComponent->Handle_Selection(GetSelectedObject());
-		}
-		break;
+			LeftMouseHitLocation = Player->SelectionComponent->GetMousePositionOnTerrain().Location;
+			CommandStart();
+			break;
 
-	case IE_Repeat:
-		if (Value == 0.f)
-		{
-			SelectionBox->End();
-			return;
-		}
-
-		if (Player->GetInputKeyTimeDown(EKeys::LeftMouseButton) >= LeftMouseHoldThreshold && SelectionBox)
-		{
-			if (!BoxSelect)
+		case IE_Released:
+			
+			MouseProjectionIsGrounded = false;
+		
+			if (BoxSelect && SelectionBox)
 			{
-				SelectionBox->Start(LeftMouseHitLocation, TargetRotation);
-				BoxSelect = true;
+				SelectionBox->End();
+				BoxSelect = false;
 			}
-		}
-		break;
+			else
+			{
+				Player->SelectionComponent->Handle_Selection(GetSelectedObject());
+			}
+			break;
 
-	default:
-		break;
+		case IE_Repeat:
+			if (Value == 0.f)
+			{
+				SelectionBox->End();
+				return;
+			}
+
+			if (Player->GetInputKeyTimeDown(EKeys::LeftMouseButton) >= LeftMouseHoldThreshold && SelectionBox)
+			{
+				if (!BoxSelect)
+				{
+					SelectionBox->Start(LeftMouseHitLocation, TargetRotation);
+					BoxSelect = true;
+				}
+			}
+			break;
+
+		default:
+			break;
 	}
 }
 
@@ -260,24 +420,31 @@ AActor* APlayerCamera::GetSelectedObject()
 	return nullptr;
 }
 
-void APlayerCamera::CreateSelectionBox()
-{
-	if(SelectionBox) return;
-
-	if(UWorld* World = GetWorld())
-	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Instigator = this;
-		SpawnParams.Owner = this;
-		SelectionBox = World->SpawnActor<ASelectionBox>(SelectionBoxClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-		if(SelectionBox)
-		{
-			SelectionBox->SetOwner(this);
-		}
-	}
-}
 
 // Alt Click
+void APlayerCamera::Input_AltFunction()
+{
+	if(!MouseProjectionIsGrounded) return;
+	
+	HandleAltRightMouse(EInputEvent::IE_Pressed, 1.f);
+	CommandStart();
+}
+
+void APlayerCamera::Input_AltFunctionRelease()
+{
+	if(!MouseProjectionIsGrounded) return;
+	
+	HandleAltRightMouse(EInputEvent::IE_Released, 0.f);
+}
+
+void APlayerCamera::Input_AltFunctionHold(const FInputActionValue& ActionValue)
+{
+	if(!MouseProjectionIsGrounded) return;
+
+	float Value = ActionValue.Get<float>();
+	HandleAltRightMouse(EInputEvent::IE_Repeat, Value);
+}
+
 void APlayerCamera::HandleAltRightMouse(EInputEvent InputEvent, float Value)
 {
 	if (!Player) return;
@@ -286,7 +453,7 @@ void APlayerCamera::HandleAltRightMouse(EInputEvent InputEvent, float Value)
 	{
 	case IE_Pressed:
 		if (!bAltIsPressed) return;
-		LeftMouseHitLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
+		LeftMouseHitLocation = Player->SelectionComponent->GetMousePositionOnTerrain().Location;
 		break;
 
 	case IE_Released:
@@ -327,6 +494,23 @@ void APlayerCamera::HandleAltRightMouse(EInputEvent InputEvent, float Value)
 	}
 }
 
+void APlayerCamera::CreateSelectionBox()
+{
+	if(SelectionBox) return;
+
+	if(UWorld* World = GetWorld())
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Instigator = this;
+		SpawnParams.Owner = this;
+		SelectionBox = World->SpawnActor<ASelectionBox>(SelectionBoxClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if(SelectionBox)
+		{
+			SelectionBox->SetOwner(this);
+		}
+	}
+}
+
 void APlayerCamera::CreateSphereRadius()
 {
 	if(UWorld* World = GetWorld())
@@ -347,17 +531,63 @@ void APlayerCamera::CreateSphereRadius()
 // ------------------- Command  ---------------------
 #pragma region Command
 
+void APlayerCamera::Input_PatrolZone(const FInputActionValue& ActionValue)
+{
+	float Value = ActionValue.Get<float>();
+
+	if(!bAltIsPressed)
+	{
+		SphereRadius->End();
+		SphereRadiusEnable = false;
+		return;
+	}
+	
+	if (!Player || Value == 0.f)
+	{
+		SphereRadius->End();
+		return;
+	}
+
+	if (Player->GetInputKeyTimeDown(EKeys::RightMouseButton) >= LeftMouseHoldThreshold && SphereRadius)
+	{
+		if (!SphereRadiusEnable && SphereRadius)
+		{
+			SphereRadius->Start(LeftMouseHitLocation, TargetRotation);
+			SphereRadiusEnable = true;
+		}
+	}
+}
+
+void APlayerCamera::Input_OnDestroySelected()
+{
+	if(!Player) return;
+
+	TArray<AActor*> SelectedActors = Player->SelectionComponent->GetSelectedActors();
+	if(SelectedActors.Num() > 0)
+	{
+		Server_DestroyActor(SelectedActors);
+	}
+}
+
+void APlayerCamera::Server_DestroyActor_Implementation(const TArray<AActor*>& ActorToDestroy)
+{
+	for (AActor* Actor : ActorToDestroy)
+	{
+		if (Actor) Actor->Destroy();
+	}
+}
+
 void APlayerCamera::CommandStart()
 {
-	if (!Player) return;
+	if (!Player && bIsInSpawnUnits) return;
 
-	FVector MouseLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
+	FVector MouseLocation = Player->SelectionComponent->GetMousePositionOnTerrain().Location;
 	CommandLocation = FVector(MouseLocation.X, MouseLocation.Y, MouseLocation.Z);
 }
 
 void APlayerCamera::Command()
 {
-	if (!Player) return;
+	if (!Player || bAltIsPressed || bIsInSpawnUnits) return;
 
 	AActor* ActorEnemy = GetSelectedObject();
 	if (ActorEnemy && ActorEnemy->Implements<USelectable>())
@@ -365,7 +595,7 @@ void APlayerCamera::Command()
 		Player->SelectionComponent->CommandSelected(CreateCommandData(ECommandType::CommandAttack, ActorEnemy));
 		return;
 	}
-	Player->SelectionComponent->CommandSelected(CreateCommandData(ECommandType::CommandMove));
+	Player->SelectionComponent->CommandSelected(FCommandData(Player->SelectionComponent->GetMousePositionOnTerrain().Location, GetActorRotation(), ECommandType::CommandMove));
 }
 
 FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* Enemy, const float Radius) const
@@ -373,7 +603,7 @@ FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* E
 	if (!Player) return FCommandData();
 	
 	FRotator CommandRotation = FRotator::ZeroRotator;
-	const FVector CommandEndLocation = Player->SelectionComponent->GetMousePositionOnTerrain();
+	const FVector CommandEndLocation = Player->SelectionComponent->GetMousePositionOnTerrain().Location;
 
 	if ((CommandEndLocation - CommandLocation).Length() > 100.f)
 	{
@@ -395,7 +625,25 @@ FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* E
 	return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type);
 }
 
+
 #pragma endregion
+
+// -------------------  Spawn Units  ---------------------
+#pragma region Spawn Units
+
+void APlayerCamera::Input_OnSpawnUnits()
+{
+	if (!bIsInSpawnUnits) return;
+	
+	Player->SelectionComponent->SpawnUnits();
+}
+
+void APlayerCamera::OnIsInSpawnUnits()
+{
+	bIsInSpawnUnits = true;
+}
+
+#pragma endregion 
 
 
 

@@ -5,8 +5,9 @@
 #include "Blueprint/IUserObjectListEntry.h"
 #include "SPlayerLobbyEntry.generated.h"
 
+class USPlayerData;
+class UTextBlock;
 class ASLobbyPlayerController;
-class UCommonTextBlock;
 
 
 UCLASS(Abstract)
@@ -15,19 +16,25 @@ class MULTIPLAYERMENU_API USPlayerLobbyEntry : public UUserWidget, public IUserO
 	GENERATED_BODY()
 
 public:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+	
+	UFUNCTION()
+	void UpdateEntry();
 
 	UFUNCTION()
-	void SetPlayerReady(bool bReady);
+	void SetPlayerReady();
 
 protected:
+	
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	UCommonTextBlock* PlayerNameText;
+	UTextBlock* PlayerNameText;
 
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	UCommonTextBlock* PlayerReadyText;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UTextBlock* PlayerReadyText;
 
 	UPROPERTY()
 	ASLobbyPlayerController* Controller;
 
+	UPROPERTY()
+	USPlayerData* PlayerData;
 };

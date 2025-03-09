@@ -5,7 +5,8 @@
 #include "Framwork/Data/BlueprintSessionResultObject.h"
 #include "SMenuJoinSessionWidget.generated.h"
 
-
+class UFindSessionsCallbackProxyAdvanced;
+class UBackgroundBlur;
 struct FBlueprintSessionResult;
 class UOverlay;
 class UEditableTextBox;
@@ -14,7 +15,7 @@ class UEditableText;
 class UCommonBorder;
 class USButtonBaseWidget;
 class UCommonListView;
-class UCommonSession_SearchSessionRequest;
+
 
 UCLASS(Abstract)
 class MULTIPLAYERMENU_API USMenuJoinSessionWidget : public UCommonActivatableWidget
@@ -22,6 +23,7 @@ class MULTIPLAYERMENU_API USMenuJoinSessionWidget : public UCommonActivatableWid
 	GENERATED_BODY()
 
 public:
+	
 	virtual void NativeOnInitialized() override;
 	
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
@@ -30,8 +32,8 @@ public:
 	void SetActivated(bool bActivate);
 
 protected:
-	/*- Base Menu -*/
 	
+	/*- Base Menu -*/
 	UFUNCTION()
 	void SetSpinnerDisplay(const bool bSpinnerState) const;
 	
@@ -45,23 +47,24 @@ protected:
 	USButtonBaseWidget* RefreshButton;
 
 public:
+	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* BackButton;
 	
 protected:
-	/*- Join Session By ID -*/
 	
+	/*- Join Session By ID -*/
 	UFUNCTION()
-	void OnJoinByID();
+	void ShowJoinByID();
 
 	UFUNCTION()
-	void JoinSessionByID(const FString& NewSessionId);
+	void JoinSessionByID(const TArray<FBlueprintSessionResult>& Results);
 
 	UFUNCTION(BlueprintNativeEvent)
 	void OnJoinSessionIdIsFound();
 
 	UFUNCTION()
-	void OnSearchSessionById();
+	void OnStartSearchSessionById();
 
 	UFUNCTION()
 	void SetSessionIdDisplay(bool bNewDisplay) const;
@@ -71,7 +74,6 @@ protected:
 
 	
 	/*- ID Component -*/
-	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* JoinByID;
 	
@@ -87,9 +89,17 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UEditableTextBox* SessionIdEditableText;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UBackgroundBlur* SessionIdBlur;
+
+	UPROPERTY()
+	bool bSessionIdSearch;
+
+	UPROPERTY()
+	FString SessionId = "None";
+
 	
 	/*- Display No Session Found -*/
-
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UCommonBorder* NoSessionsDisplay;
 	
@@ -101,7 +111,6 @@ protected:
 
 	
 	/*- Search Session -*/
-
 	UFUNCTION()
 	void StartSearch();
 	
@@ -110,6 +119,9 @@ protected:
 
 	UFUNCTION()
 	void OnSessionSearchFailed(const TArray<FBlueprintSessionResult>& Results);
+
+	UPROPERTY()
+	UFindSessionsCallbackProxyAdvanced* FindSessionProxy;
 	
 	UPROPERTY()
 	TArray<FBlueprintSessionResult> SessionsList;

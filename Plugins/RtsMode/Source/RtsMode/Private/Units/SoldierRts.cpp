@@ -11,6 +11,7 @@
 ASoldierRts::ASoldierRts()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	AIControllerClass = AiControllerRtsClass;
@@ -36,7 +37,7 @@ void ASoldierRts::PossessedBy(AController* NewController)
 void ASoldierRts::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
 	if (WeaponClass && CurrentTeam != ETeams::HiveMind)
 	{
 		CurrentWeapon = Cast<UWeaponMaster>(AddComponentByClass(*WeaponClass, false, FTransform::Identity, true));

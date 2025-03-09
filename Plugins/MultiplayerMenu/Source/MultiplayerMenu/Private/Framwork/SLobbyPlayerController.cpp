@@ -1,30 +1,25 @@
 ﻿#include "Framwork/SLobbyPlayerController.h"
-#include "AdvancedSessionsLibrary.h"
+
+#include "EnhancedInputComponent.h"
 #include "Blueprint/UserWidget.h"
-#include "Framwork/Managers/SLobbyGameState.h"
+#include "Framwork/Components/SChatComponent.h"
+#include "Framwork/Managers/Lobby/SGameModeLobby.h"
+#include "Framwork/Managers/Lobby/SLobbyPlayerState.h"
 #include "Framwork/UI/Menu/GameMenu/SMenuLobbyWidget.h"
 #include "Framwork/UI/Menu/GameMenu/SPlayerLobbyWidget.h"
-#include "GameFramework/PlayerState.h"
+
 
 ASLobbyPlayerController::ASLobbyPlayerController(const FObjectInitializer& ObjectInitializer)
 {
+	ChatComponent = CreateDefaultSubobject<USChatComponent>(TEXT("ChatComponent"));
 }
 
 void ASLobbyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	UAdvancedSessionsLibrary::GetPlayerName(this, PlayerInfo.PlayerName);
-	
-	if (ASLobbyGameState* LobbyGameState = GetWorld()->GetGameState<ASLobbyGameState>())
-		LobbyGameState->OnPlayersChanged.AddDynamic(this, &ASLobbyPlayerController::RefreshPlayerList);
 
 	if (!LobbyWidget)
 		SetupWidget();
-
-
-	FTimerHandle TimerHandle;
-	GetWorldTimerManager().SetTimer(TimerHandle, this, &ASLobbyPlayerController::RefreshPlayerList, 1.0f, false);
 }
 
 void ASLobbyPlayerController::SetupWidget()
@@ -47,37 +42,39 @@ void ASLobbyPlayerController::SetupWidget()
 	SetShowMouseCursor(true);
 }
 
-void ASLobbyPlayerController::RefreshPlayerList()
+void ASLobbyPlayerController::Client_UpdateWidget_Implementation(const TArray<FPlayerInfo>& PlayersInfo)
 {
-	ASLobbyGameState* LobbyGameState = GetWorld()->GetGameState<ASLobbyGameState>();
-	if (!LobbyGameState)
-		return;
-    
-	UE_LOG(LogTemp, Log, TEXT("RefreshPlayerList: Updating UI with %d players."), LobbyGameState->ConnectedPlayers.Num());
-	for (APlayerState* TempPlayerState : LobbyGameState->ConnectedPlayers)
+	if (!LobbyWidget) return;
+
+	LobbyWidget->GetPlayerLobbyWidget()->UpdatePlayerList(PlayersInfo);
+	
+	if (!PlayerInfo.PlayerState)
 	{
-		if (TempPlayerState)
-		{
-			if (APlayerController* PC = Cast<APlayerController>(TempPlayerState->GetOwningController()))
-			{
-				OnPlayerJoinSession(PC);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("RefreshPlayerList: PlayerState %s has null Owner."), *TempPlayerState->GetPlayerName());
-			}
-		}
+		Server_SetPlayerInfo();
 	}
 }
 
-void ASLobbyPlayerController::OnPlayerJoinSession(APlayerController* NewController)
-{
-	if (!LobbyWidget)
-		SetupWidget();
 
-	if (LobbyWidget)
-		LobbyWidget->GetPlayerLobbyWidget()->AddPlayerToWidget(NewController);
+void ASLobbyPlayerController::Server_SetPlayerReady_Implementation()
+{
+	FPlayerInfo NewInfo = PlayerInfo;
+	NewInfo.bIsReady = !NewInfo.bIsReady;
+	
+	PlayerInfo.bIsReady = NewInfo.bIsReady;
+	GetWorld()->GetAuthGameMode<ASGameModeLobby>()->UpdatePlayerInfo(PlayerInfo, this);
 }
 
+FPlayerInfo ASLobbyPlayerController::GetPlayerInfo()
+{
+	return PlayerInfo;
+}
 
+void ASLobbyPlayerController::Server_SetPlayerInfo_Implementation()
+{
+	PlayerInfo = GetWorld()->GetAuthGameMode<ASGameModeLobby>()->GetPlayerInfo(PlayerState);
+}
 
+USChatComponent* ASLobbyPlayerController::GetChatComponent()
+{
+	return ChatComponent;
+}

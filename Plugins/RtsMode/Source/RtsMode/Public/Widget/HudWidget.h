@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "HudWidget.generated.h"
 
+class UUnitsSelectionWidget;
 class USelectionComponent;
 class UButton;
 class UWidgetSwitcher;
@@ -26,6 +27,8 @@ public:
 	UFormationSelectorWidget* FormationSelector;
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USelectBehaviorWidget* BehaviorSelector;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UUnitsSelectionWidget* UnitsSelector;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* Btn_SwitchBehavior;
@@ -40,6 +43,8 @@ protected:
 	void SetFormationSelectionWidget(const bool bEnabled) const;
 	UFUNCTION()
 	void SetBehaviorSelectionWidget(bool bEnabled) const;
+	UFUNCTION()
+	void SetUnitsSelectionWidget(bool bEnabled) const;
 	
 	UPROPERTY()
 	APlayerControllerRts* PlayerController;

@@ -4,8 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "FormationSelectorWidget.generated.h"
 
+class UCustomButtonWidget;
 class APlayerControllerRts;
-class UCustomButton;
 class USlider;
 class UFormationButtonWidget;
 
@@ -37,7 +37,7 @@ public:
 
 protected:
 	UFUNCTION()
-	void OnFormationButtonClicked(UCustomButton* Button, int Index);
+	void OnFormationButtonClicked(UCustomButtonWidget* Button, int Index);
 
 	UFUNCTION()
 	void OnSpacingSliderValueChanged(const float Value);

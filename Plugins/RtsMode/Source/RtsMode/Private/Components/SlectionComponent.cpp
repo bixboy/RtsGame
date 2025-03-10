@@ -423,7 +423,7 @@ void USelectionComponent::ChangeUnitClass_Implementation(TSubclassOf<ASoldierRts
 
 void USelectionComponent::OnRep_UnitClass()
 {
-    OnUnitUpdated.Broadcast();
+    OnUnitUpdated.Broadcast(UnitToSpawn);
 }
 
 void USelectionComponent::Server_SpawnUnits_Implementation(FVector HitLocation)

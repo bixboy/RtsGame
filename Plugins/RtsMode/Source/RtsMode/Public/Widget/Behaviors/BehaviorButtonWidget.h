@@ -1,12 +1,12 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "Widget/CustomButtonWidget.h"
 #include "Data/AiData.h"
 #include "BehaviorButtonWidget.generated.h"
 
+
 UCLASS()
-class RTSMODE_API UBehaviorButtonWidget : public UCustomButton
+class RTSMODE_API UBehaviorButtonWidget : public UUserWidget
 {
 	GENERATED_BODY()
 	
@@ -15,4 +15,7 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	ECombatBehavior CombatBehavior;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UCustomButtonWidget* Button;
 };

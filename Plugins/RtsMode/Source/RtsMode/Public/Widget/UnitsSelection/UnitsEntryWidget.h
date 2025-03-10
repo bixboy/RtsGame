@@ -4,10 +4,10 @@
 #include "Blueprint/UserWidget.h"
 #include "UnitsEntryWidget.generated.h"
 
+class UCustomButtonWidget;
 class APlayerControllerRts;
 class UUnitsSelectionDataAsset;
 class ASoldierRts;
-class UButton;
 class UTextBlock;
 class UImage;
 
@@ -22,20 +22,14 @@ public:
 
 	UFUNCTION()
 	void InitEntry(UUnitsSelectionDataAsset* DataAsset);
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UCustomButtonWidget* UnitButton;
 
 protected:
 
 	UFUNCTION()
-	void OnUnitSelected();
-	
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UImage* UnitImage;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UTextBlock* UnitName;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* UnitButton;
+	void OnUnitSelected(UCustomButtonWidget* Button, int Index);
 
 	UPROPERTY()
 	TSubclassOf<ASoldierRts> UnitClass;

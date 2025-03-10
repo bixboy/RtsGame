@@ -17,6 +17,7 @@ ASoldierRts::ASoldierRts()
 	AIControllerClass = AiControllerRtsClass;
 
 	CommandComp = CreateDefaultSubobject<UCommandComponent>(TEXT("CommandComponent"));
+	
 	AreaAttack = CreateDefaultSubobject<USphereComponent>(TEXT("AreaAttack"));
 	AreaAttack->SetupAttachment(RootComponent);
 

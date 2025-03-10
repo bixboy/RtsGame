@@ -7,12 +7,15 @@
 #include "Player/Selections/SphereRadius.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SlectionComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Interfaces/Selectable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Units/SoldierRts.h"
+#include "Utilities/PreviewPoseMesh.h"
 
 
 //----------------------- Setup ----------------------------
@@ -41,10 +44,7 @@ void APlayerCamera::BeginPlay()
 	Super::BeginPlay();
 
 	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0.f));
-
 	if(!Player) return;
-
-	Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::OnIsInSpawnUnits);
 
 	FInputModeGameAndUI InputMode;
 	InputMode.SetHideCursorDuringCapture(false);
@@ -52,8 +52,10 @@ void APlayerCamera::BeginPlay()
 	Player->bShowMouseCursor = true;
 
 	CustomInitialized();
+	
 	CreateSelectionBox();
 	CreateSphereRadius();
+	CreatePreviewMesh();
 }
 
 void APlayerCamera::CustomInitialized()
@@ -134,6 +136,11 @@ void APlayerCamera::Tick(float DeltaTime)
 	else
 	{
 		bAltIsPressed = false;
+	}
+
+	if (bIsInSpawnUnits)
+	{
+		PreviewFollowMouse();
 	}
 }
 
@@ -336,7 +343,7 @@ void APlayerCamera::Input_SquareSelection()
 	BoxSelect = false;
 
 	Player->SelectionComponent->ChangeUnitClass(nullptr);
-	bIsInSpawnUnits = false;
+	HidePreview();
 
 	FHitResult Hit = Player->SelectionComponent->GetMousePositionOnTerrain();
 	
@@ -345,6 +352,7 @@ void APlayerCamera::Input_SquareSelection()
 	if(MouseProjectionIsGrounded) LeftMouseHitLocation = Hit.Location;
 }
 
+//----------------
 void APlayerCamera::HandleLeftMouse(EInputEvent InputEvent, float Value)
 {
 	if (!Player || !MouseProjectionIsGrounded) return;
@@ -494,6 +502,7 @@ void APlayerCamera::HandleAltRightMouse(EInputEvent InputEvent, float Value)
 	}
 }
 
+//----------------
 void APlayerCamera::CreateSelectionBox()
 {
 	if(SelectionBox) return;
@@ -577,6 +586,7 @@ void APlayerCamera::Server_DestroyActor_Implementation(const TArray<AActor*>& Ac
 	}
 }
 
+//----------------
 void APlayerCamera::CommandStart()
 {
 	if (!Player && bIsInSpawnUnits) return;
@@ -631,6 +641,27 @@ FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* E
 // -------------------  Spawn Units  ---------------------
 #pragma region Spawn Units
 
+void APlayerCamera::CreatePreviewMesh()
+{
+	if(PreviewUnits) return;
+
+	if(UWorld* World = GetWorld())
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Instigator = this;
+		SpawnParams.Owner = this;
+		PreviewUnits = World->SpawnActor<APreviewPoseMesh>(PreviewUnitsClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+		if (Player && PreviewUnits)
+		{
+			PreviewUnits->SetOwner(this);
+			
+			Player->SelectionComponent->OnUnitUpdated.RemoveDynamic(this, &APlayerCamera::ShowUnitPreview);
+			Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::ShowUnitPreview);
+		}
+	}
+}
+
 void APlayerCamera::Input_OnSpawnUnits()
 {
 	if (!bIsInSpawnUnits) return;
@@ -638,9 +669,43 @@ void APlayerCamera::Input_OnSpawnUnits()
 	Player->SelectionComponent->SpawnUnits();
 }
 
-void APlayerCamera::OnIsInSpawnUnits()
+void APlayerCamera::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
 {
-	bIsInSpawnUnits = true;
+	if (PreviewUnits && NewUnitClass)
+	{
+		if (ASoldierRts* DefaultSoldier = NewUnitClass->GetDefaultObject<ASoldierRts>())
+		{
+			USkeletalMeshComponent* MeshComponent = DefaultSoldier->GetMesh();
+			if (MeshComponent && MeshComponent->GetSkeletalMeshAsset())
+			{
+				bIsInSpawnUnits = true;
+				
+				PreviewUnits->ShowPreview(MeshComponent->GetSkeletalMeshAsset(), DefaultSoldier->GetCapsuleComponent()->GetRelativeScale3D());
+				PreviewUnits->SetActorLocation(Player->SelectionComponent->GetMousePositionOnTerrain().Location);
+			}
+		}
+	}
+}
+
+void APlayerCamera::HidePreview()
+{
+	PreviewUnits->HidePreview();
+	bIsInSpawnUnits = false;
+}
+
+void APlayerCamera::PreviewFollowMouse()
+{
+	if (bIsInSpawnUnits && PreviewUnits && Player)
+	{
+		FHitResult MouseHit = Player->SelectionComponent->GetMousePositionOnTerrain();
+		FRotator MouseRotation = FRotator(0,  CameraComponent->GetComponentRotation().Yaw, CameraComponent->GetComponentRotation().Roll);
+
+		if (MouseHit.Location != FVector::ZeroVector)
+		{
+			PreviewUnits->SetActorLocation(MouseHit.Location);
+			PreviewUnits->SetActorRotation(MouseRotation);	
+		}
+	}
 }
 
 #pragma endregion 

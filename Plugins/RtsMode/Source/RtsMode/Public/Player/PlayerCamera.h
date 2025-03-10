@@ -6,6 +6,8 @@
 #include "GameFramework/Pawn.h"
 #include "PlayerCamera.generated.h"
 
+class ASoldierRts;
+class APreviewPoseMesh;
 class UInputAction;
 class UInputMappingContext;
 class UFloatingPawnMovement;
@@ -291,14 +293,30 @@ protected:
 #pragma region Spawn Units
 	
 protected:
+
+	UFUNCTION()
+	void CreatePreviewMesh();
+	
 	UFUNCTION()
 	void Input_OnSpawnUnits();
 
 	UFUNCTION()
-	void OnIsInSpawnUnits();
+	void ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass);
+
+	UFUNCTION()
+	void HidePreview();
+
+	UFUNCTION()
+	void PreviewFollowMouse();
 
 	UPROPERTY()
-	bool bIsInSpawnUnits = true;
+	bool bIsInSpawnUnits = false;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Spawn Units")
+	TSubclassOf<APreviewPoseMesh> PreviewUnitsClass;
+
+	UPROPERTY()
+	APreviewPoseMesh* PreviewUnits;
 	
 #pragma endregion	
 };

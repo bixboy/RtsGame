@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Widget/CustomButtonWidget.h"
 #include "UnitsSelectionWidget.generated.h"
 
 class UUnitsEntryWidget;
@@ -27,6 +28,9 @@ protected:
 	UFUNCTION()
 	void OnShowUnitSelectionPressed();
 
+	UFUNCTION()
+	void OnUnitSelected(UCustomButtonWidget* Button, int Index);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
 	TSubclassOf<UUnitsEntryWidget> UnitsEntryClass;
 	
@@ -41,5 +45,8 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UBorder* ListBorder;
+
+	UPROPERTY()
+	TArray<UUnitsEntryWidget*> EntryList;
 	
 };

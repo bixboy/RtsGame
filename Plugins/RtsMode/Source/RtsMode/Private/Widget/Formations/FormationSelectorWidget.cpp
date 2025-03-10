@@ -13,12 +13,12 @@ void UFormationSelectorWidget::NativeOnInitialized()
 
 	if (LineButton && ColumnButton && WedgeButton && BlobButton && SquareButton)
 	{
-		OnFormationButtonClicked(LineButton, 0);
-		LineButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
-		ColumnButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
-		WedgeButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
-		BlobButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
-		SquareButton->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
+		OnFormationButtonClicked(LineButton->Button, 0);
+		LineButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
+		ColumnButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
+		WedgeButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
+		BlobButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
+		SquareButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 	}
 
 	if (SpacingSlider)
@@ -28,11 +28,19 @@ void UFormationSelectorWidget::NativeOnInitialized()
 	}
 }
 
-void UFormationSelectorWidget::OnFormationButtonClicked(UCustomButton* Button, int Index)
+void UFormationSelectorWidget::OnFormationButtonClicked(UCustomButtonWidget* Button, int Index)
 {
 	if (PlayerController)
 	{
 		PlayerController->SelectionComponent->UpdateFormation(static_cast<EFormation>(Index));
+
+		LineButton->Button->ToggleButtonIsSelected(false);
+		ColumnButton->Button->ToggleButtonIsSelected(false);
+		WedgeButton->Button->ToggleButtonIsSelected(false);
+		BlobButton->Button->ToggleButtonIsSelected(false);
+		SquareButton->Button->ToggleButtonIsSelected(false);
+
+		Button->ToggleButtonIsSelected(true);
 	}
 }
 

@@ -5,11 +5,9 @@ void UBehaviorButtonWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
+	if (!Button) return;
+	
 	const UEnum* EnumPtr = StaticEnum<ECombatBehavior>();
-	ButtonIndex = static_cast<int32>(CombatBehavior);
-
-	if (ButtonText)
-	{
-		ButtonText->SetText(EnumPtr->GetDisplayNameTextByValue(ButtonIndex));
-	}
+	Button->ButtonIndex = static_cast<int32>(CombatBehavior);
+	Button->SetButtonText(EnumPtr->GetDisplayNameTextByValue(Button->ButtonIndex));
 }

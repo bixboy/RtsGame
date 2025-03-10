@@ -1,12 +1,12 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "SelectBehaviorWidget.generated.h"
 
-class UCustomButton;
+class UCustomButtonWidget;
 class APlayerControllerRts;
 class UBehaviorButtonWidget;
+
 
 UCLASS()
 class RTSMODE_API USelectBehaviorWidget : public UUserWidget
@@ -27,7 +27,13 @@ public:
 
 protected:
 	UFUNCTION()
-	void OnBehaviorButtonClicked(UCustomButton* Button, int Index);
+	void OnBehaviorButtonClicked(UCustomButtonWidget* Button, int Index);
+
+	UFUNCTION()
+	void UpdateSelectedButton(UCustomButtonWidget* Button, bool IsSelected);
+
+	UFUNCTION()
+	void OnNewUnitSelected();
 
 	UPROPERTY()
 	APlayerControllerRts* PlayerController;

@@ -5,10 +5,8 @@ void UFormationButtonWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	ButtonIndex = static_cast<int8>(Formation.GetValue());
+	if (!Button) return;
 
-	if (ButtonText)
-	{
-		ButtonText->SetText(UEnum::GetDisplayValueAsText(Formation));
-	}
+	Button->ButtonIndex = static_cast<int8>(Formation.GetValue());
+	Button->SetButtonText(UEnum::GetDisplayValueAsText(Formation));
 }

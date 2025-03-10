@@ -10,7 +10,7 @@ class UHudWidget;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSelectedUpdatedDelegate);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUnitUpdatedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitUpdatedDelegate, TSubclassOf<ASoldierRts>, NewUnitClass);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class RTSMODE_API USelectionComponent : public UActorComponent

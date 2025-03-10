@@ -1,12 +1,11 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "Widget/CustomButtonWidget.h"
 #include "Data/AiData.h"
 #include "FormationButtonWidget.generated.h"
 
 UCLASS()
-class RTSMODE_API UFormationButtonWidget : public UCustomButton
+class RTSMODE_API UFormationButtonWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
@@ -15,4 +14,7 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	TEnumAsByte<EFormation> Formation;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UCustomButtonWidget* Button;
 };

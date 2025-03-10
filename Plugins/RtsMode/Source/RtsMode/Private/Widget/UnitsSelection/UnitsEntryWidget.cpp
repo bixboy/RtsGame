@@ -6,6 +6,7 @@
 #include "Data/UnitsSelectionDataAsset.h"
 #include "Player/PlayerControllerRts.h"
 #include "Units/SoldierRts.h"
+#include "Widget/CustomButtonWidget.h"
 
 
 void UUnitsEntryWidget::NativeOnInitialized()
@@ -15,19 +16,19 @@ void UUnitsEntryWidget::NativeOnInitialized()
 	verify((PlayerController = Cast<APlayerControllerRts>(GetWorld()->GetFirstPlayerController())));
 
 	if (UnitButton)
-		UnitButton->OnPressed.AddDynamic(this, &UUnitsEntryWidget::OnUnitSelected);
+		UnitButton->OnButtonClicked.AddDynamic(this, &UUnitsEntryWidget::OnUnitSelected);
 }
 
 void UUnitsEntryWidget::InitEntry(UUnitsSelectionDataAsset* DataAsset)
 {
 		FUnitsSelectionData UnitData = DataAsset->UnitSelectionData;
 		
-		UnitImage->SetBrushFromTexture(UnitData.UnitImage, true);
-		UnitName->SetText(UnitData.UnitName);
+		UnitButton->SetButtonTexture(UnitData.UnitImage);
+		UnitButton->SetButtonText(UnitData.UnitName);
 		UnitClass = UnitData.UnitClass;
 }
 
-void UUnitsEntryWidget::OnUnitSelected()
+void UUnitsEntryWidget::OnUnitSelected(UCustomButtonWidget* Button, int Index)
 {
 	if (!UnitClass) return;
 

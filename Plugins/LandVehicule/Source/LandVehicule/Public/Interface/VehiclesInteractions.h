@@ -26,10 +26,10 @@ public:
 	void OutOfVehicle(ACustomPlayerController* PlayerController);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void ChangePlace(ACustomPlayerController* Player);
+	ACameraVehicle* ChangePlace(ACustomPlayerController* Player);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void UpdateTurretRotation(FVector2D Rotation, FName TurretName, FTurrets CameraToMove);
+	void UpdateTurretRotation(FVector2D Rotation, FTurrets CameraToMove);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	ACameraVehicle* GetCurrentCameraVehicle();

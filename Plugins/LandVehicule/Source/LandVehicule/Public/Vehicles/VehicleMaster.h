@@ -85,7 +85,7 @@ protected:
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	FTurrets GetCurrentCamera();
+	ACameraVehicle* GetCurrentCamera();
 
 protected:
 	/*- Variables -*/
@@ -93,38 +93,35 @@ protected:
 	float CameraDistance = 700.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
-	TArray<FTurrets> Turrets;
+	TArray<ACameraVehicle*> Turrets;
 
 	UPROPERTY()
-	FTurrets CurrentCamera;
+	ACameraVehicle* CurrentCamera;
 
 	/*- Functions -*/
 	UFUNCTION()
 	void InitializeCameras();
 	
 	UFUNCTION(BlueprintCallable)
-	void SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
+	void SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
 	
 	UFUNCTION(Server, Reliable)
-	void Server_SwitchToCamera(APlayerController* PlayerController, const FTurrets NewCamera);
+	void Server_SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
 	
 	UFUNCTION(Client, Reliable)
-	void Client_SwitchToCamera(APlayerController* PlayerController, const FTurrets NewCamera);
+	void Client_SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
 
 	UFUNCTION(BlueprintCallable)
-	void SwitchToNextCamera(APlayerController* Player);
+	ACameraVehicle* SwitchToNextCamera(APlayerController* Player);
 	
 	UFUNCTION()
 	void SwitchToMainCam(APlayerController* PlayerController);
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	ACameraVehicle* GetAttachedCamera(FName ParentName);
-
-	UFUNCTION()
-	int GetCameraIndex(const ACameraVehicle* CameraVehicle);
 	
 	UFUNCTION()
-	FTurrets GetAvailableCamera(int startIndex);
+	ACameraVehicle* GetAvailableCamera(int startIndex);
 
 #pragma endregion
 
@@ -215,13 +212,10 @@ public:
 	virtual bool Interact_Implementation(ACustomPlayerController* PlayerInteract) override;
 
 	UFUNCTION()
-	virtual void UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName, FTurrets CameraToMove) override;
-
-	UFUNCTION()
 	virtual ACameraVehicle* GetCurrentCameraVehicle_Implementation() override;
 
 	UFUNCTION()
-	virtual void ChangePlace_Implementation(ACustomPlayerController* Player) override;
+	virtual ACameraVehicle* ChangePlace_Implementation(ACustomPlayerController* Player) override;
 
 	UFUNCTION()
 	virtual void OutOfVehicle_Implementation(ACustomPlayerController* PlayerController) override;
@@ -257,14 +251,17 @@ protected:
 	void ReleaseRole(APawn* Player);
 
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
-	void Multicast_SetTurretRotation(ACameraVehicle* Camera, FRotator TurretAngle);
+	void Multicast_SetTurretRotation(ACameraVehicle* Camera, int IndexOfCamera, FRotator TurretAngle);
 
 	UFUNCTION(BlueprintCallable)
-	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime, FTurrets CameraToMove);
+	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime, ACameraVehicle* CameraToMove);
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	FRotator GetTurretAngle();
+	FRotator GetTurretAngle(ACameraVehicle* Camera);
+
+	UFUNCTION(BlueprintCallable)
+	void OnTurretRotate(FVector2D NewRotation, ACameraVehicle* CameraToRotate);
 	
 #pragma endregion	
 };

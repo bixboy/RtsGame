@@ -28,20 +28,40 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void EnterInVehicle(AVehicleMaster* Vehicle);
-	UFUNCTION(Server, Reliable)
-	void Server_EnterInVehicle(AVehicleMaster* Vehicle);
 
 	UFUNCTION(Server, Reliable, BlueprintCallable)
 	void Server_OutOfVehicle(AVehicleMaster* Vehicle);
+
+	UFUNCTION(BlueprintCallable)
+	void RotateVehicleTurret(FVector2D NewRotation);
 	
 	UPROPERTY(Replicated, BlueprintReadWrite, ReplicatedUsing = OnRep_CurrentVehicle, Category = "Vehicle")
 	bool bInVehicle;
 
-	UPROPERTY(Replicated, BlueprintReadWrite, ReplicatedUsing = OnRep_bInVehicle, Category = "Vehicle")
-	AVehicleMaster* CurrentVehicle;
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	ACameraVehicle* GetCurrentCamera();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	AVehicleMaster* GetCurrentVehicle();
+
+protected:
+
+	UFUNCTION(Server, Reliable)
+	void Server_EnterInVehicle(AVehicleMaster* Vehicle);
 
 	UFUNCTION()
 	void OnRep_CurrentVehicle();
+	
 	UFUNCTION()
 	void OnRep_bInVehicle();
+
+	UFUNCTION(Server, Reliable)
+	void Server_RotateVehicleTurret(const FVector2D NewRotation);
+
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	ACameraVehicle* CurrentCamera;
+
+	UPROPERTY(Replicated, BlueprintReadWrite, ReplicatedUsing = OnRep_bInVehicle, Category = "Vehicle")
+	AVehicleMaster* CurrentVehicle;
+	
 };

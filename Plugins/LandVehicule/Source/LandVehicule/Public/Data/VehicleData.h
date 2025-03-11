@@ -40,7 +40,11 @@ struct FTurrets
 	ACameraVehicle* CameraVehicle = nullptr;
 
 	UPROPERTY(BlueprintReadWrite)
+	APlayerController* PlayerOwner = nullptr;
+
+	UPROPERTY(BlueprintReadWrite)
 	float AccumulatedYaw = 0.f;
+	
 	UPROPERTY(BlueprintReadWrite)
 	float AccumulatedPitch = 0.f;
 	
@@ -48,6 +52,7 @@ struct FTurrets
 	{
 		return CameraVehicle == Other.CameraVehicle && 
 			   AccumulatedYaw == Other.AccumulatedYaw && 
-			   AccumulatedPitch == Other.AccumulatedPitch;
+			   AccumulatedPitch == Other.AccumulatedPitch &&
+			   PlayerOwner == Other.PlayerOwner;
 	}
 };

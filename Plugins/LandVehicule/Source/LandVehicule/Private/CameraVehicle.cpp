@@ -1,5 +1,6 @@
 ﻿#include "CameraVehicle.h"
 #include "Camera/CameraComponent.h"
+#include "Net/UnrealNetwork.h"
 
 ACameraVehicle::ACameraVehicle()
 {
@@ -12,11 +13,20 @@ ACameraVehicle::ACameraVehicle()
 void ACameraVehicle::BeginPlay()
 {
 	Super::BeginPlay();
+
+	Turret.CameraVehicle = this;
 }
 
 void ACameraVehicle::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void ACameraVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ACameraVehicle, Turret);
 }
 
 UCameraComponent* ACameraVehicle::GetCameraComponent()

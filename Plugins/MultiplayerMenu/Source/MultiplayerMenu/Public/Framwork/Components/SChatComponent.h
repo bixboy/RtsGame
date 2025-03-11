@@ -9,6 +9,7 @@ class UInputMappingContext;
 class USChatWidget;
 class USChatBoxWidget;
 
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class MULTIPLAYERMENU_API USChatComponent : public UActorComponent
 {
@@ -26,7 +27,7 @@ public:
 	void Server_SendMessage(const FString& NewMessage);
 
 	UFUNCTION(Client, Reliable)
-	void Client_AddMessage(const FString& NewMessage);
+	void Client_AddMessage(const FString& NewMessage, const bool bTextToSpeech);
 	
 protected:
 	UPROPERTY()
@@ -49,4 +50,7 @@ protected:
 
 	UFUNCTION()
 	void OnEnterPressed();
+
+	UFUNCTION()
+	bool CommandCheck(FString Message);
 };

@@ -1,6 +1,10 @@
 ﻿#include "Vehicles/Hover/HoverVehicles.h"
 #include "Kismet/KismetSystemLibrary.h"
 
+
+//--------------------------- Setup Functions ---------------------------
+#pragma region Setup Functions
+
 AHoverVehicles::AHoverVehicles()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -10,13 +14,8 @@ void AHoverVehicles::BeginPlay()
 {
 	Super::BeginPlay();
 
-}
-
-void AHoverVehicles::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	
-	Hovering(DeltaTime);
+	bReplicates = true;
+	SetReplicateMovement(true); 
 }
 
 void AHoverVehicles::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -24,7 +23,19 @@ void AHoverVehicles::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
-/*- Hovering -*/
+#pragma endregion
+
+void AHoverVehicles::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	
+	if (HasAuthority())
+	{
+		Hovering(DeltaTime);
+	}
+}
+
+//--------------------------- Hovering ---------------------------
 void AHoverVehicles::Hovering(float DeltaTime)
 {
 	if(EngineOn)
@@ -38,7 +49,7 @@ void AHoverVehicles::Hovering(float DeltaTime)
 		OscillationValue = FMath::FInterpTo(OscillationValue, FMath::Sin(GetWorld()->TimeSeconds * OscillationFrequency) * OscillationAmplitude, DeltaTime, OscillationSmoothing);
 		
 		const FVector HoverForce = FVector(0, 0, SpringForce + DampingForce + OscillationValue + GetWorld()->GetDefaultGravityZ() * -1);
-		BaseVehicle->AddForce(HoverForce, NAME_None, true);
+		Multicast_ApplyForce(HoverForce);
 
 		if (HitResult.bBlockingHit)
 		{
@@ -47,7 +58,7 @@ void AHoverVehicles::Hovering(float DeltaTime)
 			FRotator TargetRotation = FRotator(FRotationMatrix::MakeFromZ(SurfaceNormal).Rotator().Pitch, CurrentRotation.Yaw, CurrentRotation.Roll);
 			
 			FRotator SmoothedRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 2.f);
-			SetActorRotation(SmoothedRotation);
+			Multicast_UpdateVehicleRotation(SmoothedRotation);
 		}
 
 		Movement(DeltaTime);
@@ -55,12 +66,12 @@ void AHoverVehicles::Hovering(float DeltaTime)
 	}
 }
 
-// Movement
+//--------------------------- Movement ---------------------------
 #pragma region Movement
 
 void AHoverVehicles::Movement(float DeltaTime)
 {
-	/*- Movement -*/
+	/*--------------- Movement ---------------*/
 	float CurrentSpeed = BaseVehicle->GetPhysicsLinearVelocity().Size();
 	FVector ForwardVector = GetActorForwardVector();
 
@@ -71,7 +82,7 @@ void AHoverVehicles::Movement(float DeltaTime)
 	if (ForwardInput > 0 && CurrentSpeed < MaxForwardSpeed)
 	{
 		FVector ForwardForce = ForwardVector * ForwardInput * MoveForce;
-		BaseVehicle->AddForce(ForwardForce, NAME_None, true);
+		Multicast_ApplyForce(ForwardForce);
 		PlaySound(SoundMoveForward);
 	}
 	else if (ForwardInput < 0) //Backward
@@ -79,25 +90,25 @@ void AHoverVehicles::Movement(float DeltaTime)
 		if (FVector::DotProduct(VelocityDirection, ForwardVector) > 0)
 		{
 			FVector BrakeForce = -VelocityDirection * BreakForce;
-			BaseVehicle->AddForce(BrakeForce, NAME_None, true);
+			Multicast_ApplyForce(BrakeForce);
 			PlaySound(SoundBrake);
         
 			if (CurrentSpeed < 20.f && CurrentSpeed < MaxReverseSpeed)
 			{
 				FVector ReverseForce = ForwardVector * ForwardInput * MoveForce * ReversMoveForceFactor;
-				BaseVehicle->AddForce(ReverseForce, NAME_None, true);
+				Multicast_ApplyForce(ReverseForce);
 			}
 		}
 		else if (CurrentSpeed < MaxReverseSpeed)
 		{
 			FVector ReverseForce = ForwardVector * ForwardInput * MoveForce * ReversMoveForceFactor;
-			BaseVehicle->AddForce(ReverseForce, NAME_None, true);
+			Multicast_ApplyForce(ReverseForce);
 		}
 	}
 
-	/*- Rotation -*/
+	/*--------------- Rotation ---------------*/
 	FVector Torque = FVector(0, 0, GetTurnInput() * TurnForce);
-	BaseVehicle->AddTorqueInDegrees(Torque, NAME_None, true);
+	Multicast_AddTorque(Torque);
 
 	// Inclinaison
 	if (FMath::Abs(TurnInput) > 0.1f)
@@ -107,14 +118,14 @@ void AHoverVehicles::Movement(float DeltaTime)
 
 		FRotator NewRotation = GetActorRotation();
 		NewRotation.Roll = CurrentTiltAngle;
-		SetActorRotation(NewRotation);
+		Multicast_UpdateVehicleRotation(NewRotation);
 	}
 	else
 	{
 		CurrentTiltAngle = FMath::FInterpTo(CurrentTiltAngle, 0.f, DeltaTime, 2.f);
 		FRotator NewRotation = GetActorRotation();
 		NewRotation.Roll = CurrentTiltAngle;
-		SetActorRotation(NewRotation);
+		Multicast_UpdateVehicleRotation(NewRotation);
 	}
 }
 
@@ -124,8 +135,8 @@ void AHoverVehicles::Frictions()
 	if (FMath::IsNearlyZero(ForwardInput))
 	{
 		FVector CurrentVelocity = BaseVehicle->GetPhysicsLinearVelocity();
-		FVector FrictionForce = -CurrentVelocity * FrictionFactor; 
-		BaseVehicle->AddForce(FrictionForce, NAME_None, true);
+		FVector FrictionForce = -CurrentVelocity * FrictionFactor;
+		Multicast_ApplyForce(FrictionForce);
 	}
 
 	// Rotation Friction
@@ -134,7 +145,7 @@ void AHoverVehicles::Frictions()
 		FVector CurrentAngularVelocity = BaseVehicle->GetPhysicsAngularVelocityInDegrees();
 
 		FVector AngularFriction = -CurrentAngularVelocity * RotationFrictionFactor;
-		BaseVehicle->AddTorqueInDegrees(AngularFriction, NAME_None, true);
+		Multicast_AddTorque(AngularFriction);
 	}
 
 	// Anti patinage
@@ -144,11 +155,32 @@ void AHoverVehicles::Frictions()
 	FVector LateralVelocity = CurrentVelocity - (FVector::DotProduct(CurrentVelocity, ForwardVector) * ForwardVector);
 
 	FVector LateralFrictionForce = -LateralVelocity * RotationFrictionFactor;
-	BaseVehicle->AddForce(LateralFrictionForce, NAME_None, true);
+	Multicast_ApplyForce(LateralFrictionForce);
+}
+
+//----------------------- Replication -----------------------
+void AHoverVehicles::Multicast_ApplyForce_Implementation(const FVector& Force)
+{
+	if(BaseVehicle)
+		BaseVehicle->AddForce(Force, NAME_None, true);
+}
+
+void AHoverVehicles::Multicast_UpdateVehicleRotation_Implementation(const FRotator& NewRotation)
+{
+	if (!HasAuthority()) return;
+	
+	SetActorRotation(NewRotation);
+}
+
+void AHoverVehicles::Multicast_AddTorque_Implementation(const FVector& NewVector)
+{
+	if(BaseVehicle)
+		BaseVehicle->AddTorqueInDegrees(NewVector, NAME_None, true);
 }
 
 #pragma endregion
 
+// Trace Ground
 float AHoverVehicles::TraceGround(FHitResult& HitResult)
 {
 	const FVector StartLocation = GetActorLocation();
@@ -164,9 +196,9 @@ float AHoverVehicles::TraceGround(FHitResult& HitResult)
 		EDrawDebugTrace::ForOneFrame,
 		HitResult,
 		true,
-		FLinearColor::Red,                // Couleur du debug si pas d'impact
-		FLinearColor::Green,              // Couleur du debug si impact
-		1.0f                              // Durée d'affichage du debug
+		FLinearColor::Red,
+		FLinearColor::Green,
+		1.0f
 	);
 
 	if (bHit)

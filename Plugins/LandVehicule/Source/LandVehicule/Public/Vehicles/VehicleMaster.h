@@ -1,62 +1,19 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "InputActionValue.h"
 #include "Camera/CameraComponent.h"
+#include "Data/VehicleData.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Interface/VehiclesInteractions.h"
 #include "VehicleMaster.generated.h"
 
+class UInputAction;
 class UInputMappingContext;
 class UVehiclesAnimInstance;
 class ACameraVehicle;
 
-UENUM(BlueprintType)
-enum class EVehiclePlaceType : uint8
-{
-	Driver,
-	Gunner,
-	None
-};
-
-USTRUCT(BlueprintType)
-struct FVehicleRole
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	APawn* Player = nullptr;
-
-	UPROPERTY()
-	EVehiclePlaceType RoleName;
-
-	bool operator==(const FVehicleRole& Other) const
-	{
-		return	Player == Other.Player &&
-				RoleName == Other.RoleName;
-	}
-};
-
-USTRUCT(BlueprintType)
-struct FTurrets
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite)
-	ACameraVehicle* CameraVehicle = nullptr;
-
-	UPROPERTY(BlueprintReadWrite)
-	float AccumulatedYaw = 0.f;
-	UPROPERTY(BlueprintReadWrite)
-	float AccumulatedPitch = 0.f;
-	
-	bool operator==(const FTurrets& Other) const
-	{
-		return CameraVehicle == Other.CameraVehicle && 
-			   AccumulatedYaw == Other.AccumulatedYaw && 
-			   AccumulatedPitch == Other.AccumulatedPitch;
-	}
-};
 
 UCLASS()
 class LANDVEHICULE_API AVehicleMaster : public APawn, public IVehiclesInteractions
@@ -76,6 +33,32 @@ protected:
 	UPROPERTY()
 	TMap<APlayerController*, ACameraVehicle*> PlayersInVehicle;
 
+	UFUNCTION()
+	void Input_OnInteract();
+
+	UFUNCTION()
+	void Input_OnChangePlace();
+
+//---------------------------- Inputs ----------------------------
+#pragma region Inputs
+	UFUNCTION()
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
+	UInputMappingContext* NewMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> MoveAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> InteractAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> ChangePlaceAction;
+
+#pragma endregion	
+
+//---------------------------- Components ----------------------------
 #pragma region Components
 
 protected:
@@ -97,7 +80,12 @@ protected:
 
 #pragma endregion
 
+//---------------------------- Cameras ----------------------------
 #pragma region Camera System
+
+public:
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	FTurrets GetCurrentCamera();
 
 protected:
 	/*- Variables -*/
@@ -116,10 +104,12 @@ protected:
 	
 	UFUNCTION(BlueprintCallable)
 	void SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
+	
 	UFUNCTION(Server, Reliable)
-	void Server_SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
+	void Server_SwitchToCamera(APlayerController* PlayerController, const FTurrets NewCamera);
+	
 	UFUNCTION(Client, Reliable)
-	void Client_SwitchToCamera(APlayerController* PlayerController, const FTurrets& NewCamera);
+	void Client_SwitchToCamera(APlayerController* PlayerController, const FTurrets NewCamera);
 
 	UFUNCTION(BlueprintCallable)
 	void SwitchToNextCamera(APlayerController* Player);
@@ -138,25 +128,26 @@ protected:
 
 #pragma endregion
 
+//---------------------------- Movement ----------------------------
 #pragma region Movement System
 
 protected:
 	/*- Variables -*/
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	float ForwardInput = 0.0f;
 
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	float TurnInput = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Movement")
 	float MaxSpeed = 3000.0f;
 
-	/*- Functions -*/
-	UFUNCTION(BlueprintCallable)
-	void MoveForward(float Value);
+	/*- Function -*/
+	UFUNCTION()
+	virtual void Input_OnMove(const FInputActionValue& InputActionValue);
 
-	UFUNCTION(BlueprintCallable)
-	void MoveRight(float Value);
+	UFUNCTION(Server, Reliable)
+	void Server_OnMove(float InForward, float InTurn);
 
 public:
 	// Getters pour les entrées de mouvement
@@ -168,11 +159,12 @@ public:
 
 #pragma endregion
 
+//---------------------------- Settings ----------------------------
 #pragma region Vehicle Settings
 
 protected:
 	/*- Variables -*/
-	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
+	UPROPERTY(Replicated, EditAnywhere, Category = "Settings|Vehicle")
 	bool EngineOn = false;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
@@ -181,14 +173,11 @@ protected:
 	UPROPERTY()
 	int CurrentPlace;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
-	UInputMappingContext* NewMappingContext;
-
 	UPROPERTY(BlueprintReadOnly, Replicated)
 	APawn* CurrentDriver;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
-	bool HaveTurret = false;
+	bool bHaveTurret = false;
 
 	/*- Functions -*/
 	UFUNCTION(BlueprintCallable)
@@ -196,6 +185,7 @@ protected:
 
 #pragma endregion
 
+	
 #pragma region Sounds
 
 protected:
@@ -225,7 +215,7 @@ public:
 	virtual bool Interact_Implementation(ACustomPlayerController* PlayerInteract) override;
 
 	UFUNCTION()
-	virtual void UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName) override;
+	virtual void UpdateTurretRotation_Implementation(FVector2D Rotation, FName TurretName, FTurrets CameraToMove) override;
 
 	UFUNCTION()
 	virtual ACameraVehicle* GetCurrentCameraVehicle_Implementation() override;
@@ -266,11 +256,11 @@ protected:
 	UFUNCTION()
 	void ReleaseRole(APawn* Player);
 
-	UFUNCTION(BlueprintCallable)
-	void SetTurretRotation(ACameraVehicle* Camera, FRotator TurretAngle);
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	void Multicast_SetTurretRotation(ACameraVehicle* Camera, FRotator TurretAngle);
 
 	UFUNCTION(BlueprintCallable)
-	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime);
+	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime, FTurrets CameraToMove);
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)

@@ -4,7 +4,7 @@
 #include "SChatEntry.generated.h"
 
 
-class UTextBlock;
+class URichTextBlock;
 
 UCLASS()
 class MULTIPLAYERMENU_API USChatEntry : public UUserWidget
@@ -19,5 +19,5 @@ public:
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UTextBlock* Text;
+	URichTextBlock* Text;
 };

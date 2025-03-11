@@ -1,11 +1,11 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
+#include "Data/VehicleData.h"
 #include "UObject/Interface.h"
 #include "VehiclesInteractions.generated.h"
 
-class ACustomPlayerController;
 class ACameraVehicle;
+class ACustomPlayerController;
 
 UINTERFACE()
 class UVehiclesInteractions : public UInterface
@@ -29,7 +29,7 @@ public:
 	void ChangePlace(ACustomPlayerController* Player);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void UpdateTurretRotation(FVector2D Rotation, FName TurretName);
+	void UpdateTurretRotation(FVector2D Rotation, FName TurretName, FTurrets CameraToMove);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	ACameraVehicle* GetCurrentCameraVehicle();

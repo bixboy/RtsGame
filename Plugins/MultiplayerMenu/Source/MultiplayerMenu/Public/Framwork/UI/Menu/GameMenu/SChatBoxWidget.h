@@ -19,14 +19,20 @@ public:
 	virtual void NativeConstruct() override;
 
 	UFUNCTION()
-	void AddChatMessage(FString NewMessage);
+	void AddChatMessage(FString NewMessage, bool bTTS);
 
 	UFUNCTION()
 	void Scroll(bool bUp);
 
 	UFUNCTION()
 	void FocusOnChat();
-	
+
+	UFUNCTION()
+	void FindPlayer();
+
+	UFUNCTION()
+	FString GetLastWord(const FString& InputText);
+
 	UPROPERTY(BlueprintAssignable)
 	FOnNewMessageReceived OnNewMessageReceived;
 
@@ -60,4 +66,35 @@ protected:
 
 	UPROPERTY()
 	USChatComponent* ChatComponent;
+
+// --------------------- Auto Complete ------------------------
+#pragma region Auto Complete
+
+	UFUNCTION()
+	void OnAutoCompleteTimerExpired();
+
+	UPROPERTY()
+	TArray<FString> AutoCompleteSuggestions;
+	
+	UPROPERTY()
+	int32 CurrentSuggestionIndex = 0;
+	
+	UPROPERTY()
+	FString LastPartialText;
+
+	UPROPERTY()
+	FString OriginalText;
+
+	UPROPERTY()
+	FString AutoCompletePrefix;
+	
+	UPROPERTY()
+	bool bIsAutoCompleting = false;
+
+	bool bIsProgrammaticallyUpdatingText = false;
+	
+	UPROPERTY()
+	FTimerHandle AutoCompleteTimerHandle;
+
+#pragma endregion	
 };

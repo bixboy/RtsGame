@@ -1,5 +1,6 @@
 ﻿#include "Framwork/UI/Menu/GameMenu/SChatEntry.h"
-#include "Components/TextBlock.h"
+#include "Components/RichTextBlock.h"
+
 
 void USChatEntry::NativeConstruct()
 {

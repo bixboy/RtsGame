@@ -19,6 +19,12 @@ public:
 	UFUNCTION()
 	void HidePreview();
 
+	UFUNCTION()
+	void CheckIsValidPlacement();
+
+	UFUNCTION()
+	bool GetIsValidPlacement();
+
 protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Material")

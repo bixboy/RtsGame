@@ -62,3 +62,68 @@ void APreviewPoseMesh::HidePreview()
 	SetActorHiddenInGame(true);
 }
 
+void APreviewPoseMesh::CheckIsValidPlacement()
+{
+	if (GetIsValidPlacement())
+	{
+		if (MaterialInstance)
+			MaterialInstance->SetScalarParameterValue("Status", 1.f);
+	}
+	else
+	{
+		if (MaterialInstance)
+			MaterialInstance->SetScalarParameterValue("Status", 0.f);
+	}
+}
+
+bool APreviewPoseMesh::GetIsValidPlacement()
+{
+	TArray<FOverlapResult> OverlapResults;
+	FBoxSphereBounds Bounds;
+	
+	FVector Center;
+	FVector Extent;
+	
+	if (StaticMesh && StaticMesh->GetStaticMesh())
+	{
+		Bounds = StaticMesh->CalcBounds(StaticMesh->GetComponentTransform());
+		Center = Bounds.Origin;
+		Extent = Bounds.BoxExtent;
+        
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+        
+		bool bOverlapping = GetWorld()->OverlapMultiByChannel(
+			OverlapResults, 
+			Center, 
+			FQuat::Identity, 
+			ECC_WorldStatic, 
+			FCollisionShape::MakeBox(Extent), 
+			QueryParams
+		);
+        
+		return !bOverlapping;
+	}
+	else if (SkeletalMesh && SkeletalMesh->GetSkeletalMeshAsset())
+	{
+		Bounds = SkeletalMesh->CalcBounds(SkeletalMesh->GetComponentTransform());
+		Center = Bounds.Origin;
+		Extent = Bounds.BoxExtent;
+        
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+        
+		bool bOverlapping = GetWorld()->OverlapMultiByChannel(
+			OverlapResults,
+			Center,
+			FQuat::Identity,
+			ECC_WorldStatic,
+			FCollisionShape::MakeBox(Extent),
+			QueryParams
+		);
+		return !bOverlapping;
+	}
+
+	return false;
+}
+

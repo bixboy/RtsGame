@@ -3,6 +3,9 @@
 #include "Vehicles/VehicleMaster.h"
 #include "HoverVehicles.generated.h"
 
+class UHoverPointComponent;
+
+
 UCLASS()
 class LANDVEHICULE_API AHoverVehicles : public AVehicleMaster
 {
@@ -19,12 +22,11 @@ public:
 
 protected:
 	/*- Vehicle Variables -*/
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover")
-	float FloatingDistance = 150.f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover")
-	float SpringStiffness = 150.0f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover")
-	float DampingFactor = 10.0f;
+	UPROPERTY()
+	TArray<UHoverPointComponent*> HoverPoints;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Hoverer")
+	float MaxSurfaceAngle = 50.f;
 
 	// Oscillation
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Oscillation")
@@ -49,6 +51,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
 	float BreakForce = 1250.f;
 
+	// Break Factor
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Break")
+	float BrakePitchMultiplier = 1.5f;
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Break")
+	float MaxBrakePitchForce = 5000.f;
+
 	// Rotation
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
 	float TurnForce = 50.0f;
@@ -71,6 +79,8 @@ protected:
 	UFUNCTION()
 	void Hovering(float DeltaTime);
 	
+	void HandleManualRotation(float DeltaTime);
+
 	UFUNCTION()
 	void Movement(float DeltaTime);
 
@@ -78,14 +88,18 @@ protected:
 	void Frictions();
 	
 	UFUNCTION()
-	float TraceGround(FHitResult& HitResult);
+	float TraceGroundAtLocation(const UHoverPointComponent* HoverPointComp, FHitResult& HitResult);
+	float TraceGroundAtLocation(FHitResult& HitResult);
 	
 	// Replication
 	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_ApplyForce(const FVector& Force);
+	void Multicast_ApplyForce(const FVector Force);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_UpdateVehicleRotation(const FRotator& NewRotation);
+	void Multicast_ApplyForceAtLocation(const FVector Force, const FVector Location);
+
+	UFUNCTION()
+	void UpdateVehicleRotation(const FRotator& NewRotation);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_AddTorque(const FVector& NewVector);

@@ -4,6 +4,7 @@
 #include "InputActionValue.h"
 #include "Data/AiData.h"
 #include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "PlayerCamera.generated.h"
 
 class ASoldierRts;
@@ -75,6 +76,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> SelectHoldAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> DoubleTap;
 
 	//COMMAND
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Jupiter Fields", Meta = (DisplayThumbnail = false))
@@ -207,6 +211,9 @@ protected:
 
 	UFUNCTION()
 	void HandleLeftMouse(EInputEvent InputEvent, float Value);
+	
+	UFUNCTION()
+	void Input_SelectAllUnitType();
 
 	
 	// Alt Click
@@ -227,6 +234,10 @@ protected:
 	
 	UFUNCTION()
 	void CreateSphereRadius();
+
+	//--------
+	template <typename T>
+	TArray<T*> GetAllActorsOfClassInCameraBound(UWorld* World, TSubclassOf<T> ActorsClass);
 
 	
 	// Variables
@@ -320,3 +331,36 @@ protected:
 	
 #pragma endregion	
 };
+
+template <typename T>
+TArray<T*> APlayerCamera::GetAllActorsOfClassInCameraBound(UWorld* World, TSubclassOf<T> ActorsClass)
+{
+	TArray<T*> ActorsInView;
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(World, ActorsClass, FoundActors);
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+	if (PC)
+	{
+		int32 ViewportX, ViewportY;
+		PC->GetViewportSize(ViewportX, ViewportY);
+
+		for (AActor* Actor : FoundActors)
+		{
+			FVector2D ScreenLocation;
+			if (PC->ProjectWorldLocationToScreen(Actor->GetActorLocation(), ScreenLocation))
+			{
+				if (ScreenLocation.X >= 0 && ScreenLocation.X <= ViewportX &&
+					ScreenLocation.Y >= 0 && ScreenLocation.Y <= ViewportY)
+				{
+					T* CastedActor = Cast<T>(Actor);
+					if (CastedActor)
+					{
+						ActorsInView.Add(CastedActor);
+					}
+				}
+			}
+		}
+	}
+	return ActorsInView;
+}

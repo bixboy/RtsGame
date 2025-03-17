@@ -45,7 +45,8 @@ struct FCommandData
 
 	// Initialisation
 	FCommandData()
-	:	SourceLocation(FVector::ZeroVector),
+	:	RequestingController(nullptr),
+		SourceLocation(FVector::ZeroVector),
 		Location(FVector::ZeroVector),
 		Rotation(FRotator::ZeroRotator),
 		Type(ECommandType::CommandMove),
@@ -53,8 +54,9 @@ struct FCommandData
 		Radius(0.f) {}
 
 	// Assignation des parametres 
-	FCommandData(const FVector InLocation, const FRotator InRotation, const ECommandType InType, AActor* InTarget = nullptr, const float InRadius = 0.0f)
-	:	SourceLocation(InLocation),
+	FCommandData(APlayerController* InRequesting, const FVector InLocation, const FRotator InRotation, const ECommandType InType, AActor* InTarget = nullptr, const float InRadius = 0.0f)
+	:	RequestingController(InRequesting),
+		SourceLocation(InLocation),
 		Location(InLocation),
 		Rotation(InRotation),
 		Type(InType),
@@ -63,6 +65,9 @@ struct FCommandData
 
 
 	// Variables
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	APlayerController* RequestingController;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FVector SourceLocation;
 	

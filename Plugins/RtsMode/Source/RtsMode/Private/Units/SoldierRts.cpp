@@ -35,6 +35,14 @@ void ASoldierRts::PossessedBy(AController* NewController)
 	}
 }
 
+FCommandData ASoldierRts::GetCurrentCommand_Implementation()
+{
+	if (CommandComp)
+		return CommandComp->GetCurrentCommand();
+	
+	return FCommandData();
+}
+
 void ASoldierRts::BeginPlay()
 {
 	Super::BeginPlay();
@@ -48,16 +56,6 @@ void ASoldierRts::BeginPlay()
 			HaveWeapon = true;
 		}
 	}
-}
-
-void ASoldierRts::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-void ASoldierRts::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
 auto ASoldierRts::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const -> void
@@ -76,12 +74,16 @@ void ASoldierRts::Select()
 {
 	Selected = true;
 	Highlight(Selected);
+
+	OnSelected.Broadcast(Selected);
 }
 
 void ASoldierRts::Deselect()
 {
 	Selected = false;
 	Highlight(Selected);
+
+	OnSelected.Broadcast(Selected);
 }
 
 void ASoldierRts::Highlight(const bool Highlight)

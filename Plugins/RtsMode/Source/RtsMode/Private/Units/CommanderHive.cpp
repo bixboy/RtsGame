@@ -52,7 +52,7 @@ void ACommanderHive::TakeDamage_Implementation(AActor* DamageOwner)
 
 	if (!IsValid(CurrentTarget) || !Execute_GetIsInAttack(CurrentTarget)) CurrentTarget = DamageOwner;
 	
-	FCommandData CommandData = FCommandData(FVector::ZeroVector, FRotator::ZeroRotator, ECommandType::CommandAttack, CurrentTarget);
+	FCommandData CommandData = FCommandData(nullptr, FVector::ZeroVector, FRotator::ZeroRotator, ECommandType::CommandAttack, CurrentTarget);
 	
 	for (AActor* Minion: Minions)
 	{

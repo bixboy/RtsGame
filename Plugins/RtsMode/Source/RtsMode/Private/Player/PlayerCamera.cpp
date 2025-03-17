@@ -639,7 +639,7 @@ void APlayerCamera::Command()
 	}
 
 	if (Hit.bBlockingHit)
-		Player->SelectionComponent->CommandSelected(FCommandData(Hit.Location, GetActorRotation(), CommandMove));
+		Player->SelectionComponent->CommandSelected(FCommandData(Player, Hit.Location, GetActorRotation(), CommandMove));
 }
 
 FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* Enemy, const float Radius) const
@@ -648,15 +648,15 @@ FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* E
 
 	if (Type == CommandAttack)
 	{
-		return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type, Enemy);
+		return FCommandData(Player, CommandLocation, CameraComponent->GetComponentRotation(), Type, Enemy);
 	}
 	
 	if (Type == CommandPatrol) 
 	{
-		return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type, nullptr, Radius * 2.f);
+		return FCommandData(Player, CommandLocation, CameraComponent->GetComponentRotation(), Type, nullptr, Radius * 2.f);
 	}
 	
-	return FCommandData(CommandLocation, CameraComponent->GetComponentRotation(), Type);
+	return FCommandData(Player, CommandLocation, CameraComponent->GetComponentRotation(), Type);
 }
 
 
@@ -669,20 +669,25 @@ void APlayerCamera::CreatePreviewMesh()
 {
 	if(PreviewUnits) return;
 
-	if(UWorld* World = GetWorld())
+	if (Player && Player->IsLocalController())
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Instigator = this;
-		SpawnParams.Owner = this;
-		PreviewUnits = World->SpawnActor<APreviewPoseMesh>(PreviewUnitsClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-
-		if (Player && PreviewUnits)
+		if(UWorld* World = GetWorld())
 		{
-			PreviewUnits->SetOwner(this);
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Instigator = this;
+			SpawnParams.Owner = this;
+		
+			PreviewUnits = World->SpawnActor<APreviewPoseMesh>(PreviewUnitsClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+			if (PreviewUnits)
+			{
+				PreviewUnits->SetReplicates(false);
+				PreviewUnits->SetOwner(this);
 			
-			Player->SelectionComponent->OnUnitUpdated.RemoveDynamic(this, &APlayerCamera::ShowUnitPreview);
-			Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::ShowUnitPreview);
-		}
+				Player->SelectionComponent->OnUnitUpdated.RemoveDynamic(this, &APlayerCamera::ShowUnitPreview);
+				Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::ShowUnitPreview);
+			}
+		}	
 	}
 }
 

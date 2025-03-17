@@ -56,3 +56,36 @@ struct FTurrets
 			   PlayerOwner == Other.PlayerOwner;
 	}
 };
+
+USTRUCT(BlueprintType)
+struct FAnimationLeg
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leg")
+	FName ControlName = "None";
+
+	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")
+	FVector Location;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Leg")
+	FVector InitialOffset;
+
+	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")
+	FRotator Rotation;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Leg")
+	FVector InitialRotation;
+
+	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")
+	bool bPlanted = false;
+
+	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")
+	FName ToeName;
+
+	bool operator==(const FAnimationLeg& Other) const
+	{
+		return	ControlName == Other.ControlName &&
+				Location == Other.Location;
+	}
+};

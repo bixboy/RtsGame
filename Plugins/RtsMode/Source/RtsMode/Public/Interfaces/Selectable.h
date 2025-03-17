@@ -37,6 +37,9 @@ public:
 	void CommandMove(FCommandData CommandData);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	FCommandData GetCurrentCommand();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	bool GetIsInAttack();
 	
 };

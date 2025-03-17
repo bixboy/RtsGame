@@ -4,6 +4,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
+// Setup
+#pragma region Setup
+
 UCommandComponent::UCommandComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -16,7 +19,10 @@ void UCommandComponent::BeginPlay()
 	OwnerActor = Cast<ASoldierRts>(GetOwner());
 	if (OwnerActor)
 	{
+		OwnerActor->OnSelected.AddDynamic(this, &UCommandComponent::ShowMoveMarker);
 		OwnerCharaMovementComp = OwnerActor->GetCharacterMovement();
+		
+		CreatMoveMarker();
 	}
 
 	InitializeMovementComponent();
@@ -31,6 +37,8 @@ void UCommandComponent::InitializeMovementComponent() const
 	OwnerCharaMovementComp->bConstrainToPlane = true;
 	OwnerCharaMovementComp->bSnapToPlaneAtStart = true;
 }
+
+#pragma endregion
 
 void UCommandComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -59,9 +67,15 @@ FVector UCommandComponent::GetCommandLocation() const
 	return TargetLocation;
 }
 
+FCommandData UCommandComponent::GetCurrentCommand() const
+{
+	return CurrentCommand;
+}
+
 void UCommandComponent::CommandMoveToLocation(const FCommandData CommandData)
 {
 	TargetLocation = CommandData.Location;
+	CurrentCommand = CommandData;
 
 	switch (CommandData.Type)
 	{
@@ -115,20 +129,19 @@ void UCommandComponent::CommandMove(const FCommandData CommandData)
 	if (!OwnerAIController) return;
 
 	OwnerAIController->OnReachedDestination.Clear();
+	
 	if (!OwnerAIController->OnReachedDestination.IsBound())
-	{
 		OwnerAIController->OnReachedDestination.AddDynamic(this, &UCommandComponent::DestinationReached);
-	}
 
 	OwnerAIController->CommandMove(CommandData, HaveTargetAttack);
-	Client_SetMoveMarker(TargetLocation, CommandData);
+	SetMoveMarker(TargetLocation, CommandData);
+	
 	HaveTargetAttack = false;
 }
 
 void UCommandComponent::DestinationReached(const FCommandData CommandData)
 {
-	if (MoveMarker) MoveMarker->Destroy();
-
+	ShowMoveMarker(false);
 	TargetOrientation = CommandData.Rotation;
 
 	if (CommandData.Target)
@@ -200,26 +213,48 @@ bool UCommandComponent::IsOrientated() const
 // Marker
 #pragma region Marker
 
-// Spawn Marker
-void UCommandComponent::Client_SetMoveMarker_Implementation(const FVector Location, const FCommandData CommandData)
+void UCommandComponent::SetMoveMarker_Implementation(const FVector Location, const FCommandData CommandData)
 {
-	if (MoveMarkerClass)
+	if (!MoveMarker)
 	{
-		if (MoveMarker) MoveMarker->Destroy();
+		UE_LOG(LogTemp, Warning, TEXT("MoveMarker is null"));
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("MoveMarker is Valid"));
 
+	if (CommandData.RequestingController && CommandData.RequestingController->IsLocalController())
+		ShowMoveMarker(true);
+	
+	MoveMarker->SetActorLocation(Location);
+    
+	if (HaveTargetAttack && CommandData.Target)
+	{
+		MoveMarker->AttachToActor(CommandData.Target, FAttachmentTransformRules::KeepWorldTransform);
+	}
+}
+
+void UCommandComponent::ShowMoveMarker_Implementation(bool bIsSelected)
+{
+	if (MoveMarker)
+		MoveMarker->SetActorHiddenInGame(!bIsSelected);
+}
+
+// Spawn Move Marker
+void UCommandComponent::CreatMoveMarker()
+{
+	if (!MoveMarker && MoveMarkerClass && OwnerActor)
+	{
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Instigator = OwnerActor;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		if (UWorld* World = GetWorld())
+        
+		MoveMarker = GetWorld()->SpawnActor<AActor>(MoveMarkerClass, GetPositionTransform(OwnerActor->GetActorLocation()), SpawnParams);
+		if (MoveMarker)
 		{
-			MoveMarker = World->SpawnActor<AActor>(MoveMarkerClass, GetPositionTransform(Location), SpawnParams);
-			if (HaveTargetAttack && CommandData.Target)
-			{
-				MoveMarker->AttachToActor(CommandData.Target, FAttachmentTransformRules::KeepWorldTransform);
-			}
+			ShowMoveMarker(false);
 		}
 	}
+	
 }
 
 // Get position For Marker

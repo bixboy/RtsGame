@@ -1,4 +1,5 @@
 ﻿#include "Utilities/PreviewPoseMesh.h"
+#include "Engine/EngineTypes.h"
 
 
 APreviewPoseMesh::APreviewPoseMesh()
@@ -78,43 +79,41 @@ void APreviewPoseMesh::CheckIsValidPlacement()
 
 bool APreviewPoseMesh::GetIsValidPlacement()
 {
-	TArray<FOverlapResult> OverlapResults;
 	FBoxSphereBounds Bounds;
-	
 	FVector Center;
 	FVector Extent;
-	
+
+	// Si c'est un StaticMesh
 	if (StaticMesh && StaticMesh->GetStaticMesh())
 	{
 		Bounds = StaticMesh->CalcBounds(StaticMesh->GetComponentTransform());
 		Center = Bounds.Origin;
 		Extent = Bounds.BoxExtent;
-        
+
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
-        
-		bool bOverlapping = GetWorld()->OverlapMultiByChannel(
-			OverlapResults, 
-			Center, 
-			FQuat::Identity, 
-			ECC_WorldStatic, 
-			FCollisionShape::MakeBox(Extent), 
+
+		bool bOverlapping = GetWorld()->OverlapAnyTestByChannel(
+			Center,
+			FQuat::Identity,
+			ECC_WorldStatic,
+			FCollisionShape::MakeBox(Extent),
 			QueryParams
 		);
         
 		return !bOverlapping;
 	}
+	// Sinon, si c'est un SkeletalMesh
 	else if (SkeletalMesh && SkeletalMesh->GetSkeletalMeshAsset())
 	{
 		Bounds = SkeletalMesh->CalcBounds(SkeletalMesh->GetComponentTransform());
 		Center = Bounds.Origin;
 		Extent = Bounds.BoxExtent;
-        
+
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
-        
-		bool bOverlapping = GetWorld()->OverlapMultiByChannel(
-			OverlapResults,
+
+		bool bOverlapping = GetWorld()->OverlapAnyTestByChannel(
 			Center,
 			FQuat::Identity,
 			ECC_WorldStatic,

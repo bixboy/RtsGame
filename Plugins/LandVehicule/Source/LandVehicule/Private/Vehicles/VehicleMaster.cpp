@@ -52,8 +52,11 @@ void AVehicleMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     {
         EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AVehicleMaster::Input_OnMove);
         EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &AVehicleMaster::Input_OnMove);
+        
         EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AVehicleMaster::Input_OnInteract);
         EnhancedInput->BindAction(ChangePlaceAction, ETriggerEvent::Started, this, &AVehicleMaster::Input_OnChangePlace);
+        
+        EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AVehicleMaster::Input_OnUpdateCameraRotation);
     }
 }
 
@@ -277,6 +280,15 @@ EVehiclePlaceType AVehicleMaster::GetRoleByPlayer(const APawn* Player) const
 // ------------------- Camera Management -------------------
 #pragma region Cameras
 
+void AVehicleMaster::Input_OnUpdateCameraRotation(const FInputActionValue& InputActionValue)
+{
+    FVector2d InputVector = InputActionValue.Get<FVector2D>();
+
+    AddControllerPitchInput(-InputVector.Y);
+    AddControllerYawInput(InputVector.X);
+}
+
+
 void AVehicleMaster::SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera)
 {
     if (!bHaveTurret || Turrets.IsEmpty() || !PlayerController || !NewCamera || NewCamera->GetIsUsed())
@@ -449,6 +461,8 @@ void AVehicleMaster::Input_OnMove(const FInputActionValue& InputActionValue)
 {
     FVector2D MovementVector = InputActionValue.Get<FVector2D>();
     Server_OnMove(MovementVector.X, MovementVector.Y);
+
+    OnVehicleMove.Broadcast(MovementVector.X, MovementVector.Y);
 }
 
 void AVehicleMaster::Server_OnMove_Implementation(float InForward, float InTurn)

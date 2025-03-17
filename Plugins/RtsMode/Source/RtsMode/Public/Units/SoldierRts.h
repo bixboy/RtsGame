@@ -16,6 +16,7 @@ class UCharacterMovementComponent;
 class APlayerControllerRts;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBehaviorUpdatedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSelectedDelegate, bool, bIsSelected);
 
 UCLASS(Blueprintable)
 class RTSMODE_API ASoldierRts : public ACharacter, public ISelectable, public IDamageable
@@ -24,11 +25,12 @@ class RTSMODE_API ASoldierRts : public ACharacter, public ISelectable, public ID
 
 public:
 	ASoldierRts();
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaTime) override;
 	
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void BeginPlay() override;
+
 	virtual void PossessedBy(AController* NewController) override;
+
+	virtual FCommandData GetCurrentCommand_Implementation() override;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	UCommandComponent* GetCommandComponent() const;
@@ -67,14 +69,17 @@ public:
 
 	UFUNCTION()
 	bool GetIsSelected() const;
+
+	UPROPERTY()
+	FSelectedDelegate OnSelected;
 	
 protected:
 	/*- Variables -*/
 	UPROPERTY()
 	bool Selected;
+	
 	UPROPERTY()
 	TObjectPtr<APlayerControllerRts> PlayerOwner;
-	
 
 #pragma endregion
 

@@ -13,7 +13,7 @@ void UFormationSelectorWidget::NativeOnInitialized()
 
 	if (LineButton && ColumnButton && WedgeButton && BlobButton && SquareButton)
 	{
-		OnFormationButtonClicked(LineButton->Button, 0);
+		OnFormationButtonClicked(SquareButton->Button, 0);
 		LineButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 		ColumnButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);
 		WedgeButton->Button->OnButtonClicked.AddDynamic(this, &UFormationSelectorWidget::OnFormationButtonClicked);

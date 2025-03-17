@@ -117,7 +117,7 @@ protected:
 	void CalculateOffset(const int Index, FCommandData& CommandData);
 
 	UFUNCTION()
-	void RefreshFormation();
+	void RefreshFormation(bool bIsSpacing);
 
 
 	/*- Variables -*/
@@ -143,6 +143,11 @@ protected:
 
 	UPROPERTY()
 	const UFormationDataAsset* CurrentFormationData;
+
+	UPROPERTY()
+	FVector LastFormationLocation;
+	UPROPERTY()
+	AActor* LastFormationActor;
 
 	/*- Server Replication -*/
 	UFUNCTION(Server, Reliable)

@@ -14,6 +14,7 @@ class UInputMappingContext;
 class UVehiclesAnimInstance;
 class ACameraVehicle;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVehicleMoveDelegate, float, FowardInput, float, RightInput);
 
 UCLASS()
 class LANDVEHICULE_API AVehicleMaster : public APawn, public IVehiclesInteractions
@@ -55,6 +56,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> ChangePlaceAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> LookAction;
 
 #pragma endregion	
 
@@ -99,6 +103,10 @@ protected:
 	ACameraVehicle* CurrentCamera;
 
 	/*- Functions -*/
+
+	UFUNCTION()
+	void Input_OnUpdateCameraRotation(const FInputActionValue& InputActionValue);
+	
 	UFUNCTION()
 	void InitializeCameras();
 	
@@ -127,6 +135,9 @@ protected:
 
 //---------------------------- Movement ----------------------------
 #pragma region Movement System
+public:
+	UPROPERTY(BlueprintAssignable, Category = MovementSystem)
+	FOnVehicleMoveDelegate OnVehicleMove;
 
 protected:
 	/*- Variables -*/

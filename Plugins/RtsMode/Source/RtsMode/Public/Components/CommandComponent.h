@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Data/AiData.h"
 #include "CommandComponent.generated.h"
 
 
@@ -17,16 +18,22 @@ class RTSMODE_API UCommandComponent : public UActorComponent
 
 public:
 	UCommandComponent();
+	
 	virtual void BeginPlay() override;
+	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION()
 	void CommandMoveToLocation(const FCommandData CommandData);
+	
 	UFUNCTION()
 	void SetOwnerAIController(AAiControllerRts* Cast);
 
 	UFUNCTION()
 	FVector GetCommandLocation() const;
+
+	UFUNCTION()
+	FCommandData GetCurrentCommand() const;
 
 protected:
 	UFUNCTION()
@@ -54,11 +61,11 @@ private:
 	UFUNCTION()
 	bool IsOrientated() const;
 
-	UFUNCTION(Client, Reliable)
-	void Client_SetMoveMarker(const FVector Location, const FCommandData CommandData);
-
 	UFUNCTION()
 	FTransform GetPositionTransform(const FVector Position) const;
+
+	UPROPERTY()
+	FCommandData CurrentCommand;
 
 #pragma endregion
 	
@@ -91,5 +98,19 @@ private:
 	UPROPERTY()
 	bool HaveTargetAttack;
 	
+#pragma endregion
+
+#pragma region Move Marker
+public:
+	UFUNCTION(Client, Reliable)
+	void ShowMoveMarker(bool bIsSelected);
+	
+protected:
+	UFUNCTION()
+	void CreatMoveMarker();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void SetMoveMarker(const FVector Location, const FCommandData CommandData);
+
 #pragma endregion	
 };

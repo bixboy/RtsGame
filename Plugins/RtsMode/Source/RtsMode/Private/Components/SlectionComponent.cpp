@@ -1,4 +1,5 @@
 ﻿#include "Components/SlectionComponent.h"
+#include "AsyncTreeDifferences.h"
 #include "Blueprint/UserWidget.h"
 #include "Data/FormationDataAsset.h"
 #include "Engine/AssetManager.h"
@@ -43,6 +44,7 @@ FHitResult USelectionComponent::GetMousePositionOnTerrain() const
 
 void USelectionComponent::CommandSelected(FCommandData CommandData)
 {
+    LastFormationActor = nullptr;
     Server_CommandSelected(CommandData);
 }
 
@@ -292,6 +294,7 @@ void USelectionComponent::CalculateOffset(int Index, FCommandData& CommandData)
         }
     default:
         {
+            // Gestion des formations personnalisées ou non définies
             const float Multiplier = FMath::Floor((Index + 1) / 2) * FormationSpacing;
             Offset.Y = CurrentFormationData->Alternate && Index % 2 == 0 ? -Offset.Y : Offset.Y;
             Offset *= CurrentFormationData->Alternate ? Multiplier : Index * FormationSpacing;
@@ -348,23 +351,31 @@ void USelectionComponent::Server_UpdateSpacing_Implementation(float NewSpacing)
 
 void USelectionComponent::OnRep_CurrentFormation()
 {
-    RefreshFormation();
+    RefreshFormation(false);
 }
 
 void USelectionComponent::OnRep_FormationSpacing()
 {
-    RefreshFormation();
+    RefreshFormation(true);
 }
 
-void USelectionComponent::RefreshFormation()
+void USelectionComponent::RefreshFormation(bool bIsSpacing)
 {
     if (HasGroupSelection() && SelectedActors.IsValidIndex(0))
     {
-        const AActor* FirstActor = SelectedActors[0];
-        const FRotator PlayerRotation = OwnerController->GetPawn()->GetActorRotation();
-        const FRotator CommandRotation(PlayerRotation.Pitch, PlayerRotation.Yaw, FirstActor->GetActorRotation().Roll);
+        FVector Centroid(0.f, 0.f, 0.f);
+        for (AActor* Actor : SelectedActors)
+        {
+            Centroid += Actor->GetActorLocation();
+        }
+        Centroid /= SelectedActors.Num();
+
+        LastFormationLocation = Centroid;
         
-        CommandSelected(FCommandData(FirstActor->GetActorLocation(), CommandRotation, ECommandType::CommandMove));
+        const FRotator PlayerRotation = OwnerController->GetPawn()->GetActorRotation();
+        const FRotator CommandRotation(PlayerRotation.Pitch, PlayerRotation.Yaw, 0.f);
+        
+        Server_CommandSelected(FCommandData(OwnerController, LastFormationLocation, CommandRotation, ECommandType::CommandMove));
     }
 }
 

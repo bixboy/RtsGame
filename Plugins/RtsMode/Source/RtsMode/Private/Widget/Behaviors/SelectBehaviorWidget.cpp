@@ -47,8 +47,10 @@ void USelectBehaviorWidget::OnNewUnitSelected()
 	UpdateSelectedButton(NeutralButton->Button, false);
 	UpdateSelectedButton(PassiveButton->Button, false);
 	UpdateSelectedButton(AggressiveButton->Button, false);
+
+	TArray<AActor*> SelectedActors = PlayerController->SelectionComponent->GetSelectedActors();
 	
-	if (PlayerController->SelectionComponent->GetSelectedActors().Num() == 1)
+	if (SelectedActors.Num() == 1)
 	{
 		if (ASoldierRts* Unit = Cast<ASoldierRts>(PlayerController->SelectionComponent->GetSelectedActors()[0]))
 		{

@@ -104,7 +104,7 @@ bool APreviewPoseMesh::GetIsValidPlacement()
 		return !bOverlapping;
 	}
 	// Sinon, si c'est un SkeletalMesh
-	else if (SkeletalMesh && SkeletalMesh->GetSkeletalMeshAsset())
+	if (SkeletalMesh && SkeletalMesh->GetSkeletalMeshAsset())
 	{
 		Bounds = SkeletalMesh->CalcBounds(SkeletalMesh->GetComponentTransform());
 		Center = Bounds.Origin;

@@ -112,40 +112,67 @@ void ASelectionBox::Adjust() const
 
 void ASelectionBox::Manage()
 {
-	if (!BoxComponent)
-	{
-		return;
-	}
+    if (!BoxComponent) return;
 
-	const FVector BoxExtent = BoxComponent->GetScaledBoxExtent();
-	const FVector BoxCenter = BoxComponent->GetComponentLocation(); 
+    const FVector BoxExtent = BoxComponent->GetScaledBoxExtent();
+    TArray<AActor*> ValidCandidates;
 
-	for (int i = 0; i < InBox.Num(); ++i)
-	{
-		FVector ActorCenter = InBox[i]->GetActorLocation();
-
-		// Vérifier si l'acteur est dans la box en utilisant les limites de la box
-		FVector LocalActorCenter = BoxComponent->GetComponentTransform().InverseTransformPosition(ActorCenter);
-		bool bInsideBox = FMath::Abs(LocalActorCenter.X) <= BoxExtent.X && FMath::Abs(LocalActorCenter.Y) <= BoxExtent.Y;
-		
-		if (bInsideBox)
-		{
-
-			// add object to CenterBox is in selection box list
-			if (!CenterInBox.Contains(InBox[i]))
-			{
-				CenterInBox.Add(InBox[i]);
-				HandleHighlight(InBox[i], true);
-			}
-
-		}
-		else
-		{
-			CenterInBox.Remove(InBox[i]);
-			HandleHighlight(InBox[i], false);
-		}
-	}
-	
+    // Récupérer les acteurs présents dans la box
+    for (AActor* Actor : InBox)
+    {
+        if (!Actor) continue;
+        
+        FVector ActorCenter = Actor->GetActorLocation();
+        FVector LocalActorCenter = BoxComponent->GetComponentTransform().InverseTransformPosition(ActorCenter);
+    	
+        bool bInsideBox = FMath::Abs(LocalActorCenter.X) <= BoxExtent.X &&
+                          FMath::Abs(LocalActorCenter.Y) <= BoxExtent.Y;
+        
+        if (bInsideBox)
+        {
+            ValidCandidates.Add(Actor);
+        }
+        else
+        {
+            CenterInBox.Remove(Actor);
+            HandleHighlight(Actor, false);
+        }
+    }
+    
+    if (ValidCandidates.Num() > 0)
+    {
+        auto FirstType = ISelectable::Execute_GetSelectionType(ValidCandidates[0]);
+        
+        TArray<AActor*> FilteredCandidates;
+        for (AActor* Actor : ValidCandidates)
+        {
+            if (ISelectable::Execute_GetSelectionType(Actor) == FirstType)
+            {
+                FilteredCandidates.Add(Actor);
+            }
+            else
+            {
+                HandleHighlight(Actor, false);
+            }
+        }
+    	
+        for (AActor* Actor : FilteredCandidates)
+        {
+            if (!CenterInBox.Contains(Actor))
+            {
+                CenterInBox.Add(Actor);
+                HandleHighlight(Actor, true);
+            }
+        }
+    }
+    else
+    {
+        for (AActor* Actor : CenterInBox)
+        {
+            HandleHighlight(Actor, false);
+        }
+        CenterInBox.Empty();
+    }
 }
 
 void ASelectionBox::HandleHighlight(AActor* ActorInBox, const bool Highlight) const

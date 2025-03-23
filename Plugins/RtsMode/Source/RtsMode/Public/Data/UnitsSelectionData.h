@@ -20,3 +20,11 @@ struct FUnitsSelectionData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
 	TSubclassOf<ASoldierRts> UnitClass;
 };
+
+UENUM(BlueprintType)
+enum class ESelectionType : uint8
+{
+	Unit UMETA(DisplayName = "Unit Type"),
+	Structure UMETA(DisplayName = "Structure Type"),
+	None
+};

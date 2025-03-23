@@ -1,11 +1,13 @@
 ﻿#include "Widget/HudWidget.h"
-
 #include "Player/PlayerControllerRts.h"
 #include "Components/Button.h"
 #include "Components/SlectionComponent.h"
+#include "Interfaces/Selectable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Widget/Formations/FormationSelectorWidget.h"
 #include "Widget/Behaviors/SelectBehaviorWidget.h"
+#include "Widget/UnitsSelection/UnitsSelectionWidget.h"
+
 
 void UHudWidget::NativeOnInitialized()
 {
@@ -46,7 +48,7 @@ void UHudWidget::SetUnitsSelectionWidget(bool bEnabled) const
 {
 	if (UnitsSelector)
 	{
-		BehaviorSelector->SetVisibility(bEnabled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		UnitsSelector->SetVisibility(bEnabled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 }
 
@@ -54,14 +56,18 @@ void UHudWidget::OnSelectionUpdated()
 {
 	if(SelectionComponent)
 	{
-		SetFormationSelectionWidget(SelectionComponent->HasGroupSelection());
-		if (!SelectionComponent->GetSelectedActors().IsEmpty())
-		{
-			SetBehaviorSelectionWidget(true);
-		}
-		else
+		TArray<AActor*> Selection = SelectionComponent->GetSelectedActors();
+		if (Selection.IsEmpty())
 		{
 			SetBehaviorSelectionWidget(false);
+			SetFormationSelectionWidget(false);
+			return;
+		}
+
+		if (ISelectable::Execute_GetSelectionType(Selection[0]) == ESelectionType::Unit)
+		{
+			SetFormationSelectionWidget(SelectionComponent->HasGroupSelection());
+			SetBehaviorSelectionWidget(true);	
 		}
 	}
 }

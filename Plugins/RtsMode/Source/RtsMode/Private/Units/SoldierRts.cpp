@@ -99,6 +99,11 @@ void ASoldierRts::Highlight(const bool Highlight)
 	}
 }
 
+ESelectionType ASoldierRts::GetSelectionType_Implementation()
+{
+	return Type;
+}
+
 bool ASoldierRts::GetIsSelected() const
 {
 	return Selected;

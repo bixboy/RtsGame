@@ -13,17 +13,17 @@ public:
 	APreviewPoseMesh();
 	
 	UFUNCTION()
-	void ShowPreview(UStaticMesh* NewStaticMesh, FVector NewScale);
-	void ShowPreview(USkeletalMesh* NewSkeletalMesh, FVector NewScale);
+	virtual void ShowPreview(UStaticMesh* NewStaticMesh, FVector NewScale);
+	virtual void ShowPreview(USkeletalMesh* NewSkeletalMesh, FVector NewScale);
 
 	UFUNCTION()
-	void HidePreview();
+	virtual void HidePreview();
 
 	UFUNCTION()
-	void CheckIsValidPlacement();
+	virtual void CheckIsValidPlacement();
 
 	UFUNCTION()
-	bool GetIsValidPlacement();
+	virtual bool GetIsValidPlacement();
 
 protected:
 

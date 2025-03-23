@@ -66,6 +66,8 @@ public:
 	virtual void Select() override;
 	virtual void Deselect() override;
 	virtual void Highlight(const bool Highlight) override;
+	
+	virtual ESelectionType GetSelectionType_Implementation() override;;
 
 	UFUNCTION()
 	bool GetIsSelected() const;
@@ -77,6 +79,9 @@ protected:
 	/*- Variables -*/
 	UPROPERTY()
 	bool Selected;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
+	ESelectionType Type = ESelectionType::Unit;
 	
 	UPROPERTY()
 	TObjectPtr<APlayerControllerRts> PlayerOwner;

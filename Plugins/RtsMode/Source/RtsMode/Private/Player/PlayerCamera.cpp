@@ -140,7 +140,7 @@ void APlayerCamera::Tick(float DeltaTime)
 		bAltIsPressed = false;
 	}
 
-	if (bIsInSpawnUnits)
+	if (bPreviewFollowMouse)
 	{
 		PreviewFollowMouse();
 	}
@@ -693,10 +693,12 @@ void APlayerCamera::CreatePreviewMesh()
 
 void APlayerCamera::Input_OnSpawnUnits()
 {
-	if (!bIsInSpawnUnits && !PreviewUnits) return;
+	if (!bIsInSpawnUnits || !PreviewUnits) return;
 
 	if (PreviewUnits->GetIsValidPlacement())
+	{
 		Player->SelectionComponent->SpawnUnits();
+	}
 }
 
 void APlayerCamera::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
@@ -709,6 +711,7 @@ void APlayerCamera::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
 			if (MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 			{
 				bIsInSpawnUnits = true;
+				bPreviewFollowMouse = true;
 				
 				PreviewUnits->ShowPreview(MeshComponent->GetSkeletalMeshAsset(), DefaultSoldier->GetCapsuleComponent()->GetRelativeScale3D());
 				PreviewUnits->SetActorLocation(Player->SelectionComponent->GetMousePositionOnTerrain().Location);
@@ -719,13 +722,19 @@ void APlayerCamera::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
 
 void APlayerCamera::HidePreview()
 {
-	PreviewUnits->HidePreview();
-	bIsInSpawnUnits = false;
+	if (PreviewUnits)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Hide Preview");
+		PreviewUnits->HidePreview();
+		
+		bIsInSpawnUnits = false;
+		bPreviewFollowMouse = false;
+	}
 }
 
 void APlayerCamera::PreviewFollowMouse()
 {
-	if (bIsInSpawnUnits && PreviewUnits && Player)
+	if (bPreviewFollowMouse && PreviewUnits && Player)
 	{
 		FHitResult MouseHit = Player->SelectionComponent->GetMousePositionOnTerrain();
 		FRotator MouseRotation = FRotator(0,  CameraComponent->GetComponentRotation().Yaw, CameraComponent->GetComponentRotation().Roll);

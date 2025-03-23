@@ -220,7 +220,6 @@ void UCommandComponent::SetMoveMarker_Implementation(const FVector Location, con
 		UE_LOG(LogTemp, Warning, TEXT("MoveMarker is null"));
 		return;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("MoveMarker is Valid"));
 
 	if (CommandData.RequestingController && CommandData.RequestingController->IsLocalController())
 		ShowMoveMarker(true);

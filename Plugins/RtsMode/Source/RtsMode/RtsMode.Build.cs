@@ -33,7 +33,7 @@ public class RtsMode : ModuleRules
 				"AIModule", 
 				"Niagara", 
 				"EnhancedInput", 
-				"UMG" 
+				"UMG",
 			}
 			);
 			
@@ -41,10 +41,8 @@ public class RtsMode : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Engine",
 				"Slate",
-				"SlateCore", 
+				"SlateCore"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

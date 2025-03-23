@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Data/AiData.h"
+#include "Data/UnitsSelectionData.h"
 #include "Selectable.generated.h"
 
 UINTERFACE()
@@ -23,6 +24,9 @@ public:
 
 	UFUNCTION()
 	virtual void Highlight(const bool Highlight) = 0;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	ESelectionType GetSelectionType();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	ETeams GetCurrentTeam();

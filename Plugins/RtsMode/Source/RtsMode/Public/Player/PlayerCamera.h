@@ -306,22 +306,25 @@ protected:
 protected:
 
 	UFUNCTION()
-	void CreatePreviewMesh();
+	virtual void CreatePreviewMesh();
 	
 	UFUNCTION()
-	void Input_OnSpawnUnits();
+	virtual void Input_OnSpawnUnits();
 
 	UFUNCTION()
-	void ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass);
+	virtual void ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass);
 
 	UFUNCTION()
-	void HidePreview();
+	virtual void HidePreview();
 
 	UFUNCTION()
 	void PreviewFollowMouse();
 
 	UPROPERTY()
 	bool bIsInSpawnUnits = false;
+
+	UPROPERTY()
+	bool bPreviewFollowMouse = false;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Spawn Units")
 	TSubclassOf<APreviewPoseMesh> PreviewUnitsClass;

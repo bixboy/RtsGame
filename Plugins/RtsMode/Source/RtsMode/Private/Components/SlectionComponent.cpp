@@ -111,20 +111,48 @@ void USelectionComponent::Server_CommandSelected_Implementation(FCommandData Com
 void USelectionComponent::Server_Select_Group_Implementation(const TArray<AActor*>& ActorsToSelect)
 {
     Server_ClearSelected();
-
+    
     TArray<AActor*> ValidatedActors;
+    
+    ESelectionType FirstSelectionType = ESelectionType::None; 
+
     for (AActor* Actor : ActorsToSelect)
     {
         if (Actor && Actor->Implements<USelectable>())
         {
-            ValidatedActors.Add(Actor);
-            Client_Select(Actor);
+            ESelectionType ActorSelectionType = ISelectable::Execute_GetSelectionType(Actor);
+            
+            if (ValidatedActors.Num() == 0)
+            {
+                FirstSelectionType = ActorSelectionType;
+                ValidatedActors.Add(Actor);
+                Client_Select(Actor);
+            }
+            else
+            {
+                if (ActorSelectionType == FirstSelectionType)
+                {
+                    ValidatedActors.Add(Actor);
+                    Client_Select(Actor);
+                }
+                else
+                {
+                    // Option 1 : annuler toute la sélection en cas de type différent
+                    // ValidatedActors.Empty();
+                    // Server_ClearSelected();
+                    // break;
+                    
+                    continue;
+                }
+            }
         }
     }
 
-    SelectedActors.Append(ValidatedActors);
-    OnRep_Selected();
-    ValidatedActors.Empty();
+    if (ValidatedActors.Num() > 0)
+    {
+        SelectedActors.Append(ValidatedActors);
+        OnRep_Selected();
+    }
 }
 
 void USelectionComponent::Server_Select_Implementation(AActor* ActorToSelect)
@@ -278,7 +306,7 @@ void USelectionComponent::CalculateOffset(int Index, FCommandData& CommandData)
         {
             const int GridSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(NumActors)));
             Offset.X = (Index / GridSize) * FormationSpacing - ((GridSize - 1) * FormationSpacing * 0.5f);
-            Offset.Y = (Index % GridSize) * FormationSpacing - ((GridSize - 1) * FormationSpacing * 0.5f);
+                Offset.Y = (Index % GridSize) * FormationSpacing - ((GridSize - 1) * FormationSpacing * 0.5f);
             break;
         }
     case EFormation::Blob:

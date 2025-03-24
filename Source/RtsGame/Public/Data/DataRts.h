@@ -23,6 +23,7 @@ enum class EFaction : uint8
 	None
 };
 
+// ------- Resources Cost -------
 USTRUCT(BlueprintType)
 struct FResourcesCost
 {
@@ -36,6 +37,24 @@ struct FResourcesCost
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resources")
 	int Metal = 0;
+	
+	FResourcesCost operator+(const FResourcesCost& Other) const
+	{
+		FResourcesCost Sum;
+		Sum.Woods = Woods + Other.Woods;
+		Sum.Food = Food + Other.Food;
+		Sum.Metal = Metal + Other.Metal;
+		return Sum;
+	}
+
+	FResourcesCost operator-(const FResourcesCost& Other) const
+	{
+		FResourcesCost Diff;
+		Diff.Woods = Woods - Other.Woods;
+		Diff.Food = Food - Other.Food;
+		Diff.Metal = Metal - Other.Metal;
+		return Diff;
+	}
 
 
 	bool operator==(const FResourcesCost& Other) const
@@ -46,6 +65,7 @@ struct FResourcesCost
 	}
 };
 
+// ------- Builds Upgrade -------
 USTRUCT(BlueprintType)
 struct FStructureUpgrade
 {
@@ -68,34 +88,43 @@ struct FStructureUpgrade
 	}
 };
 
-
+// ------- Builds Data -------
 USTRUCT(BlueprintType)
 struct FStructure
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FString Name = "Name";
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FString Description = "Description";
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	EStructureType StructureType = EStructureType::Structure;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Build")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	UTexture2D* Image = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	int Id;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
 	TSubclassOf<AStructureBase> BuildClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
 	UStaticMesh* StructureMesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	TArray<UStaticMesh*> BuildSteps;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	FResourcesCost BuildCost;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	float TimeToBuild = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
 	TArray<FStructureUpgrade> Upgrades;
 
 
@@ -106,10 +135,14 @@ struct FStructure
 				StructureType == Other.StructureType &&
 				Id == Other.Id &&
 				StructureMesh == Other.StructureMesh &&
+				BuildSteps == Other.BuildSteps &&
+				TimeToBuild == Other.TimeToBuild &&
 				Upgrades == Other.Upgrades;
 	}
 };
 
+
+// ------- Units Prod -------
 USTRUCT(BlueprintType)
 struct FUnitsProd
 {

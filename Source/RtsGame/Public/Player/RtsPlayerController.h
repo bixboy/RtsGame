@@ -1,8 +1,10 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
+#include "Data/DataRts.h"
 #include "Player/PlayerControllerRts.h"
 #include "RtsPlayerController.generated.h"
 
+class URtsResourcesComponent;
 class URtsComponent;
 
 
@@ -14,6 +16,12 @@ class RTSGAME_API ARtsPlayerController : public APlayerControllerRts
 public:
 	ARtsPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UFUNCTION()
+	void OnNewResources(const FResourcesCost& NewResources);
+
 	UPROPERTY()
 	URtsComponent* RtsComponent;
+
+	UPROPERTY()
+	URtsResourcesComponent* ResourcesComponent;
 };

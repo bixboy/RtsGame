@@ -3,9 +3,9 @@
 #include "Data/DataRts.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/Selectable.h"
-#include "Manager/GridManager.h"
 #include "StructureBase.generated.h"
 
+class ARtsPlayerController;
 class UHealthComponent;
 class UStructureDataAsset;
 class AGridManager;
@@ -23,12 +23,11 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
-	UFUNCTION(BlueprintCallable)
-	FStructure GetStructureInfo() const;
-
 protected:
 	virtual void BeginPlay() override;
-	
+
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
 // ----------------------- Setup -----------------------
 #pragma region Components
 	
@@ -39,15 +38,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
 	UHealthComponent* HealthComp;
 
-public:
-	UStaticMesh* GetStaticMesh();
-
 #pragma endregion
 
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
-	UStructureDataAsset* StructureData;
-
+// ----------------------- Interfaces -----------------------
 #pragma region Interfaces
 	
 public:
@@ -72,6 +66,79 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
 	ESelectionType Type = ESelectionType::Structure;
 	
+
+#pragma endregion
+
+	
+// ----------------------- Data -----------------------
+#pragma region Data
+	
+public:
+	UFUNCTION()
+	FStructure GetBuildData();
+
+	UFUNCTION()
+	void SetBuildData(FStructure NewData);
+	
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
+	UStructureDataAsset* StructureData;
+
+	UPROPERTY(ReplicatedUsing = OnRep_BuildData)
+	FStructure BuildData;
+
+	UFUNCTION()
+	void OnRep_BuildData();
+
+#pragma endregion
+
+
+// ----------------------- Build -----------------------
+#pragma region Build
+public:
+	UFUNCTION()
+	void StartBuild(ARtsPlayerController* RequestingPC);
+
+	UFUNCTION()
+	void DeliverResources(FResourcesCost DeliveredResources);
+	
+	UFUNCTION()
+	bool GetIsBuilt() const;
+	
+protected:
+	UFUNCTION()
+	void UpdateConstruction();
+
+	UFUNCTION()
+	void OnConstructionCompleted();
+	
+	/*--- Replication ---*/
+	UFUNCTION(Server, Reliable)
+	void Server_StartBuild(ARtsPlayerController* RequestingPC);
+
+	UFUNCTION(Server, Reliable)
+	void Server_DeliverResources(FResourcesCost DeliveredResources);
+
+	UFUNCTION()
+	void OnRep_CurrentStepIndex();
+	
+	/*--- Variables ---*/
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentStepIndex)
+	int32 CurrentStepIndex = 1;
+
+	UPROPERTY(Replicated)
+	int CurrentResources = 100;
+
+	UPROPERTY(Replicated)
+	int CurrentBuilder = 1;
+
+	UPROPERTY(Replicated)
+	bool bIsBuilt;
+	
+	UPROPERTY(Replicated)
+	float BuildElapsedTime;
+
+	FTimerHandle ConstructionTimerHandle;
 
 #pragma endregion	
 	

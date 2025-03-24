@@ -32,7 +32,7 @@ protected:
 	virtual void Input_OnSpawnUnits() override;
 
 	UFUNCTION()
-	void ShowBuildPreview(TSubclassOf<AStructureBase> Class);
+	void ShowBuildPreview(const FStructure BuildData);
 
 	UPROPERTY()
 	ARtsPlayerController* RtsController;

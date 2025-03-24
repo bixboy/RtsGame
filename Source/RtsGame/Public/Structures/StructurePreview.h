@@ -4,6 +4,7 @@
 #include "Utilities/PreviewPoseMesh.h"
 #include "StructurePreview.generated.h"
 
+class UGridComponent;
 class AGridManager;
 
 UCLASS()
@@ -19,7 +20,7 @@ public:
 	virtual bool GetIsValidPlacement() override;
 
 	UFUNCTION(BlueprintCallable)
-	void StartPlacingBuilding(TSubclassOf<AStructureBase> BuildingClass);
+	void StartPlacingBuilding(const FStructure BuildData);
 
 	UFUNCTION()
 	void EnabledCollision(bool NewEnable);

@@ -1,6 +1,8 @@
 ﻿#include "Components/RtsComponent.h"
 
+#include "NiagaraTypes.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/RtsPlayerController.h"
 #include "Structures/StructureBase.h"
 
 
@@ -19,17 +21,19 @@ void URtsComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& 
 void URtsComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	RtsController = Cast<ARtsPlayerController>(GetOwner());
 }
 
 // -------------------- Build Selection --------------------
 #pragma region Build Selection
 
-void URtsComponent::ChangeBuildClass(TSubclassOf<AStructureBase> BuildClass)
+void URtsComponent::ChangeBuildClass(FStructure BuildData)
 {
 	if (OwnerController->HasAuthority())
-		BuildToSpawn = BuildClass;
+		BuildToSpawn = BuildData;
 	else
-		Server_ChangeBuildClass(BuildClass);
+		Server_ChangeBuildClass(BuildData);
 		
 }
 
@@ -48,15 +52,15 @@ void URtsComponent::ClearPreviewClass()
 }
 
 /*- -------------- Server Function -------------- -*/
-void URtsComponent::Server_ChangeBuildClass_Implementation(TSubclassOf<AStructureBase> BuildClass)
+void URtsComponent::Server_ChangeBuildClass_Implementation(FStructure BuildData)
 {
-	BuildToSpawn = BuildClass;
+	BuildToSpawn = BuildData;
 }
 
 void URtsComponent::Server_ClearPreviewClass_Implementation()
 {
 	UnitToSpawn = nullptr;
-	BuildToSpawn = nullptr;
+	BuildToSpawn = FStructure();
 }
 
 void URtsComponent::OnRep_BuildClass()
@@ -67,10 +71,13 @@ void URtsComponent::OnRep_BuildClass()
 void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 {
 	FActorSpawnParameters SpawnParams;
-	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(BuildToSpawn, HitLocation, FRotator::ZeroRotator, SpawnParams);
+	SpawnParams.Owner = RtsController;
+	
+	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(BuildToSpawn.BuildClass, HitLocation, FRotator::ZeroRotator, SpawnParams);
 	if (Build)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, TEXT("Spawned Build"));
+		Build->SetBuildData(BuildToSpawn);
+		Build->StartBuild(RtsController);
 	}
 }
 

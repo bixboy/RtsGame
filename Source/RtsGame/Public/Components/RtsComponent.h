@@ -1,12 +1,12 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "Components/SlectionComponent.h"
+#include "Data/DataRts.h"
 #include "RtsComponent.generated.h"
 
-class AStructureBase;
 
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuildUpdatedDelegate, TSubclassOf<AStructureBase>, NewBuildClass);
+class ARtsPlayerController;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuildUpdatedDelegate, FStructure, NewBuildData);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class RTSGAME_API URtsComponent : public USelectionComponent
@@ -19,7 +19,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
-	void ChangeBuildClass(TSubclassOf<AStructureBase> BuildClass);
+	void ChangeBuildClass(FStructure BuildData);
 
 	UFUNCTION()
 	void SpawnBuild();
@@ -35,7 +35,7 @@ protected:
 
 // --------------- Server Function ---------------
 	UFUNCTION(Server, Reliable)
-	void Server_ChangeBuildClass(TSubclassOf<AStructureBase> BuildClass);
+	void Server_ChangeBuildClass(FStructure BuildData);
 
 	UFUNCTION(Server, Reliable)
 	void Server_ClearPreviewClass();
@@ -48,5 +48,8 @@ protected:
 	
 // --------------- Variables ---------------
 	UPROPERTY(Replicated, ReplicatedUsing = OnRep_BuildClass)
-	TSubclassOf<AStructureBase> BuildToSpawn;
+	FStructure BuildToSpawn;
+
+	UPROPERTY()
+	ARtsPlayerController* RtsController;
 };

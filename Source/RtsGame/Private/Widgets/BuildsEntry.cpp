@@ -20,17 +20,15 @@ void UBuildsEntry::NativeOnInitialized()
 
 void UBuildsEntry::InitEntry(UStructureDataAsset* DataAsset)
 {
-	FStructure BuildData = DataAsset->Structure;
-		
+	BuildData = DataAsset->Structure;
 	BuildButton->SetButtonTexture(BuildData.Image);
 	BuildButton->SetButtonText(FText::FromString(BuildData.Name));
-	BuildClass = BuildData.BuildClass;
 }
 
 void UBuildsEntry::OnBuildSelected(UCustomButtonWidget* Button, int Index)
 {
-	if (!BuildClass) return;
+	if (!BuildData.StructureMesh) return;
 
-	PlayerController->RtsComponent->ChangeBuildClass(BuildClass);
-	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "Unit Selected : " + BuildClass->GetName());
+	PlayerController->RtsComponent->ChangeBuildClass(BuildData);
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "Unit Selected : " + BuildData.BuildClass->GetName());
 }

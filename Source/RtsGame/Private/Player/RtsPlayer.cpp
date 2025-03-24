@@ -63,9 +63,9 @@ void ARtsPlayer::CreatePreviewMesh()
 	}
 }
 
-void ARtsPlayer::ShowBuildPreview(TSubclassOf<AStructureBase> Class)
+void ARtsPlayer::ShowBuildPreview(const FStructure BuildData)
 {
-	if (Preview && Class)
+	if (Preview && BuildData.StructureMesh)
 	{
 		bIsInSpawnUnits = false;
 
@@ -73,7 +73,7 @@ void ARtsPlayer::ShowBuildPreview(TSubclassOf<AStructureBase> Class)
 		bPreviewFollowMouse = true;
 		Preview->EnabledCollision(true);
 		
-		Preview->StartPlacingBuilding(Class);
+		Preview->StartPlacingBuilding(BuildData);
 		Preview->SetActorLocation(RtsController->SelectionComponent->GetMousePositionOnTerrain().Location);
 	}
 }

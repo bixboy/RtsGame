@@ -1,6 +1,5 @@
 ﻿#include "Structures/StructurePreview.h"
 #include "Components/GridComponent.h"
-#include "Manager/GridManager.h"
 #include "Structures/StructureBase.h"
 
 
@@ -53,17 +52,14 @@ bool AStructurePreview::GetIsValidPlacement()
 	return false;
 }
 
-void AStructurePreview::StartPlacingBuilding(TSubclassOf<AStructureBase> BuildingClass)
+void AStructurePreview::StartPlacingBuilding(const FStructure BuildData)
 {
-	if (!BuildingClass) return;
-
-    if (AStructureBase* DefaultBuild = BuildingClass->GetDefaultObject<AStructureBase>())
-    {
-        Mesh = DefaultBuild->GetStaticMesh();
-        MeshScale = DefaultBuild->GetActorRelativeScale3D();
-    	
-        ShowPreview(Mesh, MeshScale);
-    }
+	if (!BuildData.StructureMesh) return;
+	
+    Mesh = BuildData.StructureMesh;
+    MeshScale = FVector(1.f, 1.f, 1.f);
+    
+    ShowPreview(Mesh, MeshScale);
 	
 	if (!bShowGrid) return;
 	

@@ -28,7 +28,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UFUNCTION(Server, Reliable)
-	void Server_CommandSelected(FCommandData CommandData);
+	virtual void Server_CommandSelected(FCommandData CommandData);
 
 	UPROPERTY()
 	APlayerController* OwnerController;

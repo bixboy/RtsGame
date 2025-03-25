@@ -1,12 +1,12 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Data/AiData.h"
 #include "Data/UnitsSelectionData.h"
 #include "Selectable.generated.h"
 
-UINTERFACE()
+
+UINTERFACE(MinimalAPI)
 class USelectable : public UInterface
 {
 	GENERATED_BODY()

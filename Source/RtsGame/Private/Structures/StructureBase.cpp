@@ -109,6 +109,11 @@ ESelectionType AStructureBase::GetSelectionType_Implementation()
 	return Type;
 }
 
+EFaction AStructureBase::GetCurrentFaction_Implementation()
+{
+	return Faction;
+}
+
 bool AStructureBase::GetIsSelected() const
 {
 	return Selected;
@@ -129,18 +134,39 @@ void AStructureBase::Server_StartBuild_Implementation(ARtsPlayerController* Requ
 {
 	CurrentStepIndex = 0;
 	BuildElapsedTime = 0.f;
-	
-	//CurrentResources = 0;
-	//CurrentBuilder = 0;
+	CurrentResources = 0;
+	CurrentBuilder = 0;
 
 	if (BuildData.BuildSteps.Num() > 0)
 	{
 		MeshComp->SetStaticMesh(BuildData.BuildSteps[CurrentStepIndex]);
+	}
+}
 
+
+// --------- Worker
+void AStructureBase::AddWorker()
+{
+	Server_NewWorker(1);
+}
+
+void AStructureBase::RemoveWorker()
+{
+	Server_NewWorker(-1);
+}
+
+void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
+{
+	CurrentBuilder = CurrentBuilder + NewWorker;
+
+	if (!GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle) && CurrentBuilder > 0)
+	{
 		GetWorld()->GetTimerManager().SetTimer(ConstructionTimerHandle, this, &AStructureBase::UpdateConstruction, 1.0f, true);
 	}
 }
 
+
+// --------- Deliveries
 void AStructureBase::DeliverResources(FResourcesCost DeliveredResources)
 {
 	Server_DeliverResources(DeliveredResources);
@@ -149,13 +175,10 @@ void AStructureBase::DeliverResources(FResourcesCost DeliveredResources)
 void AStructureBase::Server_DeliverResources_Implementation(FResourcesCost DeliveredResources)
 {
 	CurrentResources += DeliveredResources.Woods;
-    
-	if (!GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle))
-	{
-		GetWorld()->GetTimerManager().SetTimer(ConstructionTimerHandle, this, &AStructureBase::UpdateConstruction, 1.0f, true);
-	}
 }
 
+
+// --------- Build Update
 void AStructureBase::UpdateConstruction()
 {
     if (CurrentResources <= 0 || CurrentBuilder == 0)

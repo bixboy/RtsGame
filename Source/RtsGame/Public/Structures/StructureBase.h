@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Data/DataRts.h"
 #include "GameFramework/Actor.h"
+#include "Interfaces/FactionsInterface.h"
 #include "Interfaces/Selectable.h"
 #include "StructureBase.generated.h"
 
@@ -14,7 +15,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStructureSelectedDelegate, bool, bI
 
 
 UCLASS()
-class RTSGAME_API AStructureBase : public AActor, public ISelectable
+class RTSGAME_API AStructureBase : public AActor, public ISelectable, public IFactionsInterface
 {
 	GENERATED_BODY()
 
@@ -52,6 +53,8 @@ public:
 
 	virtual ESelectionType GetSelectionType_Implementation() override;
 
+	virtual EFaction GetCurrentFaction_Implementation() override;
+
 	UFUNCTION()
 	bool GetIsSelected() const;
 
@@ -65,7 +68,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
 	ESelectionType Type = ESelectionType::Structure;
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
+	EFaction Faction = EFaction::DwarfExplorer;
 
 #pragma endregion
 
@@ -101,6 +106,12 @@ public:
 
 	UFUNCTION()
 	void DeliverResources(FResourcesCost DeliveredResources);
+
+	UFUNCTION()
+	void AddWorker();
+
+	UFUNCTION()
+	void RemoveWorker();
 	
 	UFUNCTION()
 	bool GetIsBuilt() const;
@@ -115,6 +126,9 @@ protected:
 	/*--- Replication ---*/
 	UFUNCTION(Server, Reliable)
 	void Server_StartBuild(ARtsPlayerController* RequestingPC);
+
+	UFUNCTION(Server, Reliable)
+	void Server_NewWorker(int NewWorker);
 
 	UFUNCTION(Server, Reliable)
 	void Server_DeliverResources(FResourcesCost DeliveredResources);

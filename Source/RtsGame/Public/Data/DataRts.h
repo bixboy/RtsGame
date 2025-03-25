@@ -16,6 +16,14 @@ enum class EStructureType : uint8
 };
 
 UENUM(BlueprintType)
+enum class EUnitsType : uint8
+{
+	Builder,
+	Attacker,
+	None
+};
+
+UENUM(BlueprintType)
 enum class EFaction : uint8
 {
 	DwarfExplorer,

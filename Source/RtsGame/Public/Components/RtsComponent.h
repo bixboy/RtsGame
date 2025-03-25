@@ -33,6 +33,8 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void Server_CommandSelected(FCommandData CommandData) override;
+
 // --------------- Server Function ---------------
 	UFUNCTION(Server, Reliable)
 	void Server_ChangeBuildClass(FStructure BuildData);

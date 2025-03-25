@@ -98,7 +98,7 @@ void USelectionComponent::Server_CommandSelected_Implementation(FCommandData Com
         if (CommandData.Target && ISelectable::Execute_GetCurrentTeam(Soldier) == ISelectable::Execute_GetCurrentTeam(CommandData.Target))
             continue;
 
-        // Calcul de l'offset pour l'ordre de mouvement
+        // Calcul de l'offset
         if (!CommandData.Target)
         {
             CalculateOffset(SelectedActors.Find(Soldier), CommandData);

@@ -1,10 +1,12 @@
 ﻿#include "Components/RtsComponent.h"
-
-#include "NiagaraTypes.h"
+#include "Interfaces/UnitTypeInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
 #include "Structures/StructureBase.h"
 
+
+// -------------------- Setup --------------------
+#pragma region Setup
 
 URtsComponent::URtsComponent()
 {
@@ -24,6 +26,29 @@ void URtsComponent::BeginPlay()
 
 	RtsController = Cast<ARtsPlayerController>(GetOwner());
 }
+
+#pragma endregion
+
+
+void URtsComponent::Server_CommandSelected(FCommandData CommandData)
+{
+	if (!CommandData.Target || !Cast<AStructureBase>(CommandData.Target))
+	{
+		Super::Server_CommandSelected(CommandData);
+	}
+
+	for (AActor* Soldier : SelectedActors)
+	{
+		if (!Soldier || !Soldier->Implements<USelectable>() || !Soldier->Implements<UUnitTypeInterface>() || !Soldier->Implements<UFactionsInterface>()) continue;
+		
+		if (CommandData.Target && IFactionsInterface::Execute_GetCurrentFaction(Soldier) == IFactionsInterface::Execute_GetCurrentFaction(CommandData.Target) &&
+			IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Go To Build: " + CommandData.Target->GetName());
+		}
+	}
+}
+
 
 // -------------------- Build Selection --------------------
 #pragma region Build Selection
@@ -78,6 +103,15 @@ void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 	{
 		Build->SetBuildData(BuildToSpawn);
 		Build->StartBuild(RtsController);
+
+		if (SelectedActors.Num() > 0)
+		{
+			FCommandData Command;
+			Command.Target = Build;
+			Command.Type = ECommandType::CommandMove;
+			
+			CommandSelected(Command);
+		}
 	}
 }
 

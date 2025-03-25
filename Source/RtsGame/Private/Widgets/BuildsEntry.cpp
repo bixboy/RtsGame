@@ -27,7 +27,7 @@ void UBuildsEntry::InitEntry(UStructureDataAsset* DataAsset)
 
 void UBuildsEntry::OnBuildSelected(UCustomButtonWidget* Button, int Index)
 {
-	if (!BuildData.StructureMesh) return;
+	if (!BuildData.StructureMesh || !BuildData.BuildClass) return;
 
 	PlayerController->RtsComponent->ChangeBuildClass(BuildData);
 	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "Unit Selected : " + BuildData.BuildClass->GetName());

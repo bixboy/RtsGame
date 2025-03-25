@@ -67,8 +67,7 @@ void ARtsPlayer::ShowBuildPreview(const FStructure BuildData)
 {
 	if (Preview && BuildData.StructureMesh)
 	{
-		bIsInSpawnUnits = false;
-
+		bIsInSpawnUnits = true;
 		bIsInSpawnBuild = true;
 		bPreviewFollowMouse = true;
 		Preview->EnabledCollision(true);

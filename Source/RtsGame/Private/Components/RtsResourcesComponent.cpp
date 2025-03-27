@@ -23,13 +23,15 @@ void URtsResourcesComponent::GetLifetimeReplicatedProps(TArray<class FLifetimePr
 // ------- Add -------
 void URtsResourcesComponent::AddResources(FResourcesCost NewResources)
 {
-	if (GetOwnerRole() < ROLE_Authority)
+	if (!GetOwner()->HasAuthority())
 	{
 		Server_AddResources(NewResources);
 		return;
 	}
-    
+	
 	CurrentResources = CurrentResources + NewResources;
+	
+	UE_LOG(LogTemp, Warning, TEXT("Resources Add : %d"), CurrentResources.Woods);
 }
 
 void URtsResourcesComponent::Server_AddResources_Implementation(FResourcesCost NewResources)
@@ -40,18 +42,17 @@ void URtsResourcesComponent::Server_AddResources_Implementation(FResourcesCost N
 // ------- Remove -------
 void URtsResourcesComponent::RemoveResources(FResourcesCost ResourcesToRemove)
 {
-	if (GetOwnerRole() < ROLE_Authority)
-	{
-		Server_RemoveResources(ResourcesToRemove);
-		return;
-	}
-    
-	CurrentResources = CurrentResources - ResourcesToRemove;
+	if (!GetOwner()->HasAuthority()) return;
+
+	FResourcesCost ClampedResources = CurrentResources.GetClamped(ResourcesToRemove);
+	CurrentResources = CurrentResources - ClampedResources;
+	
+	UE_LOG(LogTemp, Warning, TEXT("Resources Remove : %d"), CurrentResources.Woods);
 }
 
 void URtsResourcesComponent::Server_RemoveResources_Implementation(FResourcesCost ResourcesToRemove)
 {
-	RemoveResources(ResourcesToRemove);
+	//RemoveResources(ResourcesToRemove);
 }
 
 

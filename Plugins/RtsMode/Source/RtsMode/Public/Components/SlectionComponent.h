@@ -28,7 +28,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UFUNCTION(Server, Reliable)
-	virtual void Server_CommandSelected(FCommandData CommandData);
+	void Server_CommandSelected(FCommandData CommandData);
 
 	UPROPERTY()
 	APlayerController* OwnerController;
@@ -46,7 +46,7 @@ public:
 	TArray<AActor*> GetSelectedActors() const;
 
 	UFUNCTION()
-	void CommandSelected(FCommandData CommandData);
+	virtual void CommandSelected(FCommandData CommandData);
 
 	UPROPERTY()
 	FSelectedUpdatedDelegate OnSelectedUpdate;

@@ -3,6 +3,7 @@
 #include "Components/RtsResourcesComponent.h"
 #include "Data/StructureDataAsset.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/RtsPlayerController.h"
 
 
 // ----------------------- Setup -----------------------
@@ -37,6 +38,11 @@ void AStructureBase::OnConstruction(const FTransform& Transform)
 void AStructureBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	OwnerController = Cast<ARtsPlayerController>(Owner);
+
+	if (StructureData && !StructureData->Structure.bNeedToBuild)
+		SetBuildData(StructureData->Structure);
 }
 
 void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -53,10 +59,21 @@ void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	DOREPLIFETIME(AStructureBase, BuildElapsedTime);
 }
 
+ARtsPlayerController* AStructureBase::GetOwnerController()
+{
+	return OwnerController;
+}
+
 //------------ Data
 void AStructureBase::SetBuildData(FStructure NewData)
 {
 	BuildData = NewData;
+
+	if (!BuildData.bNeedToBuild)
+	{
+		MeshComp->SetStaticMesh(BuildData.StructureMesh);
+		OnConstructionCompleted();
+	}
 }
 
 void AStructureBase::OnRep_BuildData()
@@ -133,10 +150,12 @@ void AStructureBase::StartBuild(ARtsPlayerController* RequestingPC)
 void AStructureBase::Server_StartBuild_Implementation(ARtsPlayerController* RequestingPC)
 {
 	CurrentStepIndex = 0;
-	BuildElapsedTime = 0.f;
-	CurrentResources = 0;
 	CurrentBuilder = 0;
-
+	BuildElapsedTime = 0.f;
+	
+	CurrentResources = FResourcesCost();
+	MissingResourcesForBuild = BuildData.BuildCost;
+	
 	if (BuildData.BuildSteps.Num() > 0)
 	{
 		MeshComp->SetStaticMesh(BuildData.BuildSteps[CurrentStepIndex]);
@@ -155,13 +174,35 @@ void AStructureBase::RemoveWorker()
 	Server_NewWorker(-1);
 }
 
+bool AStructureBase::GetNeedsResources(FResourcesCost& NeededResources) const
+{
+	if (GetIsBuilt())
+	{
+		return false;
+	}
+
+	if (MissingResourcesForBuild != FResourcesCost())
+	{
+		NeededResources = MissingResourcesForBuild;
+		return true;
+	}
+	
+	return false;
+}
+
 void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
 {
 	CurrentBuilder = CurrentBuilder + NewWorker;
 
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "New Worker: " + CurrentBuilder);
+
 	if (!GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle) && CurrentBuilder > 0)
 	{
 		GetWorld()->GetTimerManager().SetTimer(ConstructionTimerHandle, this, &AStructureBase::UpdateConstruction, 1.0f, true);
+	}
+	else if (GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle) && CurrentBuilder == 0)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
 	}
 }
 
@@ -174,14 +215,14 @@ void AStructureBase::DeliverResources(FResourcesCost DeliveredResources)
 
 void AStructureBase::Server_DeliverResources_Implementation(FResourcesCost DeliveredResources)
 {
-	CurrentResources += DeliveredResources.Woods;
+	CurrentResources += DeliveredResources;
 }
 
 
 // --------- Build Update
 void AStructureBase::UpdateConstruction()
 {
-    if (CurrentResources <= 0 || CurrentBuilder == 0)
+    if (CurrentResources <= FResourcesCost() || CurrentBuilder == 0)
     {
         GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
         return;
@@ -192,15 +233,17 @@ void AStructureBase::UpdateConstruction()
 	
 	BuildElapsedTime += DeltaTime;
 	float BuildProgress;
-	float ResourcesConsumed;
+	FResourcesCost ResourcesConsumed;
 
 	// 🔹 Update Resources
     {
-    	ResourcesConsumed =  (static_cast<float>(BuildData.BuildCost.Woods) / BuildData.TimeToBuild) * DeltaTime;
-    	if (CurrentResources < ResourcesConsumed)
-    		ResourcesConsumed = CurrentResources;
-	
-    	CurrentResources -= ResourcesConsumed;   
+    	float Scalar = DeltaTime / BuildData.TimeToBuild;
+    	
+    	ResourcesConsumed = BuildData.BuildCost * Scalar;
+    	ResourcesConsumed = ResourcesConsumed.GetClamped(CurrentResources);
+
+    	CurrentResources -= ResourcesConsumed;
+    	MissingResourcesForBuild -=  ResourcesConsumed;
     }
 
 	// 🔹 Update Steps Index
@@ -227,8 +270,8 @@ void AStructureBase::UpdateConstruction()
     if (GEngine)
     {
         FString DebugProgress = FString::Printf(TEXT("Progression: %.2f%%"), BuildProgress);
-        FString DebugCurrent = FString::Printf(TEXT("Current Resources: %d"), CurrentResources);
-        FString DebugConsumed = FString::Printf(TEXT("Consumed: %.2f"), ResourcesConsumed);
+        FString DebugCurrent = FString::Printf(TEXT("Current Resources: %d"), CurrentResources.Woods);
+        FString DebugConsumed = FString::Printf(TEXT("Consumed: %d"), ResourcesConsumed.Woods);
     	FString DebugElapsed = FString::Printf(TEXT("Build Time Elapsed: %.2f / %.2f sec"), BuildElapsedTime, BuildData.TimeToBuild);
 
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, DebugProgress);
@@ -249,6 +292,7 @@ void AStructureBase::OnRep_CurrentStepIndex()
 void AStructureBase::OnConstructionCompleted()
 {
 	bIsBuilt = true;
+	OnBuildComplete.Broadcast();
 }
 
 #pragma endregion

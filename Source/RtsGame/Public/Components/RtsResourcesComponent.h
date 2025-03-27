@@ -41,7 +41,7 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentResources();
 
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentResources, VisibleAnywhere, Category="Resources")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentResources, EditAnywhere, Category="Resources")
 	FResourcesCost CurrentResources;
 
 };

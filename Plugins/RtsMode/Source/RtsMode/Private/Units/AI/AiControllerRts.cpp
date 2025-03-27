@@ -95,6 +95,8 @@ void AAiControllerRts::CommandMove(const FCommandData& CommandData, bool Attack)
 	{
 		MoveToLocation(CurrentCommand.Location);
 	}
+
+	OnNewDestination.Broadcast(CommandData);
 }
 
 void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)

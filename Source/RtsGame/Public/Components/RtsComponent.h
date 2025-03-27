@@ -27,15 +27,26 @@ public:
 	UFUNCTION()
 	void ClearPreviewClass();
 
+	UFUNCTION()
+	TArray<AStructureBase*> GetBuilds();
+
 	UPROPERTY()
 	FOnBuildUpdatedDelegate OnBuildUpdated;
 
 protected:
 	virtual void BeginPlay() override;
 
-	virtual void Server_CommandSelected(FCommandData CommandData) override;
+	virtual void CommandSelected(FCommandData CommandData) override;
+
+	UFUNCTION()
+	void CreatSpawnPoint();
+	
 
 // --------------- Server Function ---------------
+
+	UFUNCTION(Server, Reliable)
+	void Server_MoveToBuildSelected(AStructureBase* Build);
+	
 	UFUNCTION(Server, Reliable)
 	void Server_ChangeBuildClass(FStructure BuildData);
 
@@ -52,6 +63,15 @@ protected:
 	UPROPERTY(Replicated, ReplicatedUsing = OnRep_BuildClass)
 	FStructure BuildToSpawn;
 
+	UPROPERTY(Replicated)
+	TArray<AStructureBase*> CurrentBuilds;
+
 	UPROPERTY()
 	ARtsPlayerController* RtsController;
+
+	UPROPERTY()
+	FVector SpawnPoint = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
+	TSubclassOf<AStructureBase> SpawningBuild;
 };

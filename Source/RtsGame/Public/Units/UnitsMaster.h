@@ -15,7 +15,7 @@ class RTSGAME_API AUnitsMaster : public ASoldierRts, public IUnitTypeInterface, 
 	GENERATED_BODY()
 
 public:
-	AUnitsMaster();
+	AUnitsMaster(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/*------ Interfaces ------*/	
 	virtual EUnitsType GetUnitType_Implementation() override;
@@ -31,8 +31,6 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	virtual void OnConstruction(const FTransform& Transform) override;
-
 	virtual void Tick(float DeltaTime) override;
 	
 	/*------ Parameter ------*/	
@@ -42,19 +40,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
 	EFaction CurrentFaction = EFaction::DwarfExplorer;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts", meta = (EditCondition = "SelectionType == ESelectionType::Unit"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
 	EUnitsType UnitsType = EUnitsType::Builder;
-
-	/*------ Resources ------*/	
-public:
-	UFUNCTION(BlueprintCallable)
-	URtsResourcesComponent* GetResourcesComp();
-
-protected:
-	UPROPERTY()
-	URtsResourcesComponent* ResourcesComp;
-
-	UPROPERTY()
-	UBuilderComponent* BuilderComp;
 	
 };

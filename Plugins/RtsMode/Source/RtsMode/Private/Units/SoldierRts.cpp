@@ -8,7 +8,7 @@
 // ------------------- Setup ---------------------
 #pragma region Setup
 
-ASoldierRts::ASoldierRts()
+ASoldierRts::ASoldierRts(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
@@ -25,13 +25,22 @@ ASoldierRts::ASoldierRts()
 	AreaAttack->OnComponentEndOverlap.AddDynamic(this, &ASoldierRts::OnAreaAttackEndOverlap);
 }
 
+void ASoldierRts::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	AIControllerClass = AiControllerRtsClass;
+}
+
 void ASoldierRts::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-
-	if (CommandComp)
+	
+	AAiControllerRts* ControllerAi = Cast<AAiControllerRts>(NewController);
+	if (CommandComp && ControllerAi)
 	{
-		CommandComp->SetOwnerAIController(Cast<AAiControllerRts>(NewController));
+		CommandComp->SetOwnerAIController(ControllerAi);
+		SetAIController(ControllerAi);
 	}
 }
 

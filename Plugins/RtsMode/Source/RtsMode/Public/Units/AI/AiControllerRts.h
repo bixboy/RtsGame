@@ -9,6 +9,7 @@ class ASoldierRts;
 struct FCommandData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FReachedDestinationDelegate, const FCommandData, CommandData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNewDestinationDelegate, const FCommandData, CommandData);
 
 UCLASS()
 class RTSMODE_API AAiControllerRts : public AAIController
@@ -21,8 +22,10 @@ public:
 
 	UFUNCTION()
 	bool ShouldAttack(float DistanceToTarget) const;
+	
 	UFUNCTION()
 	bool ShouldMove(float DistanceToTarget) const;
+	
 	UFUNCTION()
 	float CalculateMoveRange(float DistanceToTarget) const;
 
@@ -34,6 +37,9 @@ public:
 
 	UPROPERTY()
 	FReachedDestinationDelegate OnReachedDestination;
+
+	UPROPERTY()
+	FOnNewDestinationDelegate OnNewDestination;
 
 	UFUNCTION()
 	void SetupVariables();

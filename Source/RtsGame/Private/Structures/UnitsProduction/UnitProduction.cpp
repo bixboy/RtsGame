@@ -30,9 +30,9 @@ void AUnitProduction::BeginPlay()
 	Super::BeginPlay();
 
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-	{
 		SetOwner(PC);
-	}
+
+	OnBuildComplete.AddDynamic(this, &AUnitProduction::StartUnitProduction);
 }
 
 void AUnitProduction::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -77,9 +77,8 @@ void AUnitProduction::AddUnitToQueue(UUnitsProductionDataAsset* NewUnit)
 	{
 		ProductionQueue.Add(NewUnit);
         
-		if(!GetWorld()->GetTimerManager().IsTimerActive(ProductionTimerHandle))
+		if(GetIsBuilt() && !GetWorld()->GetTimerManager().IsTimerActive(ProductionTimerHandle))
 		{
-			UnitSelected = ProductionQueue[0];
 			StartUnitProduction();
 		}
 	}
@@ -100,9 +99,8 @@ void AUnitProduction::RemoveUnitFromQueue(UUnitsProductionDataAsset* UnitToRemov
 		{
 			StopUnitProduction();
 
-			if (ProductionQueue.Num() > 0)
+			if (GetIsBuilt() && ProductionQueue.Num() > 0)
 			{
-				UnitSelected = ProductionQueue[0];
 				StartUnitProduction();
 			}
 			else
@@ -122,6 +120,7 @@ void AUnitProduction::StartUnitProduction()
 	{
 		if (UnitSelected && UnitSelected->UnitProduction.UnitClass)
 		{
+			UnitSelected = ProductionQueue[0];
 			ProductionStartTime = GetWorld()->GetTimeSeconds();
 			ProductionProgress = 0.f;
 

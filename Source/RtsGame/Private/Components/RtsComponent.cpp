@@ -18,6 +18,7 @@ void URtsComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(URtsComponent, BuildToSpawn, COND_OwnerOnly);
+	DOREPLIFETIME(URtsComponent, CurrentBuilds);
 }
 
 void URtsComponent::BeginPlay()
@@ -25,26 +26,54 @@ void URtsComponent::BeginPlay()
 	Super::BeginPlay();
 
 	RtsController = Cast<ARtsPlayerController>(GetOwner());
+	
+	CreatSpawnPoint();
+}
+
+void URtsComponent::CreatSpawnPoint()
+{
+	if (!SpawningBuild) return;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = RtsController;
+	
+	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(SpawningBuild, SpawnPoint, FRotator::ZeroRotator, SpawnParams);
+	if (Build)
+	{
+		CurrentBuilds.Add(Build);
+	}
 }
 
 #pragma endregion
 
 
-void URtsComponent::Server_CommandSelected(FCommandData CommandData)
+void URtsComponent::CommandSelected(FCommandData CommandData)
 {
-	if (!CommandData.Target || !Cast<AStructureBase>(CommandData.Target))
+	if (CommandData.Target)
 	{
-		Super::Server_CommandSelected(CommandData);
+		if (AStructureBase* Build = Cast<AStructureBase>(CommandData.Target))
+		{
+			Server_MoveToBuildSelected(Build);
+			return;
+		}
 	}
+	
+	Super::CommandSelected(CommandData);
+}
 
+void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Build)
+{
+	if (!GetOwner()->HasAuthority() || !Build) return;
+	
 	for (AActor* Soldier : SelectedActors)
 	{
 		if (!Soldier || !Soldier->Implements<USelectable>() || !Soldier->Implements<UUnitTypeInterface>() || !Soldier->Implements<UFactionsInterface>()) continue;
 		
-		if (CommandData.Target && IFactionsInterface::Execute_GetCurrentFaction(Soldier) == IFactionsInterface::Execute_GetCurrentFaction(CommandData.Target) &&
-			IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
+		if (IFactionsInterface::Execute_GetCurrentFaction(Soldier) == IFactionsInterface::Execute_GetCurrentFaction(Build) && IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Go To Build: " + CommandData.Target->GetName());
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Go To Build: " + Build->GetName());
+			
+			IUnitTypeInterface::Execute_MoveToBuild(Soldier, Build);
 		}
 	}
 }
@@ -76,6 +105,16 @@ void URtsComponent::ClearPreviewClass()
 	Server_ClearPreviewClass();
 }
 
+TArray<AStructureBase*> URtsComponent::GetBuilds()
+{
+	TArray<AStructureBase*> Builds;
+	
+	CurrentBuilds.RemoveAll([](AStructureBase* Build) { return Build == nullptr; });
+	Builds.Append(CurrentBuilds);
+
+	return Builds;
+}
+
 /*- -------------- Server Function -------------- -*/
 void URtsComponent::Server_ChangeBuildClass_Implementation(FStructure BuildData)
 {
@@ -103,6 +142,8 @@ void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 	{
 		Build->SetBuildData(BuildToSpawn);
 		Build->StartBuild(RtsController);
+
+		CurrentBuilds.Add(Build);
 
 		if (SelectedActors.Num() > 0)
 		{

@@ -45,8 +45,11 @@ struct FResourcesCost
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resources")
 	int Metal = 0;
+
+// -------- Operator --------
+#pragma region Operator
 	
-	FResourcesCost operator+(const FResourcesCost& Other) const
+	FResourcesCost operator + (const FResourcesCost& Other) const
 	{
 		FResourcesCost Sum;
 		Sum.Woods = Woods + Other.Woods;
@@ -55,7 +58,15 @@ struct FResourcesCost
 		return Sum;
 	}
 
-	FResourcesCost operator-(const FResourcesCost& Other) const
+	FResourcesCost& operator += (const FResourcesCost& Other)
+	{
+		Woods += Other.Woods;
+		Food  += Other.Food;
+		Metal += Other.Metal;
+		return *this;
+	}
+
+	FResourcesCost operator - (const FResourcesCost& Other) const
 	{
 		FResourcesCost Diff;
 		Diff.Woods = Woods - Other.Woods;
@@ -64,13 +75,75 @@ struct FResourcesCost
 		return Diff;
 	}
 
+	FResourcesCost& operator -= (const FResourcesCost& Other)
+	{
+		Woods -= Other.Woods;
+		Food  -= Other.Food;
+		Metal -= Other.Metal;
+		return *this;
+	}
 
-	bool operator==(const FResourcesCost& Other) const
+	FResourcesCost operator*(float Scalar) const
+	{
+		FResourcesCost Result;
+		Result.Woods = FMath::FloorToInt(Woods * Scalar);
+		Result.Food  = FMath::FloorToInt(Food * Scalar);
+		Result.Metal = FMath::FloorToInt(Metal * Scalar);
+		return Result;
+	}
+
+	FResourcesCost GetClamped(const FResourcesCost& Other) const
+	{
+		FResourcesCost Clamped;
+		Clamped.Woods = FMath::Min(Woods, Other.Woods);
+		Clamped.Food  = FMath::Min(Food, Other.Food);
+		Clamped.Metal = FMath::Min(Metal, Other.Metal);
+		return Clamped;
+	}
+
+
+	bool operator == (const FResourcesCost& Other) const
 	{
 		return	Woods == Other.Woods &&
 				Food == Other.Food &&
 				Metal == Other.Metal;
 	}
+
+	bool operator < (const FResourcesCost& Other) const
+	{
+		return	Woods < Other.Woods &&
+				Food < Other.Food &&
+				Metal < Other.Metal;
+	}
+
+	bool operator <= (const FResourcesCost& Other) const
+	{
+		return	Woods <= Other.Woods &&
+				Food <= Other.Food &&
+				Metal <= Other.Metal;
+	}
+
+	bool operator > (const FResourcesCost& Other) const
+	{
+		return	Woods > Other.Woods &&
+				Food > Other.Food &&
+				Metal > Other.Metal;
+	}
+
+	bool operator >= (const FResourcesCost& Other) const
+	{
+		return	Woods >= Other.Woods &&
+				Food >= Other.Food &&
+				Metal >= Other.Metal;
+	}
+
+	bool HasAnyResource() const
+	{
+		return Woods > 0 || Food > 0 || Metal > 0;
+	}
+
+#pragma endregion
+	
 };
 
 // ------- Builds Upgrade -------
@@ -124,12 +197,15 @@ struct FStructure
 	UStaticMesh* StructureMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	bool bNeedToBuild = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build", meta = (EditCondition = "bNeedToBuild", EditConditionHides = true))
 	TArray<UStaticMesh*> BuildSteps;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build", meta = (EditCondition = "bNeedToBuild", EditConditionHides = true))
 	FResourcesCost BuildCost;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build", meta = (EditCondition = "bNeedToBuild", EditConditionHides = true))
 	float TimeToBuild = 5.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")

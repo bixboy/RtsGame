@@ -24,7 +24,7 @@ class RTSMODE_API ASoldierRts : public ACharacter, public ISelectable, public ID
 	GENERATED_BODY()
 
 public:
-	ASoldierRts();
+	ASoldierRts(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	
 	virtual void BeginPlay() override;
 
@@ -36,6 +36,8 @@ public:
 	UCommandComponent* GetCommandComponent() const;
 
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UCommandComponent> CommandComp;
 
@@ -139,6 +141,7 @@ protected:
 
 	UPROPERTY()
 	FBehaviorUpdatedDelegate OnBehaviorUpdate;
+	
 	UFUNCTION()
 	void OnRep_CombatBehavior();
 
@@ -162,6 +165,7 @@ protected:
 public:
 	UFUNCTION()
 	UWeaponMaster* GetCurrentWeapon();
+	
 	UFUNCTION()
 	bool GetHaveWeapon();
 	

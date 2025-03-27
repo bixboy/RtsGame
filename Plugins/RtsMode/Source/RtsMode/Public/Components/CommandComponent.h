@@ -71,7 +71,7 @@ private:
 	
 // Variables
 #pragma region Variables
-private:
+protected:
 	UPROPERTY()
 	TObjectPtr<ASoldierRts> OwnerActor;
 	

@@ -20,4 +20,7 @@ public:
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	EUnitsType GetUnitType();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void MoveToBuild(AStructureBase* BuildDest);
 };

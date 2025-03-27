@@ -3,7 +3,10 @@
 #include "Components/RtsResourcesComponent.h"
 
 
-AUnitsMaster::AUnitsMaster()
+// ------------ Setup ------------
+#pragma region Setup
+
+AUnitsMaster::AUnitsMaster(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
@@ -13,35 +16,12 @@ void AUnitsMaster::BeginPlay()
 	Super::BeginPlay();
 }
 
-void AUnitsMaster::OnConstruction(const FTransform& Transform)
-{
-	Super::OnConstruction(Transform);
-
-	if (UnitsType == EUnitsType::Builder)
-	{
-		BuilderComp = CreateDefaultSubobject<UBuilderComponent>("BuilderComponent");
-		ResourcesComp = CreateDefaultSubobject<URtsResourcesComponent>("ResourcesComponent");
-	}
-	else
-	{
-		if (BuilderComp)
-		{
-			BuilderComp->DestroyComponent();
-			BuilderComp = nullptr;	
-		}
-
-		if (ResourcesComp)
-		{
-			ResourcesComp->DestroyComponent();
-			ResourcesComp = nullptr;
-		}
-	}
-}
-
 void AUnitsMaster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
+
+#pragma endregion
 
 void AUnitsMaster::Select()
 {
@@ -74,11 +54,6 @@ ESelectionType AUnitsMaster::GetSelectionType_Implementation()
 EFaction AUnitsMaster::GetCurrentFaction_Implementation()
 {
 	return CurrentFaction;
-}
-
-URtsResourcesComponent* AUnitsMaster::GetResourcesComp()
-{
-	return ResourcesComp;
 }
 
 #pragma endregion

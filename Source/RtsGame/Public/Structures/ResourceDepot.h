@@ -34,7 +34,7 @@ protected:
 	UFUNCTION()
 	void OnStorageUpdate(const FResourcesCost& NewResources);
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	URtsResourcesComponent* ResourcesComp;
 	
 };

@@ -1,5 +1,4 @@
 ﻿#include "Components/SlectionComponent.h"
-#include "AsyncTreeDifferences.h"
 #include "Blueprint/UserWidget.h"
 #include "Data/FormationDataAsset.h"
 #include "Engine/AssetManager.h"
@@ -468,6 +467,9 @@ void USelectionComponent::OnRep_UnitClass()
 void USelectionComponent::Server_SpawnUnits_Implementation(FVector HitLocation)
 {
     FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = OwnerController;
+    SpawnParams.Instigator = OwnerController->GetPawn();
+    
     ASoldierRts* Unit = GetWorld()->SpawnActor<ASoldierRts>(UnitToSpawn, HitLocation, FRotator::ZeroRotator, SpawnParams);
     if (Unit)
     {

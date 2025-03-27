@@ -12,6 +12,7 @@ class UStructureDataAsset;
 class AGridManager;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStructureSelectedDelegate, bool, bIsSelected);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBuildCompleteDelegate);
 
 
 UCLASS()
@@ -24,10 +25,15 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
+	ARtsPlayerController* GetOwnerController();
+
 protected:
 	virtual void BeginPlay() override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UPROPERTY()
+	ARtsPlayerController* OwnerController;
 
 // ----------------------- Setup -----------------------
 #pragma region Components
@@ -101,6 +107,7 @@ protected:
 // ----------------------- Build -----------------------
 #pragma region Build
 public:
+	
 	UFUNCTION()
 	void StartBuild(ARtsPlayerController* RequestingPC);
 
@@ -112,9 +119,15 @@ public:
 
 	UFUNCTION()
 	void RemoveWorker();
+
+	UFUNCTION()
+	bool GetNeedsResources(FResourcesCost& NeededResources) const;
 	
 	UFUNCTION()
 	bool GetIsBuilt() const;
+
+	UPROPERTY()
+	FBuildCompleteDelegate OnBuildComplete;
 	
 protected:
 	UFUNCTION()
@@ -137,22 +150,26 @@ protected:
 	void OnRep_CurrentStepIndex();
 	
 	/*--- Variables ---*/
+	UPROPERTY(Replicated)
+	float BuildElapsedTime;
+
+	UPROPERTY()
+	FTimerHandle ConstructionTimerHandle;
+	
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentStepIndex)
 	int32 CurrentStepIndex = 1;
 
 	UPROPERTY(Replicated)
-	int CurrentResources = 100;
+	FResourcesCost CurrentResources;
+
+	UPROPERTY()
+	FResourcesCost MissingResourcesForBuild;
 
 	UPROPERTY(Replicated)
 	int CurrentBuilder = 1;
 
 	UPROPERTY(Replicated)
 	bool bIsBuilt;
-	
-	UPROPERTY(Replicated)
-	float BuildElapsedTime;
-
-	FTimerHandle ConstructionTimerHandle;
 
 #pragma endregion	
 	

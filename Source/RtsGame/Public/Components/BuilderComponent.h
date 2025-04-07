@@ -6,6 +6,7 @@
 #include "Structures/ResourceDepot.h"
 #include "BuilderComponent.generated.h"
 
+class UResourceCollector;
 class URtsResourcesComponent;
 class AAiControllerRts;
 class AStructureBase;
@@ -26,6 +27,9 @@ public:
 	UFUNCTION()
 	void StopBuild(const FCommandData CommandData);
 
+	UFUNCTION()
+	AStructureBase* GetTargetBuild();
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -45,9 +49,6 @@ protected:
 
 	UFUNCTION()
 	void MoveToNearestStorage(const FResourcesCost NeededResources);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Command|Settings")
-	float BuildDistanceThreshold  = 200.f;
 
 	UPROPERTY()
 	AStructureBase* TargetBuild = nullptr;

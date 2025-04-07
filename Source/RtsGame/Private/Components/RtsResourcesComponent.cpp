@@ -23,20 +23,14 @@ void URtsResourcesComponent::GetLifetimeReplicatedProps(TArray<class FLifetimePr
 // ------- Add -------
 void URtsResourcesComponent::AddResources(FResourcesCost NewResources)
 {
-	if (!GetOwner()->HasAuthority())
-	{
-		Server_AddResources(NewResources);
-		return;
-	}
+	if (!GetOwner()->HasAuthority()) return;
 	
-	CurrentResources = CurrentResources + NewResources;
-	
-	UE_LOG(LogTemp, Warning, TEXT("Resources Add : %d"), CurrentResources.Woods);
-}
+	FResourcesCost NewTotal = CurrentResources + NewResources;
+	CurrentResources = NewTotal.GetClamped(MaxResource);
 
-void URtsResourcesComponent::Server_AddResources_Implementation(FResourcesCost NewResources)
-{
-	AddResources(NewResources);
+	OnResourcesChanged.Broadcast(CurrentResources);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s: New Current Resource : %d"), *GetOwner()->GetName(), CurrentResources.Woods);
 }
 
 // ------- Remove -------
@@ -46,26 +40,66 @@ void URtsResourcesComponent::RemoveResources(FResourcesCost ResourcesToRemove)
 
 	FResourcesCost ClampedResources = CurrentResources.GetClamped(ResourcesToRemove);
 	CurrentResources = CurrentResources - ClampedResources;
-	
-	UE_LOG(LogTemp, Warning, TEXT("Resources Remove : %d"), CurrentResources.Woods);
-}
 
-void URtsResourcesComponent::Server_RemoveResources_Implementation(FResourcesCost ResourcesToRemove)
-{
-	//RemoveResources(ResourcesToRemove);
+	OnResourcesChanged.Broadcast(CurrentResources);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s: New Current Resource : %d"), *GetOwner()->GetName(), CurrentResources.Woods);
 }
 
 
+// ------- Getters -------
 FResourcesCost URtsResourcesComponent::GetResources()
 {
 	return CurrentResources;
 }
 
+bool URtsResourcesComponent::GetStorageIsFull(EResourceType CheckResource)
+{
+	if (CheckResource == EResourceType::Wood)
+	{
+		return CurrentResources.Woods  == MaxResource.Woods;
+	}
+	
+	if (CheckResource == EResourceType::Food)
+	{
+		return CurrentResources.Food  == MaxResource.Food;
+	}
+	
+	if (CheckResource == EResourceType::Metal)
+	{
+		return CurrentResources.Metal  == MaxResource.Metal;
+	}
+	
+	return CurrentResources == MaxResource;
+}
+
+bool URtsResourcesComponent::GetStorageIsEmpty(EResourceType CheckResource)
+{
+	if (CheckResource == EResourceType::Wood)
+	{
+		return CurrentResources.Woods <= 0;
+	}
+	
+	if (CheckResource == EResourceType::Food)
+	{
+		return CurrentResources.Food <= 0;
+	}
+	
+	if (CheckResource == EResourceType::Metal)
+	{
+		return CurrentResources.Metal <= 0;
+	}
+	
+	return CurrentResources <= 0;
+}
+
+FResourcesCost URtsResourcesComponent::GetMaxResource()
+{
+	return MaxResource;
+}
+
 void URtsResourcesComponent::OnRep_CurrentResources()
 {
-	if (GetOwner() && GetOwner()->GetInstigatorController() && GetOwner()->GetInstigatorController()->IsLocalPlayerController())
-	{
-		OnResourcesChanged.Broadcast(CurrentResources);
-	}
+	OnResourcesChanged.Broadcast(CurrentResources);
 }
 

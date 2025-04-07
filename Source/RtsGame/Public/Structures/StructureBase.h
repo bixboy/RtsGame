@@ -122,6 +122,9 @@ public:
 
 	UFUNCTION()
 	bool GetNeedsResources(FResourcesCost& NeededResources) const;
+
+	UFUNCTION()
+	bool GetIsFullyResourced();
 	
 	UFUNCTION()
 	bool GetIsBuilt() const;
@@ -164,6 +167,9 @@ protected:
 
 	UPROPERTY()
 	FResourcesCost MissingResourcesForBuild;
+
+	UPROPERTY(Replicated)
+	FResourcesCost TotalResource;
 
 	UPROPERTY(Replicated)
 	int CurrentBuilder = 1;

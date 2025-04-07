@@ -230,7 +230,6 @@ void UGridComponent::CheckOverlappingCells()
     {
         if (OverlappingActor)
         {
-            UE_LOG(LogTemp, Display, TEXT("Checking overlapping for actor: %s"), *OverlappingActor->GetName());
             TArray<FVector2D> ActorTiles = GetTilesForActor(OverlappingActor);
             for (const FVector2D& Tile : ActorTiles)
             {
@@ -245,7 +244,6 @@ void UGridComponent::CheckOverlappingCells()
                 }
                 if (!bAlreadyPresent)
                 {
-                    UE_LOG(LogTemp, Display, TEXT("Adding tile: (%f, %f)"), Tile.X, Tile.Y);
                     CellsToDisplay.Add(Tile);
                 }
             }
@@ -260,19 +258,16 @@ void UGridComponent::CheckOverlappingCells()
 		{
 			return Other.Equals(CellId, 0.001f);
 		});
+		
 		Cell.bOccupied = bFound;
-		UE_LOG(LogTemp, Display, TEXT("Cell at (%f, %f) occupied: %s"),
-			   Cell.Position.X, Cell.Position.Y, bFound ? TEXT("true") : TEXT("false"));
 	}
 
     if (CellsToDisplay.Num() > 0)
     {
-        UE_LOG(LogTemp, Display, TEXT("Updating selection cells, total count: %d"), CellsToDisplay.Num());
         CreateSelectionCells(CellsToDisplay);
     }
     else
     {
-        UE_LOG(LogTemp, Display, TEXT("No overlapping cells detected, clearing selection."));
         SelectionProceduralMesh->ClearAllMeshSections();
     }
 }

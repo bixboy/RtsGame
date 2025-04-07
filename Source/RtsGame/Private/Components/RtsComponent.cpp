@@ -1,8 +1,13 @@
 ﻿#include "Components/RtsComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "Interfaces/UnitTypeInterface.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
+#include "Structures/ResourceDepot.h"
 #include "Structures/StructureBase.h"
+#include "Widgets/PlayerResourceWidget.h"
+#include "WorldGeneration/ResourceNode.h"
 
 
 // -------------------- Setup --------------------
@@ -18,7 +23,8 @@ void URtsComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(URtsComponent, BuildToSpawn, COND_OwnerOnly);
-	DOREPLIFETIME(URtsComponent, CurrentBuilds);
+	DOREPLIFETIME_CONDITION(URtsComponent, CurrentBuilds, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(URtsComponent, CurrentStorages, COND_OwnerOnly);
 }
 
 void URtsComponent::BeginPlay()
@@ -26,11 +32,29 @@ void URtsComponent::BeginPlay()
 	Super::BeginPlay();
 
 	RtsController = Cast<ARtsPlayerController>(GetOwner());
-	
-	CreatSpawnPoint();
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AResourceNode::StaticClass(), FoundActors);
+	for (AActor* Actor : FoundActors)
+	{
+		if (AResourceNode* Node = Cast<AResourceNode>(Actor))
+		{
+			AllResourceNodes.Add(Node);
+		}
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		CreateRtsWidget();	
+	}
+
+	if (GetOwner()->HasAuthority())
+	{
+		Server_CreatSpawnPoint();
+	}
 }
 
-void URtsComponent::CreatSpawnPoint()
+void URtsComponent::Server_CreatSpawnPoint_Implementation()
 {
 	if (!SpawningBuild) return;
 
@@ -40,7 +64,32 @@ void URtsComponent::CreatSpawnPoint()
 	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(SpawningBuild, SpawnPoint, FRotator::ZeroRotator, SpawnParams);
 	if (Build)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Spawned build: %s"), *Build->GetName());
 		CurrentBuilds.Add(Build);
+
+		if (AResourceDepot* Depot = Cast<AResourceDepot>(Build))
+		{
+			CurrentStorages.Add(Depot);
+		}
+	}
+}
+
+void URtsComponent::CreateRtsWidget()
+{
+	if (ResourceWidgetClass)
+	{
+		if (!ResourceWidget)
+		{
+			if (UPlayerResourceWidget* Widget = CreateWidget<UPlayerResourceWidget>(GetWorld(), ResourceWidgetClass))
+			{
+				Widget->AddToViewport();
+				ResourceWidget = Widget;
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Widget instance already exists: %p"), ResourceWidget);
+		}
 	}
 }
 
@@ -56,9 +105,32 @@ void URtsComponent::CommandSelected(FCommandData CommandData)
 			Server_MoveToBuildSelected(Build);
 			return;
 		}
+		
+		if (AResourceNode* Node = Cast<AResourceNode>(CommandData.Target))
+		{
+			Server_MoveToResource(Node);
+			return;
+		}
 	}
 	
 	Super::CommandSelected(CommandData);
+}
+
+void URtsComponent::Server_MoveToResource_Implementation(AResourceNode* Node)
+{
+	if (!GetOwner()->HasAuthority() || !Node) return;
+
+	for (AActor* Soldier : SelectedActors)
+	{
+		if (!Soldier || !Soldier->Implements<USelectable>() || !Soldier->Implements<UUnitTypeInterface>() || !Soldier->Implements<UFactionsInterface>()) continue;
+
+		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Go To Resource: " + Node->GetName());
+			
+			IUnitTypeInterface::Execute_MoveToResource(Soldier, Node);
+		}
+	}
 }
 
 void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Build)
@@ -78,6 +150,15 @@ void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Bu
 	}
 }
 
+void URtsComponent::Client_UpdateResourceValue_Implementation(FResourcesCost NewResources)
+{
+	if (ResourceWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Update Resource Value %d, %d, %d"), NewResources.Woods, NewResources.Food, NewResources.Metal);
+		ResourceWidget->UpdateResourceValue(NewResources);
+	}
+}
+
 
 // -------------------- Build Selection --------------------
 #pragma region Build Selection
@@ -91,31 +172,12 @@ void URtsComponent::ChangeBuildClass(FStructure BuildData)
 		
 }
 
-void URtsComponent::SpawnBuild()
-{
-	const FHitResult HitResult = GetMousePositionOnTerrain();
-	if (!HitResult.bBlockingHit)
-		return;
-    
-	Server_SpawnBuild(HitResult.Location);
-}
-
 void URtsComponent::ClearPreviewClass()
 {
 	Server_ClearPreviewClass();
 }
 
-TArray<AStructureBase*> URtsComponent::GetBuilds()
-{
-	TArray<AStructureBase*> Builds;
-	
-	CurrentBuilds.RemoveAll([](AStructureBase* Build) { return Build == nullptr; });
-	Builds.Append(CurrentBuilds);
-
-	return Builds;
-}
-
-/*- -------------- Server Function -------------- -*/
+/*- -------------- Spawn Build -------------- -*/
 void URtsComponent::Server_ChangeBuildClass_Implementation(FStructure BuildData)
 {
 	BuildToSpawn = BuildData;
@@ -132,6 +194,15 @@ void URtsComponent::OnRep_BuildClass()
 	OnBuildUpdated.Broadcast(BuildToSpawn);
 }
 
+void URtsComponent::SpawnBuild()
+{
+	const FHitResult HitResult = GetMousePositionOnTerrain();
+	if (!HitResult.bBlockingHit)
+		return;
+    
+	Server_SpawnBuild(HitResult.Location);
+}
+
 void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 {
 	FActorSpawnParameters SpawnParams;
@@ -144,7 +215,10 @@ void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 		Build->StartBuild(RtsController);
 
 		CurrentBuilds.Add(Build);
-
+		
+		if (AResourceDepot* Storage = Cast<AResourceDepot>(Build))
+			CurrentStorages.Add(Storage);
+			
 		if (SelectedActors.Num() > 0)
 		{
 			FCommandData Command;
@@ -155,6 +229,39 @@ void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 		}
 	}
 }
+
+/*- -------------- Getter -------------- -*/
+TArray<AResourceNode*> URtsComponent::GetResourceNodes()
+{
+	return AllResourceNodes;
+}
+
+TArray<AStructureBase*> URtsComponent::GetBuilds()
+{
+	TArray<AStructureBase*> Builds;
+	
+	CurrentBuilds.RemoveAll([](AStructureBase* Build) { return Build == nullptr; });
+	Builds.Append(CurrentBuilds);
+
+	return Builds;
+}
+
+TArray<AResourceDepot*> URtsComponent::GetDepots()
+{
+	CurrentStorages.RemoveAll([](AResourceDepot* Storage) { return Storage == nullptr; });
+	
+	TArray<AResourceDepot*> Storages;
+	Storages.Append(CurrentStorages);
+	
+	return Storages;
+}
+
+void URtsComponent::OnRep_Storages()
+{
+	UE_LOG(LogTemp, Warning, TEXT("GetDepots: CurrentStorages contains %d items"), CurrentStorages.Num());
+	OnStoragesUpdated.Broadcast(CurrentStorages);
+}
+
 
 #pragma endregion
 

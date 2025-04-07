@@ -5,6 +5,8 @@
 #include "UnitTypeInterface.generated.h"
 
 
+class AResourceNode;
+
 UINTERFACE()
 class UUnitTypeInterface : public UInterface
 {
@@ -23,4 +25,10 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void MoveToBuild(AStructureBase* BuildDest);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void MoveToResource(AResourceNode* Node);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void StartCollect();
 };

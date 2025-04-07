@@ -1,6 +1,6 @@
 #include "Vehicles/Walker/WalkerVehicles.h"
-
-#include "CollisionDebugDrawingPublic.h"
+#include "GameFramework/FloatingPawnMovement.h"
+#include "GameFramework/PawnMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
 
@@ -10,6 +10,8 @@ AWalkerVehicles::AWalkerVehicles()
 
 	SkeletalBaseVehicle = CreateDefaultSubobject<USkeletalMeshComponent>("SkeletalBaseVehicle");
 	SkeletalBaseVehicle->SetupAttachment(RootComponent);
+
+	MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>("MovementComponent");
 }
 
 void AWalkerVehicles::BeginPlay()
@@ -18,7 +20,7 @@ void AWalkerVehicles::BeginPlay()
 
 	OnVehicleMove.AddDynamic(this, &AWalkerVehicles::WalkerMoving);
 
-	if (!Legs.IsEmpty())
+	if (bUseProceduralWalk && !Legs.IsEmpty())
 	{
 		for (FAnimationLeg& Leg : Legs)
 		{
@@ -31,7 +33,6 @@ void AWalkerVehicles::BeginPlay()
 			{
 				Leg.Location = Location;
 				Leg.InitialOffset = Location - GetActorLocation();
-				Leg.InitialRotation = Hit.Normal;
 			}
 		}
 		bLegsIsReady = true;
@@ -43,22 +44,25 @@ void AWalkerVehicles::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	FHitResult Hit;
-	FVector Location = GetCenterOfWalker(GetActorLocation(), 300.f, -100.f, Hit, FootHeight);
-	if (Hit.bBlockingHit)
+	if (bUseProceduralWalk)
 	{
-		WalkerCenter = 	Location;
-		WalkerCenter = FVector(WalkerCenter.X, WalkerCenter.Y, WalkerCenter.Z -200.f);
-	}
-	else
-	{
-		FVector ActorLocation = GetActorLocation();
-		WalkerCenter = FVector(ActorLocation.X, ActorLocation.Y, ActorLocation.Z + SkeletalBaseVehicle->GetRelativeLocation().Z);
-	}
+		FHitResult Hit;
+		FVector Location = GetCenterOfWalker(GetActorLocation(), 300.f, -100.f, Hit, FootHeight);
+		if (Hit.bBlockingHit)
+		{
+			WalkerCenter = 	Location;
+			WalkerCenter = FVector(WalkerCenter.X, WalkerCenter.Y, WalkerCenter.Z -200.f);
+		}
+		else
+		{
+			FVector ActorLocation = GetActorLocation();
+			WalkerCenter = FVector(ActorLocation.X, ActorLocation.Y, ActorLocation.Z + SkeletalBaseVehicle->GetRelativeLocation().Z);
+		}
 
-	if (GetForwardInput() != 0 || GetTurnInput() != 0)
-	{
-		UpdateLegsPosition();	
+		if (GetForwardInput() != 0 || GetTurnInput() != 0)
+		{
+			UpdateLegsPosition();	
+		}	
 	}
 }
 
@@ -69,8 +73,7 @@ void AWalkerVehicles::WalkerMoving(float FowardInput, float RightInput)
 	// 1. Gérer la rotation en Yaw
 	if (FMath::Abs(RightInput) > KINDA_SMALL_NUMBER)
 	{
-		float RotationSpeed = 20.f;  
-
+		float RotationSpeed = 20.f;
 		FRotator CurrentRotation = GetActorRotation();
 		CurrentRotation.Yaw += RightInput * RotationSpeed * DeltaTime;
 		SetActorRotation(CurrentRotation);
@@ -79,17 +82,19 @@ void AWalkerVehicles::WalkerMoving(float FowardInput, float RightInput)
 	// 2. Gérer le déplacement avant/arrière
 	if (FMath::Abs(ForwardInput) > KINDA_SMALL_NUMBER)
 	{
-		FVector MovementDirection = UKismetMathLibrary::GetForwardVector(GetActorRotation()) * ForwardInput;
-		MovementDirection = MovementDirection.GetSafeNormal();
+		FVector MovementDirection = UKismetMathLibrary::GetForwardVector(GetActorRotation());
+		MovementDirection.Normalize();
 
-		FVector NewLocation = GetActorLocation() + MovementDirection * MaxSpeed * DeltaTime;
-		SetActorLocation(NewLocation);
+		if (MovementComponent)
+		{
+			MovementComponent->AddInputVector(MovementDirection * ForwardInput * MaxSpeed);
+		}
 	}
 }
 
 void AWalkerVehicles::UpdateLegsPosition()
 {
-	if (!Legs.IsEmpty())
+	if (bUseProceduralWalk && !Legs.IsEmpty())
 	{
 		for (FAnimationLeg& Leg : Legs)	
 		{
@@ -108,8 +113,6 @@ void AWalkerVehicles::UpdateLegsPosition()
 					// Location
 					float Distance = FVector::Dist(LastLocation, GetActorLocation());
 					Leg.Location = FVector(Location.X, Location.Y, Location.Z + GetLegHeight(Distance));
-
-					Leg.InitialRotation = Hit.Normal;
 				}
 				else
 				{
@@ -138,8 +141,6 @@ void AWalkerVehicles::UpdateLegsPosition()
 					// Location
 					float Distance = FVector::Dist(LastLocation, GetActorLocation());
 					Leg.Location =  Hit.Location + FVector(0.f, 0.f, GetLegHeight(Distance));
-
-					Leg.InitialRotation = Hit.Normal;
 				}
 				else
 				{

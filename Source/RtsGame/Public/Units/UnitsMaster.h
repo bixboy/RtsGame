@@ -5,6 +5,7 @@
 #include "Units/SoldierRts.h"
 #include "UnitsMaster.generated.h"
 
+class ARtsPlayerController;
 class URtsResourcesComponent;
 class UBuilderComponent;
 
@@ -27,6 +28,9 @@ public:
 	virtual void Select() override;
 	virtual void Deselect() override;
 	virtual void Highlight(const bool Highlight) override;
+
+	UPROPERTY()
+	ARtsPlayerController* OwnerPlayer;
 
 protected:
 	virtual void BeginPlay() override;

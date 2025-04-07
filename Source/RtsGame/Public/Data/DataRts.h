@@ -49,6 +49,17 @@ struct FResourcesCost
 // -------- Operator --------
 #pragma region Operator
 	
+	FResourcesCost() {}
+
+	FResourcesCost(int32 Uniform)
+		: Woods(Uniform), Food(Uniform), Metal(Uniform)
+	{}
+
+	FResourcesCost(int32 InWoods, int32 InFood, int32 InMetal)
+	: Woods(InWoods), Food(InFood), Metal(InMetal)
+	{}
+
+	
 	FResourcesCost operator + (const FResourcesCost& Other) const
 	{
 		FResourcesCost Sum;

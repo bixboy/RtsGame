@@ -18,6 +18,9 @@ public:
 	FResourcesCost GetStorage();
 
 	UFUNCTION()
+	URtsResourcesComponent* GetResourcesComp();
+
+	UFUNCTION()
 	void AddResources(FResourcesCost NewResources);
 
 	UFUNCTION()

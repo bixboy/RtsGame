@@ -26,6 +26,18 @@ void USelectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME_CONDITION(USelectionComponent, UnitToSpawn, COND_OwnerOnly);
 }
 
+void USelectionComponent::CreateHud()
+{
+    if (HudClass)
+    {
+        Hud = CreateWidget<UHudWidget>(GetWorld(), HudClass);
+        if (Hud)
+        {
+            Hud->AddToViewport();
+        }
+    }
+}
+
 FHitResult USelectionComponent::GetMousePositionOnTerrain() const
 {
     FVector WorldLocation, WorldDirection;
@@ -228,18 +240,6 @@ void USelectionComponent::Client_Deselect_Implementation(AActor* ActorToDeselect
 bool USelectionComponent::HasGroupSelection() const
 {
     return SelectedActors.Num() > 1;
-}
-
-void USelectionComponent::CreateHud()
-{
-    if (HudClass)
-    {
-        Hud = CreateWidget<UHudWidget>(GetWorld(), HudClass);
-        if (Hud)
-        {
-            Hud->AddToViewport();
-        }
-    }
 }
 
 UFormationDataAsset* USelectionComponent::GetFormationData() const

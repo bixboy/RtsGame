@@ -16,12 +16,20 @@ class RTSGAME_API ARtsPlayerController : public APlayerControllerRts
 public:
 	ARtsPlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void BeginPlay() override;
+
 	UFUNCTION()
 	void OnNewResources(const FResourcesCost& NewResources);
 
-	UPROPERTY()
+	UFUNCTION()
+	void AddResource(FResourcesCost NewResource);
+
+	UFUNCTION()
+	void RemoveResource(FResourcesCost RemoveResource);
+
+	UPROPERTY(EditAnywhere)
 	URtsComponent* RtsComponent;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	URtsResourcesComponent* ResourcesComponent;
 };

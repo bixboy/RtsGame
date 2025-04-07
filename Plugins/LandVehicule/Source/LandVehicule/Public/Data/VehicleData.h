@@ -72,12 +72,6 @@ struct FAnimationLeg
 	FVector InitialOffset;
 
 	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")
-	FRotator Rotation;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Leg")
-	FVector InitialRotation;
-
-	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")
 	bool bPlanted = false;
 
 	UPROPERTY(editAnywhere, BlueprintReadWrite, Category = "Leg")

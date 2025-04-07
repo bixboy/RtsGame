@@ -54,6 +54,7 @@ void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 
 	DOREPLIFETIME(AStructureBase, CurrentResources);
 	DOREPLIFETIME(AStructureBase, CurrentBuilder);
+	DOREPLIFETIME(AStructureBase, TotalResource);
 	
 	DOREPLIFETIME(AStructureBase, CurrentStepIndex);
 	DOREPLIFETIME(AStructureBase, BuildElapsedTime);
@@ -152,6 +153,7 @@ void AStructureBase::Server_StartBuild_Implementation(ARtsPlayerController* Requ
 	CurrentStepIndex = 0;
 	CurrentBuilder = 0;
 	BuildElapsedTime = 0.f;
+	TotalResource = 0;
 	
 	CurrentResources = FResourcesCost();
 	MissingResourcesForBuild = BuildData.BuildCost;
@@ -190,6 +192,11 @@ bool AStructureBase::GetNeedsResources(FResourcesCost& NeededResources) const
 	return false;
 }
 
+bool AStructureBase::GetIsFullyResourced()
+{
+	return TotalResource >= BuildData.BuildCost;
+}
+
 void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
 {
 	CurrentBuilder = CurrentBuilder + NewWorker;
@@ -216,6 +223,7 @@ void AStructureBase::DeliverResources(FResourcesCost DeliveredResources)
 void AStructureBase::Server_DeliverResources_Implementation(FResourcesCost DeliveredResources)
 {
 	CurrentResources += DeliveredResources;
+	TotalResource += DeliveredResources;
 }
 
 
@@ -228,12 +236,11 @@ void AStructureBase::UpdateConstruction()
         return;
     }
 	
-	float DeltaTime = GetWorld()->GetDeltaSeconds() * 60.0f;
-	DeltaTime = DeltaTime * CurrentBuilder;
-	
-	BuildElapsedTime += DeltaTime;
-	float BuildProgress;
-	FResourcesCost ResourcesConsumed;
+    float DeltaTime = 1.0f * CurrentBuilder;
+    
+    BuildElapsedTime += DeltaTime;
+    float BuildProgress;
+    FResourcesCost ResourcesConsumed;
 
 	// 🔹 Update Resources
     {

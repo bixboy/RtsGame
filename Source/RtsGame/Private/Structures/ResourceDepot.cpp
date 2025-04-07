@@ -1,7 +1,6 @@
 ﻿#include "Structures/ResourceDepot.h"
-
 #include "Components/RtsResourcesComponent.h"
-#include "Net/UnrealNetwork.h"
+#include "Player/RtsPlayerController.h"
 
 
 AResourceDepot::AResourceDepot()
@@ -15,6 +14,11 @@ AResourceDepot::AResourceDepot()
 void AResourceDepot::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (GetStorage() > 0)
+	{
+		OwnerController->AddResource(GetStorage());
+	}
 }
 
 void AResourceDepot::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -22,16 +26,17 @@ void AResourceDepot::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
-
 // Storage
 void AResourceDepot::AddResources(FResourcesCost NewResources)
 {
 	ResourcesComp->AddResources(NewResources);
+	OwnerController->AddResource(NewResources);
 }
 
 void AResourceDepot::RemoveResources(FResourcesCost NewResources)
 {
 	ResourcesComp->RemoveResources(NewResources);
+	OwnerController->RemoveResource(NewResources);
 }
 
 void AResourceDepot::OnStorageUpdate(const FResourcesCost& NewResources)
@@ -42,6 +47,11 @@ void AResourceDepot::OnStorageUpdate(const FResourcesCost& NewResources)
 FResourcesCost AResourceDepot::GetStorage()
 {
 	return ResourcesComp->GetResources();
+}
+
+URtsResourcesComponent* AResourceDepot::GetResourcesComp()
+{
+	return ResourcesComp;
 }
 
 

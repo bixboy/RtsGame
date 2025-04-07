@@ -26,10 +26,15 @@ void UBuilderComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 	if (TargetBuild && OwnerActor && InMovement)
 	{
-		float DistanceToTarget = FVector::Dist(OwnerActor->GetActorLocation(), TargetBuild->GetActorLocation());
-		//UE_LOG(LogTemp, Warning, TEXT("Distance to target: %f"), DistanceToTarget);
+		FBox BuildBox = TargetBuild->GetComponentsBoundingBox();
+		FVector Extent = BuildBox.GetExtent();
+		
+		float BuildRadius = FMath::Max3(Extent.X, Extent.Y, Extent.Z);
+		float StopThreshold = BuildRadius + 100.f;
 
-		if (DistanceToTarget <= BuildDistanceThreshold)
+		float DistanceToBuild = FVector::Dist(OwnerActor->GetActorLocation(), TargetBuild->GetActorLocation());
+
+		if (DistanceToBuild <= StopThreshold)
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, TEXT("Destination reached"));
 
@@ -85,6 +90,11 @@ void UBuilderComponent::StartBuilding(AStructureBase* Build)
 	MoveToBuild(Build);
 }
 
+AStructureBase* UBuilderComponent::GetTargetBuild()
+{
+	return TargetBuild;
+}
+
 // ------------ Building ------------
 #pragma region Building
 
@@ -92,9 +102,29 @@ void UBuilderComponent::MoveToBuild(AStructureBase* Build)
 {
 	if (!OwnerAIController || !GetOwner()->HasAuthority() || !Build || TargetBuild == Build)
 		return;
-	
+    
 	if (!ResourcesComp && OwnerActor)
 		ResourcesComp = OwnerActor->GetComponentByClass<URtsResourcesComponent>();
+	
+	if (Build->GetIsFullyResourced())
+	{
+		if (!OwnerAIController->OnNewDestination.IsBound())
+		{
+			OwnerAIController->OnNewDestination.AddDynamic(this, &UBuilderComponent::StopBuild);
+		}
+        
+		FCommandData Command;
+		Command.Location = Build->GetActorLocation();
+		Command.Type = ECommandType::CommandMove;
+		
+		OwnerAIController->CommandMove(Command);
+
+		TargetBuild = Build;
+		bGoingToStorage = false;
+		InMovement = true;
+		
+		return;
+	}
 
 	TargetBuild = Build;
 	FResourcesCost NeededResources;
@@ -104,17 +134,19 @@ void UBuilderComponent::MoveToBuild(AStructureBase* Build)
 		MoveToNearestStorage(NeededResources);
 		return;
 	}
-	
+    
 	if (!OwnerAIController->OnNewDestination.IsBound())
 	{
 		OwnerAIController->OnNewDestination.AddDynamic(this, &UBuilderComponent::StopBuild);
 	}
-	
+    
 	FCommandData Command;
 	Command.Location = Build->GetActorLocation();
 	Command.Type = ECommandType::CommandMove;
     
 	OwnerAIController->CommandMove(Command);
+	
+	TargetBuild = Build;
 	bGoingToStorage = false;
 	InMovement = true;
 }
@@ -136,6 +168,13 @@ void UBuilderComponent::StartInteractWithBuild()
 	
 	if (!ResourcesComp || TargetBuild->GetIsBuilt())
 		return;
+
+	if(TargetBuild->GetIsFullyResourced())
+	{
+		TargetBuild->AddWorker();
+		IsInBuild = true;
+		return;
+	}
 	
 	FResourcesCost NeededResources;
 	FResourcesCost AvailableResources;

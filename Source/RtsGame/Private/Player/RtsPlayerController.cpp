@@ -8,11 +8,36 @@ ARtsPlayerController::ARtsPlayerController(const FObjectInitializer& ObjectIniti
 	RtsComponent = Cast<URtsComponent>(SelectionComponent);
 
 	ResourcesComponent = CreateDefaultSubobject<URtsResourcesComponent>(TEXT("ResourcesComponent"));
+	
+}
 
-	ResourcesComponent->OnResourcesChanged.AddDynamic(this, &ARtsPlayerController::OnNewResources);
+void ARtsPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	if (ResourcesComponent)
+	{
+		ResourcesComponent->OnResourcesChanged.RemoveDynamic(this, &ARtsPlayerController::OnNewResources);
+		ResourcesComponent->OnResourcesChanged.AddDynamic(this, &ARtsPlayerController::OnNewResources);
+	}
 }
 
 void ARtsPlayerController::OnNewResources(const FResourcesCost& NewResources)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, "Resources : " + NewResources.Woods);
+	if (RtsComponent)
+	{
+		RtsComponent->Client_UpdateResourceValue(NewResources);
+	}
+}
+
+void ARtsPlayerController::AddResource(FResourcesCost NewResource)
+{
+	if (HasAuthority())
+		ResourcesComponent->AddResources(NewResource);
+}
+
+void ARtsPlayerController::RemoveResource(FResourcesCost RemoveResource)
+{
+	if (HasAuthority())
+		ResourcesComponent->RemoveResources(RemoveResource);
 }

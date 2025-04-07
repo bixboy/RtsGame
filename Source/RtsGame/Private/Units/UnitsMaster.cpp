@@ -1,6 +1,6 @@
 ﻿#include "Units/UnitsMaster.h"
 #include "Components/BuilderComponent.h"
-#include "Components/RtsResourcesComponent.h"
+#include "Player/RtsPlayerController.h"
 
 
 // ------------ Setup ------------
@@ -14,6 +14,8 @@ AUnitsMaster::AUnitsMaster(const FObjectInitializer& ObjectInitializer) : Super(
 void AUnitsMaster::BeginPlay()
 {
 	Super::BeginPlay();
+
+	OwnerPlayer = Cast<ARtsPlayerController>(GetInstigator()->GetController());
 }
 
 void AUnitsMaster::Tick(float DeltaTime)
@@ -25,6 +27,7 @@ void AUnitsMaster::Tick(float DeltaTime)
 
 void AUnitsMaster::Select()
 {
+	
 	Super::Select();
 }
 

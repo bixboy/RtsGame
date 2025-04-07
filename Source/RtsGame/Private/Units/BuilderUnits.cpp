@@ -1,5 +1,6 @@
 ﻿#include "Units/BuilderUnits.h"
 #include "Components/BuilderComponent.h"
+#include "Components/ResourceCollector.h"
 #include "Components/RtsResourcesComponent.h"
 
 
@@ -9,6 +10,7 @@ ABuilderUnits::ABuilderUnits(const FObjectInitializer& ObjectInitializer) : Supe
 
 	BuilderComp = Cast<UBuilderComponent>(CommandComp);
 	ResourcesComp = CreateDefaultSubobject<URtsResourcesComponent>(TEXT("ResourcesComponent"));
+	ResourcesCollectorComp = CreateDefaultSubobject<UResourceCollector>(TEXT("ResourcesCollectorComponent"));
 }
 
 void ABuilderUnits::BeginPlay()
@@ -24,5 +26,25 @@ URtsResourcesComponent* ABuilderUnits::GetResourcesComp()
 void ABuilderUnits::MoveToBuild_Implementation(AStructureBase* BuildDest)
 {
 	BuilderComp->StartBuilding(BuildDest);
+}
+
+void ABuilderUnits::MoveToResource_Implementation(AResourceNode* Node)
+{
+	ResourcesCollectorComp->StartMoveToResource(Node);
+}
+
+void ABuilderUnits::StartCollect_Implementation()
+{
+	ResourcesCollectorComp->StartCollectResource();
+}
+
+void ABuilderUnits::Select()
+{
+	Super::Select();
+}
+
+void ABuilderUnits::Deselect()
+{
+	Super::Deselect();
 }
 

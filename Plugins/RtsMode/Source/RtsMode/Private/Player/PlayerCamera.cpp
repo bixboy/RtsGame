@@ -43,7 +43,7 @@ void APlayerCamera::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0.f));
+	Player = Cast<APlayerControllerRts>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 	if(!Player) return;
 
 	FInputModeGameAndUI InputMode;
@@ -55,7 +55,9 @@ void APlayerCamera::BeginPlay()
 	
 	CreateSelectionBox();
 	CreateSphereRadius();
-	CreatePreviewMesh();
+
+	if (Player->IsLocalPlayerController())
+		CreatePreviewMesh();
 }
 
 void APlayerCamera::CustomInitialized()
@@ -667,27 +669,25 @@ FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* E
 
 void APlayerCamera::CreatePreviewMesh()
 {
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, "Preview Units");
 	if(PreviewUnits) return;
-
-	if (Player && Player->IsLocalController())
+	
+	if(UWorld* World = GetWorld())
 	{
-		if(UWorld* World = GetWorld())
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Instigator = this;
-			SpawnParams.Owner = this;
-		
-			PreviewUnits = World->SpawnActor<APreviewPoseMesh>(PreviewUnitsClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Instigator = this;
+		SpawnParams.Owner = this;
+	
+		PreviewUnits = World->SpawnActor<APreviewPoseMesh>(PreviewUnitsClass,FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 
-			if (PreviewUnits)
-			{
-				PreviewUnits->SetReplicates(false);
-				PreviewUnits->SetOwner(this);
-			
-				Player->SelectionComponent->OnUnitUpdated.RemoveDynamic(this, &APlayerCamera::ShowUnitPreview);
-				Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::ShowUnitPreview);
-			}
-		}	
+		if (PreviewUnits)
+		{
+			PreviewUnits->SetReplicates(false);
+			PreviewUnits->SetOwner(this);
+		
+			Player->SelectionComponent->OnUnitUpdated.RemoveDynamic(this, &APlayerCamera::ShowUnitPreview);
+			Player->SelectionComponent->OnUnitUpdated.AddDynamic(this, &APlayerCamera::ShowUnitPreview);
+		}
 	}
 }
 

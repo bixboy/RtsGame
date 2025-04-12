@@ -15,7 +15,7 @@ void AResourceDepot::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (GetStorage() > 0)
+	if (OwnerController && GetStorage() > 0)
 	{
 		OwnerController->AddResource(GetStorage());
 	}

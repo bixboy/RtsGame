@@ -91,8 +91,7 @@ void ACustomPlayerController::RotateVehicleTurret(FVector2D NewRotation)
 
 void ACustomPlayerController::Server_RotateVehicleTurret_Implementation(const FVector2D NewRotation)
 {
-    if (!CurrentVehicle && !CurrentCamera)
-        return;
+    if (!CurrentVehicle || !CurrentCamera) return;
 
     CurrentVehicle->OnTurretRotate(NewRotation, CurrentCamera);
 }

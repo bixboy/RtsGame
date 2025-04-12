@@ -254,6 +254,12 @@ struct FUnitsProd
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit")
 	TSubclassOf<ASoldierRts> UnitClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Unit")
+	bool bCanBuild = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Unit", meta = (EditCondition = "bNeedToBuild", EditConditionHides = true))
+	TArray<UStructureDataAsset*> BuildsList;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Unit|Production")
 	FResourcesCost ProductionCost;

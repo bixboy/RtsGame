@@ -52,7 +52,7 @@ void UHudWidget::SetUnitsSelectionWidget(bool bEnabled) const
 	}
 }
 
-void UHudWidget::OnSelectionUpdated()
+void UHudWidget::OnSelectionUpdated(TArray<AActor*> NewSelection)
 {
 	if(SelectionComponent)
 	{

@@ -17,7 +17,9 @@ void ARtsPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	RtsController = Cast<ARtsPlayerController>(GetController());
-	CreatePreviewMesh();
+
+	if (RtsController)
+		CreatePreviewMesh();
 }
 
 void ARtsPlayer::Tick(float DeltaTime)
@@ -36,8 +38,8 @@ void ARtsPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 void ARtsPlayer::CreatePreviewMesh()
 {
 	if(PreviewUnits) return;
-
-	if (RtsController && RtsController->IsLocalController())
+	
+	if (RtsController)
 	{
 		if(UWorld* World = GetWorld())
 		{
@@ -50,6 +52,8 @@ void ARtsPlayer::CreatePreviewMesh()
 			
 			if (Preview)
 			{
+				GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, "Preview Units");
+				
 				Preview->SetReplicates(false);
 				Preview->SetOwner(this);
 			
@@ -65,6 +69,8 @@ void ARtsPlayer::CreatePreviewMesh()
 
 void ARtsPlayer::ShowBuildPreview(const FStructure BuildData)
 {
+	GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, "Build");
+	
 	if (Preview && BuildData.StructureMesh)
 	{
 		bIsInSpawnUnits = true;

@@ -21,7 +21,7 @@ public:
 	void InitEntry(UUnitsProductionDataAsset* DataAsset);
 	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UCustomButtonWidget* BuildButton;
+	UCustomButtonWidget* UnitButton;
 
 protected:
 
@@ -29,7 +29,7 @@ protected:
 	void OnUnitSelected(UCustomButtonWidget* Button, int Index);
 
 	UPROPERTY()
-	FUnitsProd UnitData;
+	UUnitsProductionDataAsset* UnitData;
 
 	UPROPERTY()
 	ARtsPlayerController* PlayerController;

@@ -9,6 +9,7 @@
 #include "Interface/VehiclesInteractions.h"
 #include "VehicleMaster.generated.h"
 
+class UVehiclePlayerMesh;
 class UInputAction;
 class UInputMappingContext;
 class UVehiclesAnimInstance;
@@ -31,8 +32,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY()
-	TMap<APlayerController*, ACameraVehicle*> PlayersInVehicle;
+	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION()
 	void Input_OnInteract();
@@ -87,20 +87,25 @@ protected:
 //---------------------------- Cameras ----------------------------
 #pragma region Camera System
 
-public:
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	ACameraVehicle* GetCurrentCamera();
-
 protected:
 	/*- Variables -*/
 	UPROPERTY(EditAnywhere, Category = "Settings|Camera")
 	float CameraDistance = 700.f;
 
+	UPROPERTY(EditAnywhere, Category = "Settings|Camera")
+	float Sensitivity = 1.5f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TArray<ACameraVehicle*> Turrets;
 
 	UPROPERTY()
+	TMap<APlayerController*, ACameraVehicle*> AssignedCameras;
+
+	UPROPERTY()
 	ACameraVehicle* CurrentCamera;
+
+	UPROPERTY()
+	FRotator CameraRotationOffset;
 
 	/*- Functions -*/
 
@@ -117,7 +122,7 @@ protected:
 	void Server_SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
 	
 	UFUNCTION(Client, Reliable)
-	void Client_SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
+	void Client_SwitchToCamera(ACameraVehicle* NewCamera);
 
 	UFUNCTION(BlueprintCallable)
 	ACameraVehicle* SwitchToNextCamera(APlayerController* Player);
@@ -132,6 +137,26 @@ protected:
 	ACameraVehicle* GetAvailableCamera(int startIndex);
 
 #pragma endregion
+
+#pragma region Player Mesh
+protected:
+
+	UFUNCTION()
+	void ShowPlayerMesh(APlayerController* PlayerController);
+	
+	UFUNCTION()
+	void HidePlayerMesh(APlayerController* PlayerController, int MeshNumber = 0);
+
+	UPROPERTY()
+	TArray<UVehiclePlayerMesh*> VehiclePlayersMesh;
+
+	UPROPERTY()
+	TMap<APlayerController*, UVehiclePlayerMesh*> PlayersMeshAssigned;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	USkeletalMesh* NewMesh;
+
+#pragma endregion	
 
 //---------------------------- Movement ----------------------------
 #pragma region Movement System

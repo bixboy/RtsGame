@@ -208,7 +208,7 @@ void USelectionComponent::Server_ClearSelected_Implementation()
 
 void USelectionComponent::OnRep_Selected() const
 {
-    OnSelectedUpdate.Broadcast();
+    OnSelectedUpdate.Broadcast(SelectedActors);
 }
 
 #pragma endregion

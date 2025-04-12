@@ -42,7 +42,7 @@ void USelectBehaviorWidget::UpdateSelectedButton(UCustomButtonWidget* Button, bo
 	Button->ToggleButtonIsSelected(IsSelected);
 }
 
-void USelectBehaviorWidget::OnNewUnitSelected()
+void USelectBehaviorWidget::OnNewUnitSelected(TArray<AActor*> NewSelection)
 {
 	UpdateSelectedButton(NeutralButton->Button, false);
 	UpdateSelectedButton(PassiveButton->Button, false);

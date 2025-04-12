@@ -2,6 +2,7 @@
 #include "Components/DecalComponent.h"
 #include "Data/UnitsProductionDataAsset.h"
 #include "Net/UnrealNetwork.h"
+#include "Units/UnitsMaster.h"
 
 
 // ----------------- Setup -----------------
@@ -71,7 +72,12 @@ void AUnitProduction::OnNewSelected(bool bIsSelected)
 
 // ----------------- Queue Production -----------------
 
-void AUnitProduction::AddUnitToQueue(UUnitsProductionDataAsset* NewUnit)
+void AUnitProduction::AddUnitToProduction_Implementation(UUnitsProductionDataAsset* NewUnit)
+{
+	Server_AddUnitToQueue(NewUnit);
+}
+
+void AUnitProduction::Server_AddUnitToQueue_Implementation(UUnitsProductionDataAsset* NewUnit)
 {
 	if(NewUnit)
 	{
@@ -86,7 +92,7 @@ void AUnitProduction::AddUnitToQueue(UUnitsProductionDataAsset* NewUnit)
 
 void AUnitProduction::RemoveUnitFromQueue(UUnitsProductionDataAsset* UnitToRemove)
 {
-	if (!UnitToRemove) return;
+	if (!UnitToRemove || !HasAuthority()) return;
 
 	const int32 Index = ProductionQueue.IndexOfByKey(UnitToRemove);
 	if (Index != INDEX_NONE)
@@ -118,12 +124,13 @@ void AUnitProduction::StartUnitProduction()
 {
 	if (HasAuthority())
 	{
-		if (UnitSelected && UnitSelected->UnitProduction.UnitClass)
+		if (!ProductionQueue.IsEmpty())
 		{
+			GEngine->AddOnScreenDebugMessage(-1, 7.0f, FColor::Red, "Starting UnitProduction");
 			UnitSelected = ProductionQueue[0];
 			ProductionStartTime = GetWorld()->GetTimeSeconds();
 			ProductionProgress = 0.f;
-
+			
 			GetWorld()->GetTimerManager().SetTimer(ProductionTimerHandle, this, &AUnitProduction::OnProductionFinished, UnitSelected->UnitProduction.ProductionTime, false);
 		}
 	}
@@ -150,9 +157,11 @@ void AUnitProduction::OnProductionFinished()
         SpawnParams.Owner = this;
 	    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;	
 
-        if (AActor* SpawnedUnit = GetWorld()->SpawnActor<AActor>(UnitSelected->UnitProduction.UnitClass, SpawnLocation, SpawnRotation, SpawnParams))
+        if (AUnitsMaster* SpawnedUnit = GetWorld()->SpawnActor<AUnitsMaster>(UnitSelected->UnitProduction.UnitClass, SpawnLocation, SpawnRotation, SpawnParams))
         {
             OnUnitProduced.Broadcast(SpawnedUnit);
+
+        	SpawnedUnit->UnitInfo = UnitSelected;
         	
             FCommandData CommandData = GetDestination();
             CommandData.Type = ECommandType::CommandMove;

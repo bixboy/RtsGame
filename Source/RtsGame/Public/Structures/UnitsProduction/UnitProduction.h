@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
+#include "Interfaces/UnitProductionInterface.h"
 #include "Structures/StructureBase.h"
 #include "UnitProduction.generated.h"
 
@@ -7,7 +8,7 @@ class UUnitsProductionDataAsset;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitProducedSignature, AActor*, NewUnit);
 
 UCLASS()
-class RTSGAME_API AUnitProduction : public AStructureBase
+class RTSGAME_API AUnitProduction : public AStructureBase, public IUnitProductionInterface
 {
 	GENERATED_BODY()
 
@@ -20,11 +21,13 @@ public:
 	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	virtual void AddUnitToProduction_Implementation(UUnitsProductionDataAsset* NewUnit);
+
 	// ---------- Functions ----------
 	
-	UFUNCTION(BlueprintCallable, Category = "Production")
-	void AddUnitToQueue(UUnitsProductionDataAsset* NewUnit);
-
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Production")
+	void Server_AddUnitToQueue(UUnitsProductionDataAsset* NewUnit);
+	
 	UFUNCTION(BlueprintCallable, Category = "Production")
 	void RemoveUnitFromQueue(UUnitsProductionDataAsset* UnitToRemove);
 
@@ -58,9 +61,11 @@ protected:
 
 
 	/*-------- Production --------*/
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Production")
 	TArray<UUnitsProductionDataAsset*> UnitsList;
-
+	
+protected:
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = "Production")
 	UUnitsProductionDataAsset* UnitSelected;
 	

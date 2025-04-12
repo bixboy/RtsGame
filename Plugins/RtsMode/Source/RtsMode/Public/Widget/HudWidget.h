@@ -36,7 +36,7 @@ public:
 	UButton* Btn_SwitchFormation;
 
 	UFUNCTION()
-	void OnSelectionUpdated();
+	void OnSelectionUpdated(TArray<AActor*> NewSelection);
 
 protected:
 	UFUNCTION()

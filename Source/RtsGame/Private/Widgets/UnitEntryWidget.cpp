@@ -11,21 +11,21 @@ void UUnitEntryWidget::NativeOnInitialized()
 
 	verify((PlayerController = Cast<ARtsPlayerController>(GetWorld()->GetFirstPlayerController())));
 
-	if (BuildButton)
-		BuildButton->OnButtonClicked.AddDynamic(this, &UUnitEntryWidget::OnUnitSelected);
+	if (UnitButton)
+		UnitButton->OnButtonClicked.AddDynamic(this, &UUnitEntryWidget::OnUnitSelected);
 }
 
 void UUnitEntryWidget::InitEntry(UUnitsProductionDataAsset* DataAsset)
 {
-	UnitData = DataAsset->UnitProduction;
-	BuildButton->SetButtonTexture(UnitData.UnitImage);
-	BuildButton->SetButtonText(FText::FromString(UnitData.Name));
+	UnitData = DataAsset;
+	UnitButton->SetButtonTexture(UnitData->UnitProduction.UnitImage);
+	UnitButton->SetButtonText(FText::FromString(UnitData->UnitProduction.Name));
 }
 
 void UUnitEntryWidget::OnUnitSelected(UCustomButtonWidget* Button, int Index)
 {
-	if (!UnitData.UnitClass) return;
+	if (!UnitData->UnitProduction.UnitClass) return;
 
-	//PlayerController->RtsComponent->ChangeUnitClass(UnitData);
-	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "Unit Selected : " + UnitData.UnitClass->GetName());
+	PlayerController->RtsComponent->AddUnitToProduction(UnitData);
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "Unit Selected : " + UnitData->UnitProduction.UnitClass->GetName());
 }

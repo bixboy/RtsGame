@@ -5,6 +5,7 @@
 #include "Units/SoldierRts.h"
 #include "UnitsMaster.generated.h"
 
+class UUnitsProductionDataAsset;
 class ARtsPlayerController;
 class URtsResourcesComponent;
 class UBuilderComponent;
@@ -31,6 +32,9 @@ public:
 
 	UPROPERTY()
 	ARtsPlayerController* OwnerPlayer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
+	UUnitsProductionDataAsset* UnitInfo;
 
 protected:
 	virtual void BeginPlay() override;

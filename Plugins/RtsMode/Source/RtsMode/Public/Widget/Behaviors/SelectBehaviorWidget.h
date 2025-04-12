@@ -33,7 +33,7 @@ protected:
 	void UpdateSelectedButton(UCustomButtonWidget* Button, bool IsSelected);
 
 	UFUNCTION()
-	void OnNewUnitSelected();
+	void OnNewUnitSelected(TArray<AActor*> NewSelection);
 
 	UPROPERTY()
 	APlayerControllerRts* PlayerController;

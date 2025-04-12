@@ -25,7 +25,7 @@ protected:
 	UPROPERTY()
 	TArray<UHoverPointComponent*> HoverPoints;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Hoverer")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover")
 	float MaxSurfaceAngle = 50.f;
 
 	// Oscillation
@@ -59,7 +59,7 @@ protected:
 
 	// Rotation
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
-	float TurnForce = 50.0f;
+	float TurnForce = 150.0f;
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
 	float MaxTiltAngle = 30.f;
 
@@ -67,13 +67,16 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
 	float FrictionFactor = 2.f;
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
-	float RotationFrictionFactor = 2.f;
+	float RotationFrictionFactor = 0.1f;
 
 	UPROPERTY()
 	float OscillationValue = 0.0f;
 	
 	UPROPERTY()
 	float CurrentTiltAngle = 0.0f;
+
+	UPROPERTY(Replicated)
+	FRotator BaseRotation;
 	
 	/*- Function -*/
 	UFUNCTION()
@@ -92,16 +95,18 @@ protected:
 	float TraceGroundAtLocation(FHitResult& HitResult);
 	
 	// Replication
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_ApplyForce(const FVector Force);
+	UFUNCTION()
+	void ApplyForce(const FVector Force);
 
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_ApplyForceAtLocation(const FVector Force, const FVector Location);
+	UFUNCTION()
+	void ApplyForceAtLocation(const FVector Force, const FVector Location);
 
 	UFUNCTION()
 	void UpdateVehicleRotation(const FRotator& NewRotation);
 
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_AddTorque(const FVector& NewVector);
+	UFUNCTION()
+	void AddTorque(const FVector& NewVector);
+
+	void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 };

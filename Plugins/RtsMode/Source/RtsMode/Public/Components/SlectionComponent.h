@@ -9,7 +9,7 @@ class UFormationDataAsset;
 class UHudWidget;
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSelectedUpdatedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSelectedUpdatedDelegate, TArray<AActor*>, NewSelection);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitUpdatedDelegate, TSubclassOf<ASoldierRts>, NewUnitClass);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))

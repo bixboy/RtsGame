@@ -4,6 +4,7 @@
 #include "Data/DataRts.h"
 #include "RtsComponent.generated.h"
 
+class USelectorWidget;
 class UPlayerResourceWidget;
 class AResourceDepot;
 class AResourceNode;
@@ -24,7 +25,11 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
+	UFUNCTION()
 	void CreateRtsWidget();
+
+	UFUNCTION()
+	void AddUnitToProduction(UUnitsProductionDataAsset* UnitData);
 
 	UFUNCTION(Client, reliable)
 	void Client_UpdateResourceValue(FResourcesCost NewResources);
@@ -46,8 +51,8 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_MoveToResource(AResourceNode* Node);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
-	TSubclassOf<UPlayerResourceWidget> ResourceWidgetClass;
+	UFUNCTION()
+	void UpdateSelectorWidget(TArray<AActor*> NewSelection);
 	
 /*- Building -*/
 // --------------- Functions ---------------
@@ -93,9 +98,19 @@ public:
 	FOnStoragesUpdated OnStoragesUpdated;
 	
 // --------------- Variables ---------------
-protected:	
+protected:
+	UPROPERTY()
+	ARtsPlayerController* RtsController;
+
+	// Builds
 	UPROPERTY(Replicated, ReplicatedUsing = OnRep_BuildClass)
 	FStructure BuildToSpawn;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
+	TSubclassOf<AStructureBase> SpawningBuild;
+
+	UPROPERTY()
+	FVector SpawnPoint = FVector::ZeroVector;
 
 	UPROPERTY(Replicated)
 	TArray<AStructureBase*> CurrentBuilds;
@@ -103,19 +118,20 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_Storages)
 	TArray<AResourceDepot*> CurrentStorages;
 
-	UPROPERTY()
-	ARtsPlayerController* RtsController;
-
-	UPROPERTY()
-	FVector SpawnPoint = FVector::ZeroVector;
+	// Widgets
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
+	TSubclassOf<UPlayerResourceWidget> ResourceWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
-	TSubclassOf<AStructureBase> SpawningBuild;
-
+	TSubclassOf<USelectorWidget> SelectorWidgetClass;
+	
 	UPROPERTY()
 	TArray<AResourceNode*> AllResourceNodes;
 
 	UPROPERTY()
 	UPlayerResourceWidget* ResourceWidget;
+
+	UPROPERTY()
+	USelectorWidget* SelectorWidget;
 	
 };

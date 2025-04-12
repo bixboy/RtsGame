@@ -1,12 +1,16 @@
 ﻿#include "Components/RtsComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "Data/UnitsProductionDataAsset.h"
 #include "Interfaces/UnitTypeInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
 #include "Structures/ResourceDepot.h"
 #include "Structures/StructureBase.h"
+#include "Structures/UnitsProduction/UnitProduction.h"
+#include "Units/BuilderUnits.h"
 #include "Widgets/PlayerResourceWidget.h"
+#include "Widgets/SelectorWidget.h"
 #include "WorldGeneration/ResourceNode.h"
 
 
@@ -43,9 +47,9 @@ void URtsComponent::BeginPlay()
 		}
 	}
 
-	if (!GetOwner()->HasAuthority())
+	if (RtsController && RtsController->IsLocalPlayerController())
 	{
-		CreateRtsWidget();	
+		CreateRtsWidget();
 	}
 
 	if (GetOwner()->HasAuthority())
@@ -65,6 +69,7 @@ void URtsComponent::Server_CreatSpawnPoint_Implementation()
 	if (Build)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Spawned build: %s"), *Build->GetName());
+		
 		CurrentBuilds.Add(Build);
 
 		if (AResourceDepot* Depot = Cast<AResourceDepot>(Build))
@@ -86,15 +91,85 @@ void URtsComponent::CreateRtsWidget()
 				ResourceWidget = Widget;
 			}
 		}
-		else
+	}
+
+	if (SelectorWidgetClass)
+	{
+		if (!SelectorWidget)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Widget instance already exists: %p"), ResourceWidget);
+			if (USelectorWidget* Widget = CreateWidget<USelectorWidget>(GetWorld(), SelectorWidgetClass))
+			{
+				Widget->AddToViewport();
+				SelectorWidget = Widget;
+
+				OnSelectedUpdate.AddDynamic(this, &URtsComponent::UpdateSelectorWidget);
+			}
+		}
+	}
+	
+}
+
+void URtsComponent::AddUnitToProduction(UUnitsProductionDataAsset* UnitData)
+{
+	TArray<AStructureBase*> Builds = GetBuilds();
+	if (!Builds.IsEmpty())
+	{
+		for (AStructureBase* Build : Builds)
+		{
+			if (Build->Implements<UUnitProductionInterface>())
+			{
+				IUnitProductionInterface::Execute_AddUnitToProduction(Build, UnitData);
+			}
 		}
 	}
 }
 
 #pragma endregion
 
+void URtsComponent::UpdateSelectorWidget(TArray<AActor*> NewSelection)
+{
+	if (NewSelection.IsEmpty())
+	{
+		SelectorWidget->ClearSelectionWidget();
+		return;
+	}
+
+	if (AUnitProduction* Build = Cast<AUnitProduction>(NewSelection[0]))
+	{
+		SelectorWidget->SwitchToUnit(Build->UnitsList);
+		return;
+	}
+	
+	if (ABuilderUnits* Builder = Cast<ABuilderUnits>(NewSelection[0]))
+	{
+		SelectorWidget->SwitchToBuild(Builder->UnitInfo->UnitProduction.BuildsList);
+	}
+
+	// Update Widget Selection
+	TMap<UUnitsProductionDataAsset*, FGroupedActors> GroupedSelection;
+	for (AActor* Actor : NewSelection)
+	{
+		AUnitsMaster* UnitsMaster = Cast<AUnitsMaster>(Actor);
+		if (!UnitsMaster || !UnitsMaster->UnitInfo) continue;
+
+		UUnitsProductionDataAsset* DataAsset = UnitsMaster->UnitInfo;
+		GroupedSelection.FindOrAdd(DataAsset).Actors.Add(Actor);
+	}
+
+	SelectorWidget->UpdateSelection(GroupedSelection);
+}
+
+void URtsComponent::Client_UpdateResourceValue_Implementation(FResourcesCost NewResources)
+{
+	if (ResourceWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Update Player Resource Value %d, %d, %d"), NewResources.Woods, NewResources.Food, NewResources.Metal);
+		ResourceWidget->UpdateResourceValue(NewResources);
+	}
+}
+
+// -------------------- Units Command --------------------
+#pragma region Command
 
 void URtsComponent::CommandSelected(FCommandData CommandData)
 {
@@ -122,12 +197,13 @@ void URtsComponent::Server_MoveToResource_Implementation(AResourceNode* Node)
 
 	for (AActor* Soldier : SelectedActors)
 	{
-		if (!Soldier || !Soldier->Implements<USelectable>() || !Soldier->Implements<UUnitTypeInterface>() || !Soldier->Implements<UFactionsInterface>()) continue;
+		if (!Soldier ||
+			!Soldier->Implements<USelectable>() ||
+			!Soldier->Implements<UUnitTypeInterface>() ||
+			!Soldier->Implements<UFactionsInterface>()) continue;
 
 		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Go To Resource: " + Node->GetName());
-			
 			IUnitTypeInterface::Execute_MoveToResource(Soldier, Node);
 		}
 	}
@@ -135,41 +211,39 @@ void URtsComponent::Server_MoveToResource_Implementation(AResourceNode* Node)
 
 void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Build)
 {
-	if (!GetOwner()->HasAuthority() || !Build) return;
-	
+	if (!Build || !GetOwner()->HasAuthority()) return;
+
+	const auto BuildFaction = IFactionsInterface::Execute_GetCurrentFaction(Build);
+
 	for (AActor* Soldier : SelectedActors)
 	{
-		if (!Soldier || !Soldier->Implements<USelectable>() || !Soldier->Implements<UUnitTypeInterface>() || !Soldier->Implements<UFactionsInterface>()) continue;
-		
-		if (IFactionsInterface::Execute_GetCurrentFaction(Soldier) == IFactionsInterface::Execute_GetCurrentFaction(Build) && IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
+		if (!Soldier || 
+			!Soldier->Implements<USelectable>() || 
+			!Soldier->Implements<UUnitTypeInterface>() || 
+			!Soldier->Implements<UFactionsInterface>()) continue;
+
+		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder && IFactionsInterface::Execute_GetCurrentFaction(Soldier) == BuildFaction)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Go To Build: " + Build->GetName());
-			
 			IUnitTypeInterface::Execute_MoveToBuild(Soldier, Build);
 		}
 	}
 }
 
-void URtsComponent::Client_UpdateResourceValue_Implementation(FResourcesCost NewResources)
-{
-	if (ResourceWidget)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Update Resource Value %d, %d, %d"), NewResources.Woods, NewResources.Food, NewResources.Metal);
-		ResourceWidget->UpdateResourceValue(NewResources);
-	}
-}
-
+#pragma endregion
 
 // -------------------- Build Selection --------------------
 #pragma region Build Selection
 
+/*- -------------- Preview Build -------------- -*/
 void URtsComponent::ChangeBuildClass(FStructure BuildData)
 {
 	if (OwnerController->HasAuthority())
+	{
 		BuildToSpawn = BuildData;
+		OnRep_BuildClass();
+	}
 	else
 		Server_ChangeBuildClass(BuildData);
-		
 }
 
 void URtsComponent::ClearPreviewClass()
@@ -181,6 +255,7 @@ void URtsComponent::ClearPreviewClass()
 void URtsComponent::Server_ChangeBuildClass_Implementation(FStructure BuildData)
 {
 	BuildToSpawn = BuildData;
+	OnRep_BuildClass();
 }
 
 void URtsComponent::Server_ClearPreviewClass_Implementation()

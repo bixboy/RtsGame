@@ -2,204 +2,164 @@
 #include "NavigationSystem.h"
 #include "Data/AiData.h"
 #include "Units/SoldierRts.h"
-#include "Components/WeaponMaster.h"
 
-// ------------------- Setup Functions   ---------------------
-#pragma region Setup Functions
+// ---- Setup ---- //
+#pragma region Setup Fonction
 
-AAiControllerRts::AAiControllerRts(const FObjectInitializer& ObjectInitializer)
+AAiControllerRts::AAiControllerRts()
 {
-	PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bCanEverTick = true;
 }
 
 void AAiControllerRts::OnPossess(APawn* InPawn)
 {
-	Super::OnPossess(InPawn);
-
-	OwnerSoldier = Cast<ASoldierRts>(InPawn);
-	if (OwnerSoldier)
-	{
-		OwnerSoldier->SetAIController(this);
-		SetupVariables();
-	}
+    Super::OnPossess(InPawn);
+    Soldier = Cast<ASoldierRts>(InPawn);
+    if (Soldier)
+    {
+        Soldier->SetAIController(this);
+    }
 }
 
 void AAiControllerRts::SetupVariables()
 {
-	if (OwnerSoldier)
-	{
-		AttackCooldown = OwnerSoldier->GetAttackCooldown();
-		AttackRange = OwnerSoldier->GetAttackRange();
-		CombatBehavior = OwnerSoldier->GetCombatBehavior();
-	}
+    if (Soldier)
+    {
+        CombatBehavior = Soldier->GetCombatBehavior();
+    }
 }
 
 #pragma endregion
 
 void AAiControllerRts::Tick(float DeltaSeconds)
 {
-	Super::Tick(DeltaSeconds);
+    Super::Tick(DeltaSeconds);
 
-	if (HasAuthority() && HaveTargetAttack && OwnerSoldier && CurrentCommand.Target)
-	{
-		const float DistanceToTarget = FVector::Distance(OwnerSoldier->GetActorLocation(), CurrentCommand.Target->GetActorLocation());
+    if (!HasAuthority() || !bAttackTarget || !Soldier || !CurrentCommand.Target) return;
 
-		// Attacking logic
-		if (ShouldAttack(DistanceToTarget))
-		{
-			AttackTarget();
-		}
-		// Move towards target if out of range
-		else if (ShouldMove(DistanceToTarget))
-		{
-			MoveComplete = false;
-			MoveToActor(CurrentCommand.Target, CalculateMoveRange(DistanceToTarget));
-		}
-	}
+    if (ShouldAttack())
+    {
+        if (!bMoveComplete)
+        {
+            StopMovement();
+            bMoveComplete = true;
+        }
+        PerformAttack();
+    }
+    else if (ShouldApproach())
+    {
+        bMoveComplete = false;
+        MoveToActor(CurrentCommand.Target, GetAcceptanceRadius());
+    }
 }
 
-bool AAiControllerRts::ShouldAttack(float DistanceToTarget) const
+
+// ---- Movement ---- //
+#pragma region Movement Commands
+
+void AAiControllerRts::CommandMove(const FCommandData Cmd, bool bAttack)
 {
-	bool bHasWeapon = OwnerSoldier->GetHaveWeapon();
-	return (bHasWeapon && DistanceToTarget <= WeaponRange || !bHasWeapon && DistanceToTarget <= AttackRange) && bCanAttack;
-}
+    CurrentCommand = Cmd;
+    bAttackTarget = bAttack;
+    bMoveComplete = false;
+    bPatrolling = false;
 
-bool AAiControllerRts::ShouldMove(float DistanceToTarget) const
-{
-	bool bHasWeapon = OwnerSoldier->GetHaveWeapon();
-	return (bHasWeapon && DistanceToTarget > WeaponRange || !bHasWeapon && DistanceToTarget > AttackRange) && MoveComplete;
-}
-
-float AAiControllerRts::CalculateMoveRange(float DistanceToTarget) const
-{
-	return (OwnerSoldier->GetHaveWeapon() ? 200.f : AttackRange * 0.30f);
-}
-
-// ------------------- Movement   ---------------------
-#pragma region Movement
-
-void AAiControllerRts::CommandMove(const FCommandData& CommandData, bool Attack)
-{
-	CurrentCommand = CommandData;
-	HaveTargetAttack = Attack;
-	MoveComplete = false;
-	InPatrol = false;
-
-	if (HaveTargetAttack)
-	{
-		// If the soldier doesn't have a weapon, move closer to the target for melee
-		float MoveRange = (OwnerSoldier->GetHaveWeapon()) ? 300.f : AttackRange * 0.30f;
-		MoveToActor(CurrentCommand.Target, MoveRange);
-	}
-	else
-	{
-		MoveToLocation(CurrentCommand.Location);
-	}
-
-	OnNewDestination.Broadcast(CommandData);
+    if (bAttackTarget)
+    {
+        MoveToActor(Cmd.Target, GetAcceptanceRadius());
+    }
+    else
+    {
+        MoveToLocation(Cmd.Location);
+    }
+    OnNewDestination.Broadcast(Cmd);
 }
 
 void AAiControllerRts::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
 {
-	Super::OnMoveCompleted(RequestID, Result);
-	MoveComplete = true;
-	OnReachedDestination.Broadcast(CurrentCommand);
+    Super::OnMoveCompleted(RequestID, Result);
+    
+    bMoveComplete = true;
+    OnReachedDestination.Broadcast(CurrentCommand);
+    
+    if (bPatrolling)
+    {
+        StartPatrol();
+    }
+}
 
-	if (InPatrol)
-	{
-		InPatrol = false;
-		CommandPatrol(CurrentCommand);
-	}
+
+// Utilities ------
+float AAiControllerRts::GetAcceptanceRadius() const
+{
+    if (!Soldier) return 0.f;
+    return Soldier->GetHaveWeapon()
+        ? RangedStopDistance
+        : Soldier->GetAttackRange() * MeleeApproachFactor;
+}
+
+bool AAiControllerRts::ShouldApproach() const
+{
+    return bMoveComplete && GetDistanceToTarget() > Soldier->GetAttackRange();
 }
 
 #pragma endregion
 
-// ------------------- Attack   ---------------------
-#pragma region Attack
 
-void AAiControllerRts::AttackTarget()
+// ---- Attack ---- //
+#pragma region Attack Commands
+
+void AAiControllerRts::PerformAttack()
 {
-	if (!CurrentCommand.Target)
-	{
-		StopAttack();
-		return;
-	}
-
-	// Attack logic based on weapon presence
-	if (OwnerSoldier->GetCurrentWeapon())
-	{
-		OwnerSoldier->GetCurrentWeapon()->AIShoot(CurrentCommand.Target);
-	}
-	else
-	{
-		IDamageable::Execute_TakeDamage(CurrentCommand.Target, OwnerSoldier);
-	}
-
-	bCanAttack = false;
-	GetWorld()->GetTimerManager().SetTimer(AttackTimerHandle, this, &AAiControllerRts::ResetAttack, AttackCooldown, false);
+    bCanAttack = false;
+    OnStartAttack.Broadcast(CurrentCommand.Target);
+    GetWorld()->GetTimerManager().SetTimer(AttackTimer, this, &AAiControllerRts::ResetAttack, Soldier->GetAttackCooldown(), false);
 }
 
 void AAiControllerRts::ResetAttack()
 {
-	bCanAttack = true;
+    bCanAttack = true;
 }
 
 void AAiControllerRts::StopAttack()
 {
-	GetWorld()->GetTimerManager().ClearTimer(AttackTimerHandle);
-	bCanAttack = true;
-	HaveTargetAttack = false;
+    GetWorld()->GetTimerManager().ClearTimer(AttackTimer);
+    bCanAttack = true;
 }
 
-// Getters
-#pragma region Getters
 
-ECombatBehavior AAiControllerRts::GetCombatBehavior() const
+// Utilities ------
+float AAiControllerRts::GetDistanceToTarget() const
 {
-	return CombatBehavior;
+    return FVector::Dist(Soldier->GetActorLocation(), CurrentCommand.Target->GetActorLocation());
 }
 
-FCommandData AAiControllerRts::GetCurrentCommand()
+bool AAiControllerRts::ShouldAttack() const
 {
-	return CurrentCommand;
-}
-
-bool AAiControllerRts::GetHaveTarget() const
-{
-	return HaveTargetAttack;
-}
-
-void AAiControllerRts::SetHaveTarget(bool Value)
-{
-	HaveTargetAttack = Value;
+    return bCanAttack && bAttackTarget && GetDistanceToTarget() <= Soldier->GetAttackRange();
 }
 
 #pragma endregion
 
-#pragma endregion
 
-// ------------------- Patrol   ---------------------
-#pragma region Patrol
+// ---- Patrol ---- //
+#pragma region Patrol Commands
 
-void AAiControllerRts::CommandPatrol(const FCommandData& CommandData)
+void AAiControllerRts::CommandPatrol(const FCommandData Cmd)
 {
-	CurrentCommand = CommandData;
-	FVector OutLocation;
+    CurrentCommand = Cmd;
+    bPatrolling = true;
+    StartPatrol();
+}
 
-	bool bSuccess = UNavigationSystemV1::K2_GetRandomLocationInNavigableRadius(
-		GetWorld(),
-		CommandData.SourceLocation,
-		OutLocation,
-		CommandData.Radius,
-		nullptr,
-		nullptr
-	);
-
-	if (bSuccess)
-	{
-		MoveToLocation(OutLocation, 20.f);
-		InPatrol = true;
-	}
+void AAiControllerRts::StartPatrol()
+{
+    FVector Dest;
+    if (UNavigationSystemV1::K2_GetRandomLocationInNavigableRadius(
+        GetWorld(), CurrentCommand.SourceLocation, Dest, CurrentCommand.Radius))
+    {
+        MoveToLocation(Dest, 20.f);
+    }
 }
 
 #pragma endregion

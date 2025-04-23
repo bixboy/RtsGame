@@ -46,8 +46,12 @@ protected:
 	void MoveToNearestStorage();
 
 	UFUNCTION()
+	bool HasReachedActor(AActor* TargetActor, float AdditionalRadius);
+
+	UFUNCTION()
 	AResourceNode* GetNearestResourceNode();
 
+	
 	/*----- Settings Variables -----*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Settings)
 	int ResourceCollectNumber = 5;

@@ -1,4 +1,6 @@
 #include "Vehicles/Hover/HoverVehicles.h"
+#include "NiagaraComponent.h"
+#include "EnhancedInputComponent.h"
 #include "Component/HoverPointComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
@@ -15,6 +17,9 @@ AHoverVehicles::AHoverVehicles()
 
 	BaseVehicle->SetLinearDamping(0.5f);
 	BaseVehicle->SetAngularDamping(0.5f);
+
+	DustComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraComp"));
+	DustComponent->SetupAttachment(BaseVehicle);
 }
 
 void AHoverVehicles::BeginPlay()
@@ -25,9 +30,35 @@ void AHoverVehicles::BeginPlay()
 	GetComponents(UHoverPointComponent::StaticClass(), HoverPoints, true);
 }
 
+void AHoverVehicles::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	if (DustComponent)
+	{
+		DustComponent->SetVariableFloat(FName("User.DustRadius"), DustRadius);
+		DustComponent->SetVariableFloat(FName("User.DustSize"), DustSize);
+	}
+
+	if (MainCamera && SpeedLineMaterial)
+	{
+		SpeedLineInstance = UMaterialInstanceDynamic::Create(SpeedLineMaterial, this);
+        
+		MainCamera->PostProcessBlendWeight = 1.f;
+		MainCamera->PostProcessSettings.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, SpeedLineInstance));
+		
+		SpeedLineInstance->SetScalarParameterValue(TEXT("Opacity"), 0.f);
+	}
+}
+
 void AHoverVehicles::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	if (auto* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	{
+		EnhancedInput->BindAction(BoostAction, ETriggerEvent::Started, this, &AHoverVehicles::Input_OnBoost);
+	}
 }
 
 void AHoverVehicles::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -43,71 +74,103 @@ void AHoverVehicles::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	if (HasAuthority())
+	if (HasAuthority() && bEngineOn)
 	{
 		Hovering(DeltaTime);
 		HandleManualRotation(DeltaTime);
+	}
+
+	if (HasAuthority() && !bEngineOn)
+	{
+		if (DustComponent->IsActive())
+			DustComponent->Deactivate();
 	}
 }
 
 //--------------------------- Hovering ---------------------------
 void AHoverVehicles::Hovering(float DeltaTime)
 {
-	if(EngineOn)
+	 if (!bEngineOn) return;
+
+    bool bIsOnGround = false;
+    FVector AverageHoverForce = FVector::ZeroVector;
+    int32 HoverPointCount = 0;
+
+    FVector SumContactLocations = FVector::ZeroVector;
+    int32 ContactCount = 0;
+
+    for (const UHoverPointComponent* HoverPointComp : HoverPoints)
+    {
+        FHitResult HitResult;
+        float CurrentDistance = TraceGroundAtLocation(HoverPointComp, HitResult);
+
+        if (HitResult.bBlockingHit)
+        {
+            bIsOnGround = true;
+            SumContactLocations += HitResult.Location;
+            ContactCount++;
+
+            // --- Calcul de la force de sustentation (inchangé) ---
+            const float DistanceError = HoverPointComp->HoverPoint.FloatingDistance - CurrentDistance;
+            const float VelocityZ = BaseVehicle->GetPhysicsLinearVelocity().Z;
+            const float SpringForce = DistanceError * HoverPointComp->HoverPoint.SpringStiffness;
+            const float DampingForce = -VelocityZ * HoverPointComp->HoverPoint.DampingFactor;
+
+            OscillationValue = FMath::FInterpTo(
+                OscillationValue,
+                FMath::Sin(GetWorld()->TimeSeconds * OscillationFrequency) * OscillationAmplitude,
+                DeltaTime,
+                OscillationSmoothing * 2.f
+            );
+
+            FVector SuspensionForce = FVector(0,0, SpringForce + DampingForce + OscillationValue);
+            ApplyForceAtLocation(SuspensionForce, HoverPointComp->GetComponentLocation());
+
+            AverageHoverForce += SuspensionForce;
+            HoverPointCount++;
+        }
+    }
+
+    // --- VFX Dust---
+	if (bIsOnGround && DustComponent)
 	{
-		bool bIsOnGround = false;
-		FVector AverageHoverForce = FVector::ZeroVector;
-		int32 HoverPointCount = 0;
+		FVector Center = SumContactLocations / ContactCount;
+		DustComponent->SetWorldLocation(Center);
+		
+		FHitResult AvgHit;
+		TraceGroundAtLocation(nullptr, AvgHit, FLinearColor::Yellow);
+		
+		float CurrDist = AvgHit.bBlockingHit ? AvgHit.Distance : DustSpawnThreshold;
+		float Intensity = FMath::Clamp(1.f - (CurrDist / DustSpawnThreshold), 0.f, 1.f);
 
-		for (const UHoverPointComponent* HoverPointComp : HoverPoints)
-		{
-			FHitResult HitResult;
-			const float CurrentDistance = TraceGroundAtLocation(HoverPointComp, HitResult);
-
-			if (HitResult.bBlockingHit)
-			{
-				bIsOnGround = true;
-
-				const float DistanceError = HoverPointComp->HoverPoint.FloatingDistance - CurrentDistance;
-				
-				const float VelocityZ = BaseVehicle->GetPhysicsLinearVelocity().Z;
-				
-				const float SpringForce = DistanceError * HoverPointComp->HoverPoint.SpringStiffness;
-				const float DampingForce = -VelocityZ * HoverPointComp->HoverPoint.DampingFactor;
-
-				OscillationValue = FMath::FInterpTo(OscillationValue, FMath::Sin(GetWorld()->TimeSeconds * OscillationFrequency) * OscillationAmplitude, DeltaTime, OscillationSmoothing * 2.f);
-
-				const FVector SuspensionForce = FVector(0, 0, SpringForce + DampingForce + OscillationValue) ;
-
-				ApplyForceAtLocation(SuspensionForce, HoverPointComp->GetComponentLocation());
-
-				AverageHoverForce += SuspensionForce;
-				HoverPointCount++;
-			}
-        }
-
-        if (bIsOnGround && HoverPointCount > 0)
-        {
-            AverageHoverForce /= HoverPointCount;
-            for (const UHoverPointComponent* HoverPointComp : HoverPoints)
-            {
-                FVector HoverForce = AverageHoverForce;
-            	BaseVehicle->AddImpulseAtLocation(HoverForce, HoverPointComp->GetComponentLocation());
-            }
-        }
-        else if (!bIsOnGround)
-        {
-            // Si le véhicule n'est pas au sol, appliquez une force de gravité accrue
-            FVector GravityForce = FVector(0, 0, GetWorld()->GetDefaultGravityZ() * 2.5f);
-            for (const UHoverPointComponent* HoverPointComp : HoverPoints)
-            {
-                ApplyForceAtLocation(GravityForce, HoverPointComp->GetComponentLocation());
-            }
-        }
-
-		Movement(DeltaTime);
-		Frictions();
+		DustComponent->SetVariableFloat(FName("User.Intensity"), Intensity);
+		DustComponent->Activate();
 	}
+	else if (DustComponent)
+	{
+		DustComponent->Deactivate();
+	}
+
+    // --- Applique la force moyenne ---
+    if (bIsOnGround && HoverPointCount > 0)
+    {
+        AverageHoverForce /= HoverPointCount;
+        for (const UHoverPointComponent* HoverPointComp : HoverPoints)
+        {
+            BaseVehicle->AddImpulseAtLocation(AverageHoverForce, HoverPointComp->GetComponentLocation());
+        }
+    }
+    else if (!bIsOnGround)
+    {
+        FVector GravityForce = FVector(0,0, GetWorld()->GetDefaultGravityZ()*2.5f);
+        for (const UHoverPointComponent* HoverPointComp : HoverPoints)
+        {
+            ApplyForceAtLocation(GravityForce, HoverPointComp->GetComponentLocation());
+        }
+    }
+
+    Movement(DeltaTime);
+    Frictions();
 }
 
 void AHoverVehicles::HandleManualRotation(float DeltaTime)
@@ -137,19 +200,20 @@ void AHoverVehicles::HandleManualRotation(float DeltaTime)
 
 void AHoverVehicles::Movement(float DeltaTime)
 {
-/*--------------- Mouvement ---------------*/
+ /*--------------- Mouvement ---------------*/
     float CurrentSpeed = BaseVehicle->GetPhysicsLinearVelocity().Size();
     FVector ForwardVector = GetActorForwardVector();
-
     FVector Velocity = BaseVehicle->GetPhysicsLinearVelocity();
     FVector VelocityDirection = Velocity.GetSafeNormal();
+    
+    float EffectiveMaxForwardSpeed = bBoostActive ? MaxForwardSpeed * BoostSpeedMultiplier : MaxForwardSpeed;
+    float EffectiveMoveForce = bBoostActive ? MoveForce * BoostForceMultiplier : MoveForce;
 
     // Avancer
-    if (ForwardInput > 0 && CurrentSpeed < MaxForwardSpeed)
+    if (ForwardInput > 0 && CurrentSpeed < EffectiveMaxForwardSpeed)
     {
-        FVector ForwardForce = ForwardVector * ForwardInput * MoveForce;
+        FVector ForwardForce = ForwardVector * ForwardInput * EffectiveMoveForce;
         ApplyForce(ForwardForce);
-        PlaySound(SoundMoveForward);
     }
     else if (ForwardInput < 0) // Reculer
     {
@@ -157,7 +221,6 @@ void AHoverVehicles::Movement(float DeltaTime)
         {
             FVector BrakeForce = -VelocityDirection * BreakForce;
             ApplyForce(BrakeForce);
-            PlaySound(SoundBrake);
 
             if (CurrentSpeed < 20.f && CurrentSpeed < MaxReverseSpeed)
             {
@@ -167,31 +230,99 @@ void AHoverVehicles::Movement(float DeltaTime)
         }
         else if (CurrentSpeed < MaxReverseSpeed)
         {
+        	if (bBoostActive) EndBoost();
+        	
             FVector ReverseForce = ForwardVector * ForwardInput * MoveForce * ReversMoveForceFactor;
             ApplyForce(ReverseForce);
         }
 
-    	FVector FrontLocation = HoverPoints[0]->GetComponentLocation();
-
-    	float PitchForceMagnitude = FMath::Clamp(CurrentSpeed * BrakePitchMultiplier, 0.f, MaxBrakePitchForce);
-    	FVector PitchForce = FVector(0.f, 0.f, PitchForceMagnitude);
-
-    	ApplyForceAtLocation(PitchForce, FrontLocation);
+        FVector FrontLocation = HoverPoints[0]->GetComponentLocation();
+        float PitchForceMagnitude = FMath::Clamp(CurrentSpeed * BrakePitchMultiplier, 0.f, MaxBrakePitchForce);
+        FVector PitchForce = FVector(0.f, 0.f, PitchForceMagnitude);
+    	
+        ApplyForceAtLocation(PitchForce, FrontLocation);
     }
 
     /*--------------- Rotation ---------------*/
-	FVector Torque = FVector(0, 0, GetTurnInput() * TurnForce);
-	AddTorque(Torque);
+    FVector Torque = FVector(0, 0, GetTurnInput() * TurnForce);
+    AddTorque(Torque);
+    {
+        float SpeedFactor = FMath::Clamp(CurrentSpeed / EffectiveMaxForwardSpeed, 0.f, 1.f);
+        float TargetTiltAngle = FMath::Clamp(GetTurnInput() * MaxTiltAngle * SpeedFactor, -MaxTiltAngle, MaxTiltAngle);
+    	
+        CurrentTiltAngle = FMath::FInterpTo(CurrentTiltAngle, TargetTiltAngle, DeltaTime, 3.f);
+    	
+        FRotator NewRotation = GetActorRotation();
+        NewRotation.Roll = CurrentTiltAngle;
+    	
+        UpdateVehicleRotation(NewRotation);
+    }
+}
+
+void AHoverVehicles::Input_OnBoost()
+{
+	Server_StartBoost();
+}
+
+void AHoverVehicles::Server_StartBoost_Implementation()
+{
+	if (bBoostActive || !bEngineOn) return;
+	
+	bBoostActive = true;
+
+	bSpeedLineFadingOut = false;
+	SpeedLineFadeTime = 0.f;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_SpeedLineFade, this, &AHoverVehicles::UpdateSpeedLineFade, 0.02f, true);
+	
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_FOV, this, &AHoverVehicles::Client_UpdateCameraFOV, 0.02f, true);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_Boost, this, &AHoverVehicles::EndBoost, BoostDuration, false);
+}
+
+void AHoverVehicles::UpdateSpeedLineFade()
+{
+	if (!SpeedLineInstance) return;
+
+	SpeedLineFadeTime += GetWorld()->GetDeltaSeconds();
+	float Alpha = FMath::Clamp(SpeedLineFadeTime / 0.5f, 0.f, 1.f);
+	if (bSpeedLineFadingOut) Alpha = 1.f - Alpha;
+
+	SpeedLineInstance->SetScalarParameterValue(TEXT("Opacity"), Alpha);
+
+	if (SpeedLineFadeTime >= 0.5f)
 	{
-    	float SpeedFactor = FMath::Clamp(CurrentSpeed / MaxForwardSpeed, 0.f, 1.f);
-
-    	float TargetTiltAngle = FMath::Clamp(GetTurnInput() * MaxTiltAngle * SpeedFactor, -MaxTiltAngle, MaxTiltAngle);
-    	CurrentTiltAngle = FMath::FInterpTo(CurrentTiltAngle, TargetTiltAngle, DeltaTime, 3.f);
-
-    	FRotator NewRotation = GetActorRotation();
-    	NewRotation.Roll = CurrentTiltAngle;
-    	UpdateVehicleRotation(NewRotation);
+		SpeedLineInstance->SetScalarParameterValue(TEXT("Opacity"), bSpeedLineFadingOut ? 0.f : 1.f);
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_SpeedLineFade);
 	}
+}
+
+void AHoverVehicles::Client_UpdateCameraFOV_Implementation()
+{
+	if (UCameraComponent* Camera = MainCamera)
+	{
+		float TargetFOV = bBoostActive ? BoostFOV : NormalFOV;
+		float InterpSpeed = bBoostActive ? FOVInterpSpeed_Activation : FOVInterpSpeed_Deactivation;
+        
+		float CurrentFOV = Camera->FieldOfView;
+		float NewFOV = FMath::FInterpTo(CurrentFOV, TargetFOV, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+		Camera->SetFieldOfView(NewFOV);
+        
+		if (FMath::IsNearlyEqual(NewFOV, TargetFOV, 0.5f))
+		{
+			Camera->SetFieldOfView(TargetFOV);
+			GetWorld()->GetTimerManager().ClearTimer(TimerHandle_FOV);
+		}
+	}
+}
+
+void AHoverVehicles::EndBoost()
+{
+	bBoostActive = false;
+	
+	bSpeedLineFadingOut = true;
+	SpeedLineFadeTime = 0.f;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_SpeedLineFade, this, &AHoverVehicles::UpdateSpeedLineFade, 0.02f, true);
+	
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_FOV, this, &AHoverVehicles::Client_UpdateCameraFOV, 0.02f, true);
 }
 
 void AHoverVehicles::Frictions()
@@ -251,7 +382,7 @@ void AHoverVehicles::AddTorque(const FVector& NewVector)
 #pragma endregion
 
 // Trace Ground
-float AHoverVehicles::TraceGroundAtLocation(const UHoverPointComponent* HoverPointComp, FHitResult& OutHitResult)
+float AHoverVehicles::TraceGroundAtLocation(const UHoverPointComponent* HoverPointComp, FHitResult& OutHitResult, FLinearColor TraceColor)
 {
 	float FloatingDistance;
 	FVector StartLocation;
@@ -280,7 +411,7 @@ float AHoverVehicles::TraceGroundAtLocation(const UHoverPointComponent* HoverPoi
 		EDrawDebugTrace::ForOneFrame,
 		OutHitResult,
 		true,
-		FLinearColor::Red,
+		TraceColor,
 		FLinearColor::Green,
 		1.0f
 	);

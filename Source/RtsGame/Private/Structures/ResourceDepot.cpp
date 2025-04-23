@@ -14,8 +14,8 @@ AResourceDepot::AResourceDepot()
 void AResourceDepot::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (OwnerController && GetStorage() > 0)
+	
+	if (HasAuthority() && OwnerController && GetStorage() > 0)
 	{
 		OwnerController->AddResource(GetStorage());
 	}
@@ -47,6 +47,11 @@ void AResourceDepot::OnStorageUpdate(const FResourcesCost& NewResources)
 FResourcesCost AResourceDepot::GetStorage()
 {
 	return ResourcesComp->GetResources();
+}
+
+FResourcesCost AResourceDepot::GetResource_Implementation()
+{
+	return GetStorage();
 }
 
 URtsResourcesComponent* AResourceDepot::GetResourcesComp()

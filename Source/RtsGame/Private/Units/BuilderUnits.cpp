@@ -25,17 +25,15 @@ URtsResourcesComponent* ABuilderUnits::GetResourcesComp()
 
 void ABuilderUnits::MoveToBuild_Implementation(AStructureBase* BuildDest)
 {
-	BuilderComp->StartBuilding(BuildDest);
+	if (!BuildDest->GetIsBuilt() || BuildDest->GetIsInUpgrading())
+	{
+		BuilderComp->StartBuilding(BuildDest);
+	}
 }
 
 void ABuilderUnits::MoveToResource_Implementation(AResourceNode* Node)
 {
 	ResourcesCollectorComp->StartMoveToResource(Node);
-}
-
-void ABuilderUnits::StartCollect_Implementation()
-{
-	ResourcesCollectorComp->StartCollectResource();
 }
 
 void ABuilderUnits::Select()

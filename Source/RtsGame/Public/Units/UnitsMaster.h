@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
+#include "Data/UnitsProductionDataAsset.h"
 #include "Interfaces/FactionsInterface.h"
 #include "Interfaces/UnitTypeInterface.h"
 #include "Units/SoldierRts.h"
@@ -25,6 +26,8 @@ public:
 	virtual ESelectionType GetSelectionType_Implementation() override;
 
 	virtual EFaction GetCurrentFaction_Implementation() override;
+
+	virtual UUnitsProductionDataAsset* GetUnitData_Implementation() override;
 	
 	virtual void Select() override;
 	virtual void Deselect() override;
@@ -40,6 +43,8 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void Tick(float DeltaTime) override;
+
+	virtual void OnStartAttack(AActor* Target) override;
 	
 	/*------ Parameter ------*/	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")

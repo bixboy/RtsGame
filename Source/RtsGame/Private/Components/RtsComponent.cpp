@@ -1,6 +1,5 @@
 ﻿#include "Components/RtsComponent.h"
 #include "Blueprint/UserWidget.h"
-#include "Data/UnitsProductionDataAsset.h"
 #include "Interfaces/UnitTypeInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
@@ -9,8 +8,9 @@
 #include "Structures/StructureBase.h"
 #include "Structures/UnitsProduction/UnitProduction.h"
 #include "Units/BuilderUnits.h"
-#include "Widgets/PlayerResourceWidget.h"
+#include "Widgets/PlayerHudWidget.h"
 #include "Widgets/SelectorWidget.h"
+#include "Widgets/TopBarHudWidget.h"
 #include "WorldGeneration/ResourceNode.h"
 
 
@@ -46,30 +46,29 @@ void URtsComponent::BeginPlay()
 			AllResourceNodes.Add(Node);
 		}
 	}
-
-	if (RtsController && RtsController->IsLocalPlayerController())
+	
+	if (RtsController && RtsController->IsLocalController())
 	{
-		CreateRtsWidget();
+		UE_LOG(LogTemp, Warning, TEXT("Spawned Widget:"));
+		Client_CreateRtsWidget();
 	}
 
 	if (GetOwner()->HasAuthority())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Spawned build:"));
 		Server_CreatSpawnPoint();
 	}
 }
 
 void URtsComponent::Server_CreatSpawnPoint_Implementation()
 {
-	if (!SpawningBuild) return;
+	if (!SpawningBuildClass) return;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = RtsController;
 	
-	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(SpawningBuild, SpawnPoint, FRotator::ZeroRotator, SpawnParams);
-	if (Build)
+	if (AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(SpawningBuildClass, SpawnPoint, FRotator::ZeroRotator, SpawnParams))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Spawned build: %s"), *Build->GetName());
-		
 		CurrentBuilds.Add(Build);
 
 		if (AResourceDepot* Depot = Cast<AResourceDepot>(Build))
@@ -79,52 +78,39 @@ void URtsComponent::Server_CreatSpawnPoint_Implementation()
 	}
 }
 
-void URtsComponent::CreateRtsWidget()
+void URtsComponent::Client_CreateRtsWidget_Implementation()
 {
-	if (ResourceWidgetClass)
+	if (HudWidgetClass)
 	{
-		if (!ResourceWidget)
+		if (!PlayerHudWidget)
 		{
-			if (UPlayerResourceWidget* Widget = CreateWidget<UPlayerResourceWidget>(GetWorld(), ResourceWidgetClass))
+			if (UPlayerHudWidget* Widget = CreateWidget<UPlayerHudWidget>(GetWorld(), HudWidgetClass))
 			{
+				PlayerHudWidget = Widget;
 				Widget->AddToViewport();
-				ResourceWidget = Widget;
-			}
-		}
-	}
 
-	if (SelectorWidgetClass)
-	{
-		if (!SelectorWidget)
-		{
-			if (USelectorWidget* Widget = CreateWidget<USelectorWidget>(GetWorld(), SelectorWidgetClass))
-			{
-				Widget->AddToViewport();
-				SelectorWidget = Widget;
-
+				TopBarWidget = PlayerHudWidget->TopBarWidget;
+				
+				SelectorWidget = PlayerHudWidget->SelectorWidget;
 				OnSelectedUpdate.AddDynamic(this, &URtsComponent::UpdateSelectorWidget);
-			}
-		}
-	}
-	
-}
-
-void URtsComponent::AddUnitToProduction(UUnitsProductionDataAsset* UnitData)
-{
-	TArray<AStructureBase*> Builds = GetBuilds();
-	if (!Builds.IsEmpty())
-	{
-		for (AStructureBase* Build : Builds)
-		{
-			if (Build->Implements<UUnitProductionInterface>())
-			{
-				IUnitProductionInterface::Execute_AddUnitToProduction(Build, UnitData);
 			}
 		}
 	}
 }
 
 #pragma endregion
+
+void URtsComponent::Client_UpdateResourceValue_Implementation(FResourcesCost NewResources)
+{
+	if (TopBarWidget)
+	{
+		TopBarWidget->UpdateResources(NewResources);
+	}
+}
+
+
+// -------------------- Widget Selection --------------------
+#pragma region Widget Selection
 
 void URtsComponent::UpdateSelectorWidget(TArray<AActor*> NewSelection)
 {
@@ -134,46 +120,51 @@ void URtsComponent::UpdateSelectorWidget(TArray<AActor*> NewSelection)
 		return;
 	}
 
-	if (AUnitProduction* Build = Cast<AUnitProduction>(NewSelection[0]))
+	// Show Build Panel
+	if (NewSelection[0]->Implements<UBuildInterface>())
 	{
-		SelectorWidget->SwitchToUnit(Build->UnitsList);
+		SelectorWidget->ShowBuildEntries(NewSelection);
 		return;
 	}
-	
-	if (ABuilderUnits* Builder = Cast<ABuilderUnits>(NewSelection[0]))
+
+	// Show Unit Panel
+	if (AUnitsMaster* Unit = Cast<AUnitsMaster>(NewSelection[0]))
 	{
-		SelectorWidget->SwitchToBuild(Builder->UnitInfo->UnitProduction.BuildsList);
+		SelectorWidget->ShowUnitEntries(NewSelection);
 	}
-
-	// Update Widget Selection
-	TMap<UUnitsProductionDataAsset*, FGroupedActors> GroupedSelection;
-	for (AActor* Actor : NewSelection)
+	else if (!Unit)
 	{
-		AUnitsMaster* UnitsMaster = Cast<AUnitsMaster>(Actor);
-		if (!UnitsMaster || !UnitsMaster->UnitInfo) continue;
-
-		UUnitsProductionDataAsset* DataAsset = UnitsMaster->UnitInfo;
-		GroupedSelection.FindOrAdd(DataAsset).Actors.Add(Actor);
+		SelectorWidget->ClearSelectionWidget();
 	}
-
-	SelectorWidget->UpdateSelection(GroupedSelection);
 }
 
-void URtsComponent::Client_UpdateResourceValue_Implementation(FResourcesCost NewResources)
+void URtsComponent::AddUnitToProduction(UUnitsProductionDataAsset* UnitData)
 {
-	if (ResourceWidget)
+	TArray<AStructureBase*> Builds = GetBuilds();
+	if (!Builds.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Update Player Resource Value %d, %d, %d"), NewResources.Woods, NewResources.Food, NewResources.Metal);
-		ResourceWidget->UpdateResourceValue(NewResources);
+		for (AStructureBase* Build : Builds)
+		{
+			if (Build->Implements<UUnitProductionInterface>() && ISelectable::Execute_GetIsSelected(Build) && Build->GetIsBuilt())
+			{
+				IUnitProductionInterface::Execute_AddUnitToProduction(Build, UnitData);
+			}
+		}
 	}
 }
+
+#pragma endregion
+
 
 // -------------------- Units Command --------------------
 #pragma region Command
 
 void URtsComponent::CommandSelected(FCommandData CommandData)
 {
-	if (CommandData.Target)
+	if (GetSelectedActors().IsEmpty()) return;
+	
+	ABuilderUnits* Builder = Cast<ABuilderUnits>(GetSelectedActors()[0]);
+	if (CommandData.Target && Builder)
 	{
 		if (AStructureBase* Build = Cast<AStructureBase>(CommandData.Target))
 		{
@@ -231,6 +222,7 @@ void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Bu
 
 #pragma endregion
 
+
 // -------------------- Build Selection --------------------
 #pragma region Build Selection
 
@@ -250,6 +242,7 @@ void URtsComponent::ClearPreviewClass()
 {
 	Server_ClearPreviewClass();
 }
+
 
 /*- -------------- Spawn Build -------------- -*/
 void URtsComponent::Server_ChangeBuildClass_Implementation(FStructure BuildData)
@@ -282,12 +275,18 @@ void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = RtsController;
+
+	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "OUIIIIIII");
 	
 	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(BuildToSpawn.BuildClass, HitLocation, FRotator::ZeroRotator, SpawnParams);
 	if (Build)
 	{
 		Build->SetBuildData(BuildToSpawn);
-		Build->StartBuild(RtsController);
+		
+		if (BuildToSpawn.bNeedToBuild)
+		{
+			Build->StartBuild();	
+		}
 
 		CurrentBuilds.Add(Build);
 		
@@ -320,6 +319,25 @@ TArray<AStructureBase*> URtsComponent::GetBuilds()
 
 	return Builds;
 }
+
+template<typename T>
+TArray<T*> URtsComponent::GetBuildsOf() const
+{
+	TArray<T*> Out;
+	Out.Reserve(CurrentBuilds.Num());
+
+	for (AStructureBase* Base : CurrentBuilds)
+	{
+		if (!Base) continue;
+		if (T* Casted = Cast<T>(Base))
+		{
+			Out.Add(Casted);
+		}
+	}
+	return Out;
+}
+template TArray<AUnitProduction*> URtsComponent::GetBuildsOf<AUnitProduction>() const;
+
 
 TArray<AResourceDepot*> URtsComponent::GetDepots()
 {

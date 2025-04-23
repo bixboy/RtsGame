@@ -47,7 +47,6 @@ void AUnitProduction::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 #pragma endregion
 
-
 void AUnitProduction::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -64,6 +63,11 @@ void AUnitProduction::Tick(float DeltaTime)
 	}
 }
 
+void AUnitProduction::OnProdProgress()
+{
+	OnProductionProgress.Broadcast(ProductionProgress, UnitSelected);
+}
+
 void AUnitProduction::OnNewSelected(bool bIsSelected)
 {
 	DecalCursor->SetHiddenInGame(!bIsSelected);
@@ -75,6 +79,11 @@ void AUnitProduction::OnNewSelected(bool bIsSelected)
 void AUnitProduction::AddUnitToProduction_Implementation(UUnitsProductionDataAsset* NewUnit)
 {
 	Server_AddUnitToQueue(NewUnit);
+}
+
+TArray<UUnitsProductionDataAsset*> AUnitProduction::GetUnitsProduction_Implementation()
+{
+	return ProductionQueue;
 }
 
 void AUnitProduction::Server_AddUnitToQueue_Implementation(UUnitsProductionDataAsset* NewUnit)
@@ -159,7 +168,11 @@ void AUnitProduction::OnProductionFinished()
 
         if (AUnitsMaster* SpawnedUnit = GetWorld()->SpawnActor<AUnitsMaster>(UnitSelected->UnitProduction.UnitClass, SpawnLocation, SpawnRotation, SpawnParams))
         {
-            OnUnitProduced.Broadcast(SpawnedUnit);
+        	if (!ProductionQueue.IsEmpty())
+        	{
+        		ProductionQueue.RemoveAt(0);
+        		Multicast_UpdateProductionQueue(ProductionQueue);
+        	}
 
         	SpawnedUnit->UnitInfo = UnitSelected;
         	
@@ -167,6 +180,9 @@ void AUnitProduction::OnProductionFinished()
             CommandData.Type = ECommandType::CommandMove;
                 
             ISelectable::Execute_CommandMove(SpawnedUnit, CommandData);
+
+        	OnUnitProduced.Broadcast(SpawnedUnit);
+        	Multicast_OnUnitProduced(SpawnedUnit);
         }
     }
 
@@ -174,13 +190,15 @@ void AUnitProduction::OnProductionFinished()
     ProductionProgress = 0.f;
 
     if (ProductionQueue.Num() > 0)
-        ProductionQueue.RemoveAt(0);
-
-    if (ProductionQueue.Num() > 0)
     {
         UnitSelected = ProductionQueue[0];
         GetWorld()->GetTimerManager().SetTimer(ProductionTimerHandle, this, &AUnitProduction::OnProductionFinished, UnitSelected->UnitProduction.ProductionTime, false);
     }
+}
+
+void AUnitProduction::Multicast_UpdateProductionQueue_Implementation(const TArray<UUnitsProductionDataAsset*>& NewQueue)
+{
+	ProductionQueue = NewQueue;
 }
 
 FCommandData AUnitProduction::GetDestination()
@@ -213,9 +231,39 @@ FCommandData AUnitProduction::GetDestination()
 	return CommandData;
 }
 
-float AUnitProduction::GetProductionProgress()
+float AUnitProduction::GetProductionProgress_Implementation()
 {
 	return ProductionProgress;
+}
+
+UUnitsProductionDataAsset* AUnitProduction::GetSelectedUnit()
+{
+	return UnitSelected;
+}
+
+TArray<UUnitsProductionDataAsset*> AUnitProduction::GetUnitsInQueueByClass_Implementation(TSubclassOf<AActor> FilterClass)
+{
+	TArray<UUnitsProductionDataAsset*> FilteredUnits;
+
+	if (!*FilterClass) return FilteredUnits;
+    
+	for (UUnitsProductionDataAsset* UnitData : ProductionQueue)
+	{
+		if (UnitData && UnitData->UnitProduction.UnitClass)
+		{
+			if (UnitData->UnitProduction.UnitClass->IsChildOf(FilterClass))
+			{
+				FilteredUnits.Add(UnitData);
+			}
+		}
+	}
+	
+	return FilteredUnits;
+}
+
+TArray<UUnitsProductionDataAsset*> AUnitProduction::GetProductionList_Implementation()
+{
+	return UnitsList;
 }
 
 

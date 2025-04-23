@@ -86,7 +86,7 @@ void UBuilderComponent::StartBuilding(AStructureBase* Build)
 	{
 		OwnerAIController->OnNewDestination.RemoveDynamic(this, &UBuilderComponent::StopBuild);
 	}
-
+	
 	MoveToBuild(Build);
 }
 
@@ -125,13 +125,14 @@ void UBuilderComponent::MoveToBuild(AStructureBase* Build)
 		
 		return;
 	}
-
+	
 	TargetBuild = Build;
 	FResourcesCost NeededResources;
 	FResourcesCost AvailableResources;
 	if (!CheckIfHaveResources(NeededResources, AvailableResources) && !bGoingToStorage && SavedConstruction != TargetBuild)
 	{
 		MoveToNearestStorage(NeededResources);
+		
 		return;
 	}
     
@@ -166,7 +167,7 @@ void UBuilderComponent::StartInteractWithBuild()
 	if (!TargetBuild || !GetOwner()->HasAuthority())
 		return;
 	
-	if (!ResourcesComp || TargetBuild->GetIsBuilt())
+	if (!ResourcesComp || (TargetBuild->GetIsBuilt() && !TargetBuild->GetIsInUpgrading()))
 		return;
 
 	if(TargetBuild->GetIsFullyResourced())

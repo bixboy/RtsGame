@@ -25,9 +25,9 @@ void URtsResourcesComponent::AddResources(FResourcesCost NewResources)
 {
 	if (!GetOwner()->HasAuthority()) return;
 	
-	FResourcesCost NewTotal = CurrentResources + NewResources;
-	CurrentResources = NewTotal.GetClamped(MaxResource);
+	CurrentResources = (CurrentResources + NewResources).GetClamped(MaxResource);
 
+	Multicast_UpdateResources(CurrentResources);
 	OnResourcesChanged.Broadcast(CurrentResources);
 
 	UE_LOG(LogTemp, Warning, TEXT("%s: New Current Resource : %d"), *GetOwner()->GetName(), CurrentResources.Woods);
@@ -38,9 +38,10 @@ void URtsResourcesComponent::RemoveResources(FResourcesCost ResourcesToRemove)
 {
 	if (!GetOwner()->HasAuthority()) return;
 
-	FResourcesCost ClampedResources = CurrentResources.GetClamped(ResourcesToRemove);
-	CurrentResources = CurrentResources - ClampedResources;
+	FResourcesCost Clamped = CurrentResources.GetClamped(ResourcesToRemove);
+	CurrentResources = CurrentResources - Clamped;
 
+	Multicast_UpdateResources(CurrentResources);
 	OnResourcesChanged.Broadcast(CurrentResources);
 
 	UE_LOG(LogTemp, Warning, TEXT("%s: New Current Resource : %d"), *GetOwner()->GetName(), CurrentResources.Woods);
@@ -101,5 +102,58 @@ FResourcesCost URtsResourcesComponent::GetMaxResource()
 void URtsResourcesComponent::OnRep_CurrentResources()
 {
 	OnResourcesChanged.Broadcast(CurrentResources);
+}
+
+void URtsResourcesComponent::Multicast_UpdateResources_Implementation(const FResourcesCost NewResources)
+{
+	CurrentResources = NewResources;
+	OnResourcesChanged.Broadcast(CurrentResources);
+}
+
+
+// -----
+void URtsResourcesComponent::AddResource(EResourceType Type, int32 Amount)
+{
+	if (!GetOwner()->HasAuthority() || Amount <= 0) return;
+
+	int32& Curr = CurrentResources.GetByType(Type);
+	int32  Max  = MaxResource.GetByType(Type);
+	Curr = FMath::Clamp(Curr + Amount, 0, Max);
+
+	Multicast_UpdateResources(CurrentResources);
+	OnResourcesChanged.Broadcast(CurrentResources);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s: +%d %s → now %d"),
+		*GetOwner()->GetName(),
+		Amount,
+		*UEnum::GetValueAsString(Type),
+		Curr);
+}
+
+void URtsResourcesComponent::RemoveResource(EResourceType Type, int32 Amount)
+{
+	if (!GetOwner()->HasAuthority() || Amount <= 0) return;
+	
+	int32& Curr = CurrentResources.GetByType(Type);
+	Curr = FMath::Clamp(Curr - Amount, 0, Curr);
+
+	Multicast_UpdateResources(CurrentResources);
+	OnResourcesChanged.Broadcast(CurrentResources);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s: -%d %s → now %d"),
+		*GetOwner()->GetName(),
+		Amount,
+		*UEnum::GetValueAsString(Type),
+		Curr);
+}
+
+int32 URtsResourcesComponent::GetResource(EResourceType Type)
+{
+	return CurrentResources.GetByType(Type);
+}
+
+int32 URtsResourcesComponent::GetMaxResource(EResourceType Type)
+{
+	return MaxResource.GetByType(Type);
 }
 

@@ -4,11 +4,13 @@
 #include "Data/DataRts.h"
 #include "RtsComponent.generated.h"
 
+class UPlayerHudWidget;
+class UUnitsProductionDataAsset;
 class USelectorWidget;
-class UPlayerResourceWidget;
 class AResourceDepot;
 class AResourceNode;
 class ARtsPlayerController;
+class UTopBarHudWidget;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuildUpdatedDelegate, FStructure, NewBuildData);
@@ -26,9 +28,6 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
-	void CreateRtsWidget();
-
-	UFUNCTION()
 	void AddUnitToProduction(UUnitsProductionDataAsset* UnitData);
 
 	UFUNCTION(Client, reliable)
@@ -44,7 +43,10 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void CommandSelected(FCommandData CommandData) override;
-	
+
+	UFUNCTION(Client, reliable)
+	void Client_CreateRtsWidget();
+
 	UFUNCTION(Server, Reliable)
 	void Server_CreatSpawnPoint();
 
@@ -88,6 +90,9 @@ public:
 	UFUNCTION()
 	TArray<AStructureBase*> GetBuilds();
 
+	template<typename T>
+	TArray<T*> GetBuildsOf() const;
+
 	UFUNCTION()
 	TArray<AResourceDepot*> GetDepots();
 
@@ -107,7 +112,7 @@ protected:
 	FStructure BuildToSpawn;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
-	TSubclassOf<AStructureBase> SpawningBuild;
+	TSubclassOf<AStructureBase> SpawningBuildClass;
 
 	UPROPERTY()
 	FVector SpawnPoint = FVector::ZeroVector;
@@ -120,16 +125,17 @@ protected:
 
 	// Widgets
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
-	TSubclassOf<UPlayerResourceWidget> ResourceWidgetClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
-	TSubclassOf<USelectorWidget> SelectorWidgetClass;
+	TSubclassOf<UPlayerHudWidget> HudWidgetClass;
 	
 	UPROPERTY()
 	TArray<AResourceNode*> AllResourceNodes;
 
+	// Widgets Ref
 	UPROPERTY()
-	UPlayerResourceWidget* ResourceWidget;
+	UPlayerHudWidget* PlayerHudWidget;
+
+	UPROPERTY()
+	UTopBarHudWidget* TopBarWidget;
 
 	UPROPERTY()
 	USelectorWidget* SelectorWidget;

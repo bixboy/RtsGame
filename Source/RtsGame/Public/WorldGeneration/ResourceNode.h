@@ -22,13 +22,10 @@ protected:
 	UFUNCTION()
 	void OnResourceUpdated(const FResourcesCost& NewResources);
 
-	UFUNCTION()
-	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
 public:
 	/*---- Variables ----*/
 	UFUNCTION()
-	FResourcesCost StartResourceCollect(int TakeNumber);
+	int StartResourceCollect(int TakeNumber);
 
 	UFUNCTION()
 	bool GetIsEmpty(EResourceType CheckResource = EResourceType::None);

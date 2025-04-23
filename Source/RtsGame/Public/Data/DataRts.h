@@ -3,6 +3,7 @@
 #include "Units/SoldierRts.h"
 #include "DataRts.generated.h"
 
+class UEntryWidget;
 class AStructureBase;
 class UStructureDataAsset;
 
@@ -28,6 +29,15 @@ enum class EFaction : uint8
 {
 	DwarfExplorer,
 	DwarfAggressive,
+	None
+};
+
+UENUM(BlueprintType)
+enum class EResourceType : uint8
+{
+	Wood UMETA(DisplayName = "Wood"),
+	Food UMETA(DisplayName = "Food"),
+	Metal UMETA(DisplayName = "Metal"),
 	None
 };
 
@@ -154,7 +164,20 @@ struct FResourcesCost
 	}
 
 #pragma endregion
-	
+
+
+	int32& GetByType(EResourceType Type)
+	{
+		switch (Type)
+		{
+			case EResourceType::Food:  return Food;
+			case EResourceType::Wood:  return Woods;
+			case EResourceType::Metal: return Metal;
+		}
+		
+		static int32 Dummy = 0;
+		return Dummy;
+	}
 };
 
 // ------- Builds Upgrade -------
@@ -170,7 +193,13 @@ struct FStructureUpgrade
 	FResourcesCost UpgradeCost;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	float UpgradeTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	UStructureDataAsset* NextStructure;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TArray<UStaticMesh*> UpgradeSteps;
 
 	bool operator==(const FStructureUpgrade& Other) const
 	{

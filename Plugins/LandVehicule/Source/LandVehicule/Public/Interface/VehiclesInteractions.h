@@ -30,8 +30,5 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void UpdateTurretRotation(FVector2D Rotation, FTurrets CameraToMove);
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	ACameraVehicle* GetCurrentCameraVehicle();
 	
 };

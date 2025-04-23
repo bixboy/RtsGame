@@ -4,8 +4,8 @@
 #include "UObject/Interface.h"
 #include "UnitTypeInterface.generated.h"
 
-
 class AResourceNode;
+
 
 UINTERFACE()
 class UUnitTypeInterface : public UInterface
@@ -30,5 +30,5 @@ public:
 	void MoveToResource(AResourceNode* Node);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	void StartCollect();
+	UUnitsProductionDataAsset* GetUnitData();
 };

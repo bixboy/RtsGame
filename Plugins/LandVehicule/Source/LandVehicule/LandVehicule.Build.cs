@@ -25,7 +25,7 @@ public class LandVehicule : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "Engine",
+				"Core", "Engine", "Niagara"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

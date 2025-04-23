@@ -29,22 +29,17 @@ void UResourceCollector::BeginPlay()
 
 #pragma endregion
 
+
 void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
 	if (!GetOwner()->HasAuthority()) return;
 
+	// ----- Move To Storage -----
 	if (DropOffBuilding && bMoveToStorage)
 	{
-		FBox BuildBox = DropOffBuilding->GetComponentsBoundingBox();
-		FVector Extent = BuildBox.GetExtent();
-		float BuildRadius = FMath::Max3(Extent.X, Extent.Y, Extent.Z);
-		float StopThreshold = BuildRadius + 50.f;
-
-		float DistanceToBuild = FVector::Dist(OwnerUnit->GetActorLocation(), DropOffBuilding->GetActorLocation());
-
-		if (DistanceToBuild <= StopThreshold)
+		if (HasReachedActor(DropOffBuilding, 50.f))
 		{
 			if (OwnerUnit->GetAiController())
 			{
@@ -58,13 +53,58 @@ void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType
 			DropOffBuilding = nullptr;
 			bMoveToStorage = false;
 
-			if (TargetResourceNode)
+			if (TargetResourceNode && !TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
 			{
 				StartMoveToResource(TargetResourceNode);
+			}
+			else
+			{
+				if (AResourceNode* Node = GetNearestResourceNode())
+				{
+					StartMoveToResource(Node);
+				}
+			}
+		}
+	}
+
+	// ----- Move To Node -----
+	if (TargetResourceNode && !bMoveToStorage)
+	{
+		if (!TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
+		{
+			if (HasReachedActor(TargetResourceNode, 50.f))
+			{
+				if (!bIsCollecting)
+				{
+					bIsCollecting = true;
+					StartCollectResource();
+				}
+			}
+			else
+			{
+				if (bIsCollecting)
+				{
+					bIsCollecting = false;
+				}
+			}	
+		}
+		else
+		{
+			if (AResourceNode* Node = GetNearestResourceNode())
+			{
+				StartMoveToResource(Node);
+			}
+			else
+			{
+				if (bIsCollecting)
+				{
+					bIsCollecting = false;
+				}
 			}
 		}
 	}
 }
+
 
 // ------------------ Movement ------------------
 void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
@@ -73,7 +113,7 @@ void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
 	
 	AResourceNode* TargetNode = ResourceNode;
 
-	if (!ResourceNode || ResourceNode->GetIsEmpty())
+	if (!ResourceNode || ResourceNode->GetIsEmpty(ResourceNode->GetResourceType()))
 	{
 		TargetNode = GetNearestResourceNode();
 		
@@ -90,6 +130,7 @@ void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
 		{
 			TargetResourceNode = TargetNode;
 			AiController->MoveToLocation(TargetNode->GetActorLocation());
+			
 			bIsCollecting = true;
 
 			if (!AiController->OnNewDestination.IsBound())
@@ -135,43 +176,89 @@ void UResourceCollector::MoveToNearestStorage()
 	}
 }
 
+bool UResourceCollector::HasReachedActor(AActor* TargetActor, float AdditionalRadius)
+{
+	if (!TargetActor || !OwnerUnit) return false;
+
+	FBox TargetBox = TargetActor->GetComponentsBoundingBox();
+	FVector Extent = TargetBox.GetExtent();
+	float ActorRadius = FMath::Max3(Extent.X, Extent.Y, Extent.Z);
+
+	float Threshold = ActorRadius + AdditionalRadius;
+
+	float Distance = FVector::Dist(OwnerUnit->GetActorLocation(), TargetActor->GetActorLocation());
+
+	return Distance <= Threshold;
+}
+
+
 // ------------------ Resource Node ------------------
 void UResourceCollector::StartCollectResource()
 {
 	if (!OwnerUnit->HasAuthority() || !TargetResourceNode) return;
+	
+	if (auto* AI = OwnerUnit->GetAiController())
+	{
+		AI->StopMovement();
+	}
 
-	if (OwnerUnit->GetAiController())
-		OwnerUnit->GetAiController()->StopMovement();
+	// 1) Si le stockage est plein → on stoppe et on dépose
+	const EResourceType RT = TargetResourceNode->GetResourceType();
+	if (OwnerResourcesComp->GetStorageIsFull(RT))
+	{
+		StopCollect(FCommandData());
+		MoveToNearestStorage();
+		return;
+	}
 
-	if (!TargetResourceNode->GetIsEmpty() && !OwnerResourcesComp->GetStorageIsFull(TargetResourceNode->GetResourceType()))
-    {
-        FResourcesCost CurrentStored = OwnerResourcesComp->GetResources();
-        FResourcesCost MaxStorage = OwnerResourcesComp->GetMaxResource();
-        FResourcesCost AvailableCapacity = (MaxStorage - CurrentStored).GetClamped(MaxStorage);
-		
-        FResourcesCost Desired(ResourceCollectNumber);
-        FResourcesCost ToCollect = Desired.GetClamped(AvailableCapacity);
-		
-        FResourcesCost CollectedCandidate = TargetResourceNode->StartResourceCollect(ResourceCollectNumber);
-        FResourcesCost Collected = CollectedCandidate.GetClamped(AvailableCapacity);
+	// 2) Si la node est vide → idem
+	if (TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
+	{
+		StopCollect(FCommandData());
+		MoveToNearestStorage();
+		return;
+	}
 
-        OwnerResourcesComp->AddResources(Collected);
-    }
-	else if (!OwnerResourcesComp->GetStorageIsFull(TargetResourceNode->GetResourceType()))
+	// 3) Capacité restante pour ce type
+	int32 CurrentAmt = OwnerResourcesComp->GetResource(RT);
+	int32 MaxAmt     = OwnerResourcesComp->GetMaxResource(RT);
+	int32 Available  = FMath::Max(0, MaxAmt - CurrentAmt);
+
+	if (Available <= 0)
+	{
+		StopCollect(FCommandData());
+		MoveToNearestStorage();
+		return;
+	}
+	
+	int32 ToCollect = FMath::Min(ResourceCollectNumber, Available);
+	
+	int32 Collected = TargetResourceNode->StartResourceCollect(ToCollect);
+	if (Collected <= 0 || TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
+	{
+		TargetResourceNode = nullptr;
+		StopCollect(FCommandData());
+		MoveToNearestStorage();
+		return;
+	}
+	
+	OwnerResourcesComp->AddResource(RT, Collected);
+	
+	if (!OwnerResourcesComp->GetStorageIsFull(RT) && !TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			CollectionTimerHandle,
+			this,
+			&UResourceCollector::StartCollectResource,
+			CollectionDelay,
+			false
+		);
+	}
+	else
 	{
 		StopCollect(FCommandData());
 		MoveToNearestStorage();
 	}
-
-    if (OwnerResourcesComp && !OwnerResourcesComp->GetStorageIsFull(TargetResourceNode->GetResourceType()))
-    {
-        GetWorld()->GetTimerManager().SetTimer(CollectionTimerHandle, this, &UResourceCollector::StartCollectResource, CollectionDelay, false);
-    }
-    else
-    {
-        StopCollect(FCommandData());
-        MoveToNearestStorage();
-    }
 }
 
 void UResourceCollector::StopCollect(const FCommandData CommandData)
@@ -182,30 +269,38 @@ void UResourceCollector::StopCollect(const FCommandData CommandData)
 	bIsCollecting = false;
 }
 
+
+
 AResourceNode* UResourceCollector::GetNearestResourceNode()
 {
-	if (!GetOwner()->HasAuthority() || !TargetResourceNode) return nullptr;
+	if (!GetOwner()->HasAuthority()) return nullptr;
 
 	ARtsPlayerController* PC = Cast<ARtsPlayerController>(OwnerUnit->OwnerPlayer);
 	if (!PC || !PC->RtsComponent)
 		return nullptr;
 	
 	AResourceNode* NearestNode = nullptr;
-	float NearestDistance = FLT_MAX;
-	
+	float NearestDistSq = FLT_MAX;
+
+	const FVector MyLoc = OwnerUnit->GetActorLocation();
+	const EResourceType WantedType = TargetResourceNode ? TargetResourceNode->GetResourceType() : EResourceType::None;
+
 	for (AResourceNode* Node : PC->RtsComponent->GetResourceNodes())
 	{
-		if (Node->GetResourceType() == TargetResourceNode->GetResourceType() && !Node->GetIsEmpty())
+		if (!Node || Node->GetResourceType() != WantedType)
+			continue;
+
+		if (Node->GetIsEmpty(TargetResourceNode->GetResourceType()))
+			continue;
+
+		float DistSq = FVector::DistSquared(MyLoc, Node->GetActorLocation());
+		if (DistSq < NearestDistSq)
 		{
-			float Distance = FVector::Dist(OwnerUnit->GetActorLocation(), Node->GetActorLocation());
-			if (Distance < NearestDistance)
-			{
-				NearestNode = Node;
-				NearestDistance = Distance;
-			}
+			NearestDistSq = DistSq;
+			NearestNode   = Node;
 		}
 	}
-	
+
 	return NearestNode;
 }
 

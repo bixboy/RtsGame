@@ -22,9 +22,6 @@ public:
 	UFUNCTION()
 	virtual void MoveToResource_Implementation(AResourceNode* Node) override;
 
-	UFUNCTION()
-	virtual void StartCollect_Implementation() override;
-
 	virtual void Select() override;
 	virtual void Deselect() override;
 

@@ -5,7 +5,10 @@
 #include "UnitProduction.generated.h"
 
 class UUnitsProductionDataAsset;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitProducedSignature, AActor*, NewUnit);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnProductionProgress, float, NewProgress, UUnitsProductionDataAsset*, UnitInProduct);
+
 
 UCLASS()
 class RTSGAME_API AUnitProduction : public AStructureBase, public IUnitProductionInterface
@@ -23,6 +26,14 @@ public:
 
 	virtual void AddUnitToProduction_Implementation(UUnitsProductionDataAsset* NewUnit);
 
+	virtual TArray<UUnitsProductionDataAsset*> GetUnitsProduction_Implementation();
+
+	virtual TArray<UUnitsProductionDataAsset*> GetUnitsInQueueByClass_Implementation(TSubclassOf<AActor> FilterClass);
+
+	virtual TArray<UUnitsProductionDataAsset*> GetProductionList_Implementation();
+
+	virtual float GetProductionProgress_Implementation() override;
+
 	// ---------- Functions ----------
 	
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Production")
@@ -38,10 +49,13 @@ public:
 	void StopUnitProduction();
 
 	UFUNCTION(BlueprintCallable, Category = "Production")
-	float GetProductionProgress();
+	UUnitsProductionDataAsset* GetSelectedUnit();
 
 	UPROPERTY(BlueprintAssignable, Category = "Production")
 	FOnUnitProducedSignature OnUnitProduced;
+
+	UPROPERTY(BlueprintAssignable, Category = "Production")
+	FOnProductionProgress OnProductionProgress;
 
 protected:
 
@@ -73,7 +87,7 @@ protected:
 	TArray<UUnitsProductionDataAsset*> ProductionQueue; 
 
 	/*-------- Prod Time --------*/
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "Production")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnProdProgress, Category = "Production")
 	float ProductionProgress = 0.f;
 
 	UPROPERTY()
@@ -89,6 +103,9 @@ protected:
 private:
 	FTimerHandle ProductionTimerHandle;
 
+	UFUNCTION()
+	void OnProdProgress();
+
 	UFUNCTION(Server, Reliable)
 	void Server_StartUnitProduction();
 	
@@ -100,6 +117,9 @@ private:
 
 	UFUNCTION()
 	void OnProductionFinished();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_UpdateProductionQueue(const TArray<UUnitsProductionDataAsset*>& NewQueue);
 
 	UFUNCTION()
 	FCommandData GetDestination();

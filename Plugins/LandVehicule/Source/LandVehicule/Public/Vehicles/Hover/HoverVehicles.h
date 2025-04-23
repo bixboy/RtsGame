@@ -3,6 +3,7 @@
 #include "Vehicles/VehicleMaster.h"
 #include "HoverVehicles.generated.h"
 
+class UNiagaraComponent;
 class UHoverPointComponent;
 
 
@@ -20,6 +21,8 @@ public:
 	
 	virtual void BeginPlay() override;
 
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 protected:
 	/*- Vehicle Variables -*/
 	UPROPERTY()
@@ -27,6 +30,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover")
 	float MaxSurfaceAngle = 50.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> BoostAction;
 
 	// Oscillation
 	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Oscillation")
@@ -37,36 +43,93 @@ protected:
 	float OscillationSmoothing = 10.0f;
 
 	// Move Force
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Speed")
 	float MoveForce = 2000.0f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Speed")
 	float ReversMoveForceFactor = 0.5f;
 
 	// Speed
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Speed")
 	float MaxForwardSpeed = 5000.f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Speed")
 	float MaxReverseSpeed = 200.f;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Speed")
 	float BreakForce = 1250.f;
 
+	// Boost
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
+	bool bBoostActive = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
+	float BoostForceMultiplier = 2.0f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
+	float BoostSpeedMultiplier = 1.5f;
+
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost|Camera")
+	float NormalFOV = 90.f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost|Camera")
+	float BoostFOV = 110.f;
+	
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost|Camera")
+	float FOVInterpSpeed_Deactivation = 3.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost|Camera")
+	float FOVInterpSpeed_Activation = 1.f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
+	float BoostDuration = 3.0f;
+
+	FTimerHandle TimerHandle_SpeedLineFade;
+	FTimerHandle TimerHandle_Boost;
+	FTimerHandle TimerHandle_FOV;
+
+	// VFX
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Hover|VFX")
+	UMaterial* SpeedLineMaterial;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* SpeedLineInstance;
+
+	UPROPERTY()
+	bool bSpeedLineFadingOut = false;
+	
+	UPROPERTY()
+	float SpeedLineFadeTime = 0.f;
+
+	// ---------------
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UNiagaraComponent* DustComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Settings|Hover|VFX")
+	float DustSpawnThreshold = 100.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Settings|Hover|VFX")
+	float DustRadius = 50.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Settings|Hover|VFX")
+	float DustSize = 100.f;
+
 	// Break Factor
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Break")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Break")
 	float BrakePitchMultiplier = 1.5f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Break")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Break")
 	float MaxBrakePitchForce = 5000.f;
 
 	// Rotation
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Turn")
 	float TurnForce = 150.0f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Turn")
 	float MaxTiltAngle = 30.f;
 
 	// Friction
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Speed")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Speed")
 	float FrictionFactor = 2.f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Hover Movement|Turn")
+	UPROPERTY(EditAnywhere, Category = "Settings|Hover|Movement|Turn")
 	float RotationFrictionFactor = 0.1f;
 
 	UPROPERTY()
@@ -81,20 +144,34 @@ protected:
 	/*- Function -*/
 	UFUNCTION()
 	void Hovering(float DeltaTime);
-	
+
+	UFUNCTION()
 	void HandleManualRotation(float DeltaTime);
 
 	UFUNCTION()
 	void Movement(float DeltaTime);
 
 	UFUNCTION()
+	void Input_OnBoost();
+	void UpdateSpeedLineFade();
+
+	UFUNCTION(Server, Reliable)
+	void Server_StartBoost();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Client_UpdateCameraFOV();
+
+	UFUNCTION()
+	void EndBoost();
+
+	UFUNCTION()
 	void Frictions();
 	
 	UFUNCTION()
-	float TraceGroundAtLocation(const UHoverPointComponent* HoverPointComp, FHitResult& HitResult);
+	float TraceGroundAtLocation(const UHoverPointComponent* HoverPointComp, FHitResult& HitResult, FLinearColor TraceColor = FLinearColor::Red);
 	float TraceGroundAtLocation(FHitResult& HitResult);
 	
-	// Replication
+	// Utilities
 	UFUNCTION()
 	void ApplyForce(const FVector Force);
 

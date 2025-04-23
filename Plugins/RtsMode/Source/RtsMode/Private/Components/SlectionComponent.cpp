@@ -19,7 +19,6 @@ void USelectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    // Réplication des données liées à la sélection, formation et espacements
     DOREPLIFETIME_CONDITION(USelectionComponent, SelectedActors, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(USelectionComponent, CurrentFormation, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(USelectionComponent, FormationSpacing, COND_OwnerOnly);

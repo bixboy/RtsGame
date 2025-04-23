@@ -36,7 +36,11 @@ public:
 	UCommandComponent* GetCommandComponent() const;
 
 protected:
+	UFUNCTION()
 	virtual void OnConstruction(const FTransform& Transform) override;
+
+	UFUNCTION()
+	virtual void BeginDestroy() override;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UCommandComponent> CommandComp;
@@ -70,7 +74,7 @@ public:
 	virtual void Highlight(const bool Highlight) override;
 	
 	UFUNCTION()
-	bool GetIsSelected() const;
+	virtual bool GetIsSelected_Implementation() override;
 
 	UPROPERTY()
 	FSelectedDelegate OnSelected;
@@ -99,51 +103,64 @@ public:
 public:
 	/*- Interface -*/
 	virtual void TakeDamage_Implementation(AActor* DamageOwner) override;
+	
 	virtual bool GetIsInAttack_Implementation() override;
 	
 	/*- Getter -*/
+	UFUNCTION()
 	float GetAttackRange() const;
+
+	UFUNCTION()
 	float GetAttackCooldown() const;
+
+	UFUNCTION()
 	ECombatBehavior GetCombatBehavior() const;
 	
 protected:
+	
 	/*- Function -*/
 	UFUNCTION()
 	void OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
 	UFUNCTION()
 	void OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 	UFUNCTION()
 	virtual void SetBehavior_Implementation(const ECombatBehavior NewBehavior) override;
+
 	UFUNCTION()
 	virtual ECombatBehavior GetBehavior_Implementation() override;
+
+	UFUNCTION()
+	virtual void OnStartAttack(AActor* Target);
+
+	UFUNCTION()
+	void UpdateActorsInArea();
+
+	UFUNCTION()
+	void OnRep_CombatBehavior();
 	
 	/*- Variables -*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<USphereComponent> AreaAttack;
-
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Attack", ReplicatedUsing = OnRep_CombatBehavior)
 	ECombatBehavior CombatBehavior = ECombatBehavior::Passive;
+
 	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
 	float AttackCooldown = 1.5f;
+
 	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
 	float AttackRange = 200.f;
 	
 	UPROPERTY()
 	TArray<AActor*> ActorsInRange;
-	UFUNCTION()
-	void UpdateActorsInArea();
 
 	UPROPERTY()
 	TArray<AActor*> AllyInRange;
 
-	virtual void BeginDestroy() override;
-
 	UPROPERTY()
 	FBehaviorUpdatedDelegate OnBehaviorUpdate;
-	
-	UFUNCTION()
-	void OnRep_CombatBehavior();
 
 #pragma endregion
 

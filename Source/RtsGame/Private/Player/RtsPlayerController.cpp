@@ -15,7 +15,7 @@ void ARtsPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	if (ResourcesComponent)
+	if (ResourcesComponent && HasAuthority())
 	{
 		ResourcesComponent->OnResourcesChanged.RemoveDynamic(this, &ARtsPlayerController::OnNewResources);
 		ResourcesComponent->OnResourcesChanged.AddDynamic(this, &ARtsPlayerController::OnNewResources);

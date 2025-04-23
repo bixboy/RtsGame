@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "AIController.h"
 #include "Data/AiData.h"
@@ -8,8 +7,10 @@
 class ASoldierRts;
 struct FCommandData;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FReachedDestinationDelegate, const FCommandData, CommandData);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNewDestinationDelegate, const FCommandData, CommandData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FReachedDestination, const FCommandData, CommandData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNewDestination, const FCommandData, CommandData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStartAttack, AActor*, Target);
+
 
 UCLASS()
 class RTSMODE_API AAiControllerRts : public AAIController
@@ -17,91 +18,88 @@ class RTSMODE_API AAiControllerRts : public AAIController
 	GENERATED_BODY()
 
 public:
-	AAiControllerRts(const FObjectInitializer& ObjectInitializer);
+	AAiControllerRts();
 	virtual void Tick(float DeltaSeconds) override;
-
-	UFUNCTION()
-	bool ShouldAttack(float DistanceToTarget) const;
-	
-	UFUNCTION()
-	bool ShouldMove(float DistanceToTarget) const;
-	
-	UFUNCTION()
-	float CalculateMoveRange(float DistanceToTarget) const;
-
-	UFUNCTION()
-	void CommandMove(const FCommandData& CommandData, bool Attack = false);
-
-	UFUNCTION()
-	void CommandPatrol(const FCommandData& CommandData);
-
-	UPROPERTY()
-	FReachedDestinationDelegate OnReachedDestination;
-
-	UPROPERTY()
-	FOnNewDestinationDelegate OnNewDestination;
-
-	UFUNCTION()
-	void SetupVariables();
-
-
-protected:
 	virtual void OnPossess(APawn* InPawn) override;
-
-	UPROPERTY()
-	ASoldierRts* OwnerSoldier;
-
-	UPROPERTY()
-	FCommandData CurrentCommand;
-
-	// Movement control flags
-	UPROPERTY()
-	bool MoveComplete = false;
-	UPROPERTY()
-	bool InPatrol = false;
-
+	
 	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
 
-// Attack logic
-#pragma region Attack
-protected:
-	UPROPERTY()
-	FTimerHandle AttackTimerHandle;
+	UFUNCTION(BlueprintCallable, Category="AI")
+	void CommandMove(const FCommandData Cmd, bool bAttack = false);
 
-	UPROPERTY()
-	ECombatBehavior CombatBehavior = ECombatBehavior::Neutral;
-	
-	UPROPERTY()
-	bool bCanAttack = true;
-	UPROPERTY()
-	bool HaveTargetAttack = false;
+	UFUNCTION(BlueprintCallable, Category="AI")
+	void CommandPatrol(const FCommandData Cmd);
 
-	// Weapon attack settings
-	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
-	float AttackCooldown = 1.5f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
-	float AttackRange = 200.f;
-	UPROPERTY(EditAnywhere, Category = "Settings|Weapon Values")
-	float WeaponRange = 400.f;
-
-	// Attack related functions
-	UFUNCTION()
-	void AttackTarget();
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category="AI")
 	void ResetAttack();
 
-public:
-	// Getters and setters for attack state
-	bool GetHaveTarget() const;
-	UFUNCTION(BlueprintCallable)
-	void SetHaveTarget(bool value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category="AI")
 	void StopAttack();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	ECombatBehavior GetCombatBehavior() const;
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	FCommandData GetCurrentCommand();
+	// Delegates
+	UPROPERTY(BlueprintAssignable, Category="AI")
+	FOnNewDestination OnNewDestination;
 
-#pragma endregion	
+	UPROPERTY(BlueprintAssignable, Category="AI")
+	FReachedDestination OnReachedDestination;
+
+	UPROPERTY(BlueprintAssignable, Category="AI")
+	FOnStartAttack OnStartAttack;
+
+	/** Accessors */
+	UFUNCTION(BlueprintPure, Category="AI")
+	FCommandData GetCurrentCommand() const { return CurrentCommand; }
+	
+	UFUNCTION(BlueprintPure, Category="AI")
+	bool IsMoveComplete() const { return bMoveComplete; }
+
+	// Attack
+	UFUNCTION(BlueprintPure, Category="AI")
+	bool HasAttackTarget() const { return bAttackTarget; }
+
+	UFUNCTION(BlueprintPure, Category="AI")
+	bool CanAttack() const { return bCanAttack; }
+
+	UFUNCTION(BlueprintCallable, Category="AI")
+	void SetAttackTarget(bool bAttack) { bAttackTarget = bAttack; }
+
+	UFUNCTION(BlueprintCallable, Category="AI")
+	ECombatBehavior GetCombatBehavior() const { return CombatBehavior; }
+
+	UFUNCTION(BlueprintCallable, Category="AI")
+	void SetupVariables();
+
+protected:
+	/** AI settings */
+	UPROPERTY(EditAnywhere, Category="AI")
+	float MeleeApproachFactor = 0.3f;
+
+	UPROPERTY(EditAnywhere, Category="AI")
+	float RangedStopDistance = 200.f;
+
+	UPROPERTY(EditAnywhere, Category="AI")
+	float AttackCooldown = 1.f;
+
+private:
+	// Variables
+	UPROPERTY() ASoldierRts*       Soldier = nullptr;
+	UPROPERTY() FCommandData       CurrentCommand;
+	
+	UPROPERTY() bool               bMoveComplete = true;
+	UPROPERTY() bool               bPatrolling = false;
+	
+	UPROPERTY() bool               bAttackTarget = false;
+	UPROPERTY() bool               bCanAttack = true;
+	UPROPERTY() FTimerHandle       AttackTimer;
+	UPROPERTY() ECombatBehavior    CombatBehavior;
+	
+	// Functions
+	UFUNCTION() float GetAcceptanceRadius() const;
+	UFUNCTION() bool  ShouldApproach() const;
+
+	UFUNCTION() float GetDistanceToTarget() const;
+	UFUNCTION() bool  ShouldAttack() const;
+	UFUNCTION() void  PerformAttack();
+	
+	UFUNCTION() void  StartPatrol();
 };

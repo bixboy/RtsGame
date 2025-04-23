@@ -4,9 +4,11 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "VehiclesAnimInstance.h"
+#include "Components/AudioComponent.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
 #include "Vehicles/VehiclePlayerMesh.h"
+
 
 // ------------------- Setup -------------------
 #pragma region Setup
@@ -32,6 +34,20 @@ AVehicleMaster::AVehicleMaster()
     MainCamera->bUsePawnControlRotation = true;
 
     bReplicates = true;
+
+    // Audio Setup
+    USceneComponent* AudioFill = CreateDefaultSubobject<USceneComponent>(TEXT("AudioFill"));
+    AudioFill->SetupAttachment(BaseVehicle);
+
+    StartEngineAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("StartEngineAudio"));
+    StartEngineAudio->SetupAttachment(AudioFill);
+    
+    EngineAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("EngineAudio"));
+    EngineAudio->SetupAttachment(AudioFill);
+
+    MovementAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("MovementAudio"));
+    MovementAudio->SetupAttachment(AudioFill);
+    
 }
 
 void AVehicleMaster::BeginPlay()
@@ -65,6 +81,8 @@ void AVehicleMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
         EnhancedInput->BindAction(ChangePlaceAction, ETriggerEvent::Started, this, &AVehicleMaster::Input_OnChangePlace);
         
         EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AVehicleMaster::Input_OnUpdateCameraRotation);
+
+        EnhancedInput->BindAction(SwitchEngine, ETriggerEvent::Started, this, &AVehicleMaster::Input_SwitchEngine);
     }
 }
 
@@ -121,7 +139,7 @@ void AVehicleMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
     
     DOREPLIFETIME(AVehicleMaster, CurrentDriver);
     DOREPLIFETIME(AVehicleMaster, VehicleRoles);
-    DOREPLIFETIME(AVehicleMaster, EngineOn);
+    DOREPLIFETIME(AVehicleMaster, bEngineOn);
     DOREPLIFETIME(AVehicleMaster, ForwardInput);
     DOREPLIFETIME(AVehicleMaster, TurnInput);
 }
@@ -146,9 +164,36 @@ void AVehicleMaster::Tick(float DeltaSeconds)
         FRotator NewRotation = FMath::RInterpTo(SpringArm->GetComponentRotation(), TargetSpringArmRotation, DeltaSeconds, 8.f);
         SpringArm->SetWorldRotation(NewRotation);
     }
+
+    // Sounds
+    if (bEngineOn && HasAuthority())
+    {
+        // === Movement ===
+        if (ForwardInput > 0.1f)
+        {
+            Multicast_StopSound(EngineAudio);
+            
+            if (!GetSoundIsPlaying(SoundDriveLoop, MovementAudio))
+            {
+                Multicast_PlaySound(SoundDriveLoop, MovementAudio);
+            }
+        }
+
+        // === Idle ===
+        else if (ForwardInput == 0.f)
+        {
+            Multicast_StopSound(MovementAudio);
+
+            if (!GetSoundIsPlaying(SoundIdleLoop, EngineAudio))
+            {
+                Multicast_PlaySound(SoundIdleLoop, EngineAudio);
+            }
+        }
+    }
 }
 
 #pragma endregion
+
 
 // ------------------- Possess -------------------
 #pragma region Possess
@@ -168,27 +213,35 @@ void AVehicleMaster::PossessedBy(AController* NewController)
 
 #pragma endregion
 
+
 // ------------------- Interaction -------------------
 #pragma region Interfaces
 
+// Interaction
+void AVehicleMaster::Input_OnInteract()
+{
+    if (ACustomPlayerController* PC = Cast<ACustomPlayerController>(GetController()))
+    {
+        PC->Server_OutOfVehicle(this);
+    }
+}
+
 bool AVehicleMaster::Interact_Implementation(ACustomPlayerController* PlayerController)
 {
-    if (!HasAuthority()) return false;
-    
     IVehiclesInteractions::Interact_Implementation(PlayerController);
     
+    if (!HasAuthority()) return false;
+    
     APawn* Player = PlayerController->GetPawn();
-    if (PlacesNumber == CurrentPlace || GetRoleByPlayer(Player) == EVehiclePlaceType()) return false;
+    if (PlacesNumber == CurrentPlace || GetRoleByPlayer(Player) == EVehiclePlaceType())
+        return false;
 
-    /*------- Driver Place -------*/
-    if (!GetPlayerForRole(EVehiclePlaceType::Driver))
+    
+    // --------- Cas 1 : Affectation de la place conducteur (Driver Place) ---------
+    if (!GetPlayerByRole(EVehiclePlaceType::Driver))
     {
         CurrentDriver = Player;
         AssignRole(Player, EVehiclePlaceType::Driver);
-        
-        PlayerController->Possess(this);
-        PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.f, false);
-        CurrentPlace++;
 
         if (!VehiclePlayersMesh.IsEmpty())
         {
@@ -196,12 +249,20 @@ bool AVehicleMaster::Interact_Implementation(ACustomPlayerController* PlayerCont
             {
                 if (VehiclePlayerMesh->PlaceNumber == 1)
                 {
-                    VehiclePlayerMesh->SetupPlayerMesh(NewMesh);
+                    ACharacter* PlayerCharacter = PlayerController->GetCharacter();
+                    VehiclePlayerMesh->SetupPlayerMesh(PlayerCharacter->GetMesh()->GetSkeletalMeshAsset());
+                    
                     PlayersMeshAssigned.Add(PlayerController, VehiclePlayerMesh);
+                    
                     break;
                 }
             }
         }
+        
+        PlayerController->GetCharacter()->SetActorHiddenInGame(true);
+        PlayerController->Possess(this);
+        PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.f, false);
+        CurrentPlace++;
         
         return true;
     }
@@ -209,12 +270,13 @@ bool AVehicleMaster::Interact_Implementation(ACustomPlayerController* PlayerCont
     if (!bHaveTurret)
         return false;
 
-    /*------- Gunner Place -------*/
+    // --------- Cas 2 : Affectation de la place tireur (Gunner Place) ---------
     {
         AssignRole(Player, EVehiclePlaceType::Gunner);
         SwitchToNextCamera(PlayerController);
         
         PlayerController->Client_AddMappingContext(NewMappingContext);
+        PlayerController->GetCharacter()->SetActorHiddenInGame(true);
     
         CurrentPlace++;
         ShowPlayerMesh(PlayerController);
@@ -225,60 +287,76 @@ bool AVehicleMaster::Interact_Implementation(ACustomPlayerController* PlayerCont
 
 void AVehicleMaster::OutOfVehicle_Implementation(ACustomPlayerController* PlayerController)
 {
-    IVehiclesInteractions::OutOfVehicle_Implementation(PlayerController);
-    
-    APawn* Player = PlayerController->GetPawn();
-    if (!Player)
+ IVehiclesInteractions::OutOfVehicle_Implementation(PlayerController);
+
+    APawn* PlayerPawn = PlayerController->GetPawn();
+    if (!PlayerPawn)
+    {
         return;
+    }
     
-    if (this == Player)
+    FVector ExitLocation = FindClosestExitLocation(PlayerController);
+
+    // ===== Cas 1 : Le véhicule (this) est le Pawn possédé par le joueur =====
+    if (this == PlayerPawn)
     {
         if (CurrentDriver)
         {
-            CurrentDriver->SetActorTransform(Player->GetActorTransform());
-            
             PlayerController->Possess(CurrentDriver);
             PlayerController->Client_RemoveMappingContext(NewMappingContext);
-            
+
+            if (PlayerController->GetCharacter())
+            {
+                PlayerController->GetCharacter()->SetActorLocation(ExitLocation);
+                PlayerController->GetCharacter()->SetActorHiddenInGame(false);
+            }
+
             ReleaseRole(CurrentDriver);
-            
             CurrentDriver = nullptr;
             CurrentPlace--;
 
             HidePlayerMesh(PlayerController, 1);
         }
     }
+    // ===== Cas 2 : Le véhicule n'est pas le Pawn possédé directement =====
     else
     {
         ACameraVehicle* Camera = AssignedCameras.FindRef(PlayerController);
-        if (!Camera) return;
-        
-        PlayerController->SetViewTargetWithBlend(Player, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.f, false);
+        if (!Camera)
+        {
+            return;
+        }
+
+        if (PlayerController->GetCharacter())
+        {
+            PlayerController->GetCharacter()->SetActorLocation(ExitLocation);
+            PlayerController->GetCharacter()->SetActorHiddenInGame(false);
+        }
+
+        PlayerController->SetViewTargetWithBlend(PlayerPawn, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.f, false);
         PlayerController->Client_RemoveMappingContext(NewMappingContext);
 
         AssignedCameras.Remove(PlayerController);
         Camera->SetIsUsed(false);
         Camera->SetController(nullptr);
-        
-        ReleaseRole(Player);
+
+        ReleaseRole(PlayerPawn);
         CurrentPlace--;
 
         HidePlayerMesh(PlayerController);
     }
 }
 
-void AVehicleMaster::Input_OnInteract()
-{
-    if (ACustomPlayerController* PC = Cast<ACustomPlayerController>(GetController()))
-        PC->Server_OutOfVehicle(this);
-}
 
+// Change Place
 void AVehicleMaster::Input_OnChangePlace()
 {
-    if (!bHaveTurret)
-        return;
+    if (!bHaveTurret) return;
+    
     if (ACustomPlayerController* PC = Cast<ACustomPlayerController>(GetController()))
+    {
         PC->Server_ChangeCamera(this);
+    }
 }
 
 ACameraVehicle* AVehicleMaster::ChangePlace_Implementation(ACustomPlayerController* Player)
@@ -288,12 +366,8 @@ ACameraVehicle* AVehicleMaster::ChangePlace_Implementation(ACustomPlayerControll
     return SwitchToNextCamera(Player);
 }
 
-ACameraVehicle* AVehicleMaster::GetCurrentCameraVehicle_Implementation()
-{
-    return CurrentCamera;
-}
-
 #pragma endregion
+
 
 // ------------------- Roles Management -------------------
 #pragma region Roles Management
@@ -321,7 +395,7 @@ void AVehicleMaster::ReleaseRole(APawn* Player)
     VehicleRoles.Remove(RoleToRemove);
 }
 
-APawn* AVehicleMaster::GetPlayerForRole(EVehiclePlaceType RoleName) const
+APawn* AVehicleMaster::GetPlayerByRole(EVehiclePlaceType RoleName) const
 {
     for (const FVehicleRole& TempRole : VehicleRoles)
     {
@@ -342,6 +416,7 @@ EVehiclePlaceType AVehicleMaster::GetRoleByPlayer(const APawn* Player) const
 }
 
 #pragma endregion
+
 
 // ------------------- Camera Management -------------------
 #pragma region Cameras
@@ -382,9 +457,13 @@ void AVehicleMaster::SwitchToCamera(APlayerController* PlayerController, ACamera
     
     NewCamera->Turret.CameraVehicle->SetIsUsed(true);
     NewCamera->Turret.CameraVehicle->SetController(PlayerController);
-    
-    Client_SwitchToCamera(NewCamera);
     AssignedCameras.FindOrAdd(PlayerController, NewCamera);
+
+    int Index = Turrets.Find(NewCamera) + 1;
+    if (Index != 1)
+    {
+        ShowPlayerMesh(PlayerController, Index);
+    }
     
     if (PlayerController->GetPawn() == CurrentDriver)
     {
@@ -403,14 +482,6 @@ void AVehicleMaster::Server_SwitchToCamera_Implementation(APlayerController* Pla
 {
     SwitchToCamera(PlayerController, NewCamera);
 }
-
-void AVehicleMaster::Client_SwitchToCamera_Implementation(ACameraVehicle* NewCamera)
-{
-    if (!NewCamera) return;
-
-    CurrentCamera = NewCamera;
-}
-
 
 // -------- Next Camera --------
 ACameraVehicle* AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerController)
@@ -451,6 +522,7 @@ ACameraVehicle* AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerCont
             if (NextAvailableCamera)
             {
                 SwitchToCamera(PlayerController, NextAvailableCamera);
+                
                 return NextAvailableCamera;
             }
     
@@ -465,6 +537,7 @@ ACameraVehicle* AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerCont
         if (Turret && !Turret->GetIsUsed())
         {
             SwitchToCamera(PlayerController, Turret);
+            
             return Turret;
         }
     }
@@ -479,6 +552,9 @@ void AVehicleMaster::SwitchToMainCam(APlayerController* PlayerController)
     {
         CurrentDriver = PlayerController->GetCharacter();
         AssignRole(PlayerController->GetCharacter(), EVehiclePlaceType::Driver);
+        
+        ShowPlayerMesh(PlayerController, 1);
+        
         PlayerController->Possess(this);
         PlayerController->SetViewTargetWithBlend(this, 0.1f, EViewTargetBlendFunction::VTBlend_Cubic, 0.f, false);
     }
@@ -513,22 +589,58 @@ ACameraVehicle* AVehicleMaster::GetAvailableCamera(int startIndex)
 #pragma endregion
 
 
+// ------------------- Player Mesh -------------------
 #pragma region Player Mesh
 
-void AVehicleMaster::ShowPlayerMesh(APlayerController* PlayerController)
+int AVehicleMaster::ShowPlayerMesh(APlayerController* PlayerController, int PlaceNum)
 {
-    if (!VehiclePlayersMesh.IsEmpty())
+     int32 AssignedIndex = -1;
+
+    if (PlayersMeshAssigned.Contains(PlayerController))
     {
-        for (UVehiclePlayerMesh* VehiclePlayerMesh : VehiclePlayersMesh)
+        UVehiclePlayerMesh* PreviouslyAssigned = PlayersMeshAssigned[PlayerController];
+        int32 PrevIndex = PreviouslyAssigned->PlaceNumber;
+
+        HidePlayerMesh(PlayerController, PrevIndex);
+    }
+
+    if (PlaceNum == -1)
+    {
+        for (int32 Index = 0; Index < VehiclePlayersMesh.Num(); Index++)
         {
-            if (VehiclePlayerMesh->PlaceNumber != 1 && !VehiclePlayerMesh->bIsUsed)
+            UVehiclePlayerMesh* VehiclePlayerMesh = VehiclePlayersMesh[Index];
+            if (VehiclePlayerMesh && VehiclePlayerMesh->PlaceNumber != 1 && !VehiclePlayerMesh->bIsUsed)
             {
-                VehiclePlayerMesh->SetupPlayerMesh(NewMesh);
+                VehiclePlayerMesh->SetupPlayerMesh(PlayerController->GetCharacter()->GetMesh()->GetSkeletalMeshAsset());
+                VehiclePlayerMesh->bIsUsed = true;
+                
                 PlayersMeshAssigned.Add(PlayerController, VehiclePlayerMesh);
-                break;
+                
+                AssignedIndex = Index;
+                return AssignedIndex;
             }
         }
     }
+    else if (PlaceNum >= 0)
+    {
+        for (int32 Index = 0; Index < VehiclePlayersMesh.Num(); Index++)
+        {
+            UVehiclePlayerMesh* VehiclePlayerMesh = VehiclePlayersMesh[Index];
+            if (VehiclePlayerMesh && VehiclePlayerMesh->PlaceNumber == PlaceNum && !VehiclePlayerMesh->bIsUsed)
+            {
+                VehiclePlayerMesh->SetupPlayerMesh(PlayerController->GetCharacter()->GetMesh()->GetSkeletalMeshAsset());
+                VehiclePlayerMesh->bIsUsed = true;
+                
+                PlayersMeshAssigned.Add(PlayerController, VehiclePlayerMesh);
+                
+                AssignedIndex = Index;
+                return AssignedIndex;
+            }
+        }
+        UE_LOG(LogTemp, Warning, TEXT("ShowPlayerMesh : Aucun slot libre trouvé pour la place %d."), PlaceNum);
+    }
+
+    return AssignedIndex;
 }
 
 void AVehicleMaster::HidePlayerMesh(APlayerController* PlayerController, int MeshNumber)
@@ -560,15 +672,130 @@ void AVehicleMaster::HidePlayerMesh(APlayerController* PlayerController, int Mes
     }
 }
 
+UVehiclePlayerMesh* AVehicleMaster::GetPlayerMesh(APlayerController* PlayerController)
+{
+    if (PlayersMeshAssigned.IsEmpty()) return nullptr;
+
+    return PlayersMeshAssigned[PlayerController];
+}
+
+FVector AVehicleMaster::FindClosestExitLocation(APlayerController* PlayerController)
+{
+   UVehiclePlayerMesh* PlayerMesh = GetPlayerMesh(PlayerController);
+    if (!PlayerMesh)
+    {
+        return GetActorLocation();
+    }
+    
+    FVector BaseLocation = PlayerMesh->GetComponentLocation();
+    UWorld* World = GetWorld();
+    
+    const float MinOffset = 50.f;       // Distance minimale à tester
+    const float MaxOffset = 300.f;      // Distance maximale à tester
+    const float StepSize = 25.f;        // Incrément de distance entre chaque test
+    const float SphereRadius = 20.f;    // Rayon du trace sphérique
+
+    float BestDistance = FLT_MAX;
+    FVector BestLocation = BaseLocation;
+    FVector BestDir = FVector::ZeroVector;
+
+    TArray<FVector> Directions;
+    Directions.Add(GetActorForwardVector());
+    Directions.Add(-GetActorForwardVector());
+    Directions.Add(GetActorRightVector());
+    Directions.Add(-GetActorRightVector());
+    Directions.Add((GetActorForwardVector() + GetActorRightVector()).GetSafeNormal());
+    Directions.Add((GetActorForwardVector() - GetActorRightVector()).GetSafeNormal());
+    Directions.Add((-GetActorForwardVector() + GetActorRightVector()).GetSafeNormal());
+    Directions.Add((-GetActorForwardVector() - GetActorRightVector()).GetSafeNormal());
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredComponent(PlayerMesh);
+
+    for (const FVector& Dir : Directions)
+    {
+        for (float Offset = MinOffset; Offset <= MaxOffset; Offset += StepSize)
+        {
+            FVector CandidateLocation = BaseLocation + Dir * Offset;
+            
+            FHitResult HitResult;
+            bool bHit = World->SweepSingleByChannel(
+                HitResult,
+                CandidateLocation,
+                CandidateLocation,
+                FQuat::Identity,
+                ECC_WorldStatic,
+                FCollisionShape::MakeSphere(SphereRadius),
+                QueryParams
+            );
+            
+            // Affichage debug
+            DrawDebugLine(World, BaseLocation, CandidateLocation, bHit ? FColor::Red : FColor::Green, false, 2.f, 0, 2.f);
+            DrawDebugSphere(World, bHit ? HitResult.Location : CandidateLocation, SphereRadius, 12, bHit ? FColor::Red : FColor::Green, false, 2.f);
+            
+            if (!bHit)
+            {
+                if (Offset < BestDistance)
+                {
+                    BestDistance = Offset;
+                    BestLocation = CandidateLocation;
+                    BestDir = Dir;
+                }
+                break;
+            }
+        }
+    }
+    
+    if (!BestDir.IsNearlyZero())
+    {
+        BestLocation += BestDir * OutOfVehicleOffset;
+    }
+    
+    return BestLocation;
+}
+
 #pragma endregion
+
 
 // ------------------- Vehicle Controls -------------------
 #pragma region Vehicle Control
 
-void AVehicleMaster::TurnEngineOn(bool OnOff)
+void AVehicleMaster::Input_SwitchEngine()
 {
-    EngineOn = OnOff;
-    PlaySound(SoundEngineOn);
+    Server_SwitchEngine(!bEngineOn);
+}
+
+void AVehicleMaster::Server_SwitchEngine_Implementation(bool OnOff)
+{
+    if (HasAuthority())
+    {
+        if (OnOff)
+        {
+            Multicast_PlaySound(SoundEngineOn, StartEngineAudio);
+        }
+        else
+        {
+            Multicast_StopSound(MovementAudio);
+            Multicast_StopSound(EngineAudio);
+            
+            Multicast_PlaySound(SoundEngineOff, StartEngineAudio);
+            bEngineOn = OnOff;
+            
+            return;
+        }
+        
+        FTimerDelegate TimerDelegate;
+        TimerDelegate.BindLambda([this, OnOff]()
+        {
+            bEngineOn = OnOff;
+            
+            if (bEngineOn)
+                Multicast_PlaySound(SoundIdleLoop, EngineAudio);
+        });
+        
+        FTimerHandle DelayTimerHandle;
+        GetWorld()->GetTimerManager().SetTimer(DelayTimerHandle, TimerDelegate, 0.5f, false); 
+    }
 }
 
 void AVehicleMaster::Input_OnMove(const FInputActionValue& InputActionValue)
@@ -596,6 +823,36 @@ float AVehicleMaster::GetTurnInput() const
 }
 
 #pragma endregion
+
+
+// ------------------- Sounds -------------------
+#pragma region Sounds
+
+void AVehicleMaster::Multicast_PlaySound_Implementation(USoundBase* Sound, UAudioComponent* AudioComp)
+{
+    if (!Sound || !AudioComp) return;
+    
+    AudioComp->Stop();
+    AudioComp->SetSound(Sound);
+    AudioComp->Play();
+}
+
+void AVehicleMaster::Multicast_StopSound_Implementation(UAudioComponent* AudioComp)
+{
+    if (!AudioComp) return;
+
+    AudioComp->Stop();
+}
+
+bool AVehicleMaster::GetSoundIsPlaying(USoundBase* Sound, UAudioComponent* AudioComp)
+{
+    if (!Sound || !AudioComp) return false;
+
+    return AudioComp->GetSound() == Sound && AudioComp->IsPlaying();
+}
+
+#pragma endregion
+
 
 // ------------------- Turret Controls -------------------
 #pragma region Turret Control

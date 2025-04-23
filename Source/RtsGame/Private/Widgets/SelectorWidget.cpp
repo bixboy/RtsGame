@@ -1,100 +1,94 @@
 ﻿#include "Widgets/SelectorWidget.h"
-
-#include "Components/Border.h"
+#include "Components/HorizontalBox.h"
 #include "Components/Image.h"
-#include "Components/WrapBox.h"
-#include "Data/StructureDataAsset.h"
-#include "Data/UnitsProductionDataAsset.h"
-#include "Widgets/BuildsEntry.h"
-#include "Widgets/SelectionEntryWidget.h"
-#include "Widgets/UnitEntryWidget.h"
+#include "Widgets/SelectorWrapBox.h"
+#include "Widgets/ToolTipWidget.h"
 
 
 void USelectorWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
+
+
+	if (UToolTipWidget* ToolTip = CreateWidget<UToolTipWidget>(this, ToolTipClass))
+	{
+		ToolTip->HideToolTip();
+		ToolTip->AddToViewport(9999);
+		
+		ToolTipInfo = ToolTip;
+	}
+	
+	bIsOpen = true;
+	ClearSelectionWidget();
 }
 
-void USelectorWidget::SwitchToBuild(TArray<UStructureDataAsset*> BuildsDataAssets)
+void USelectorWidget::ShowUnitEntries(TArray<AActor*> BuildsDataAssets)
 {
 	if (!WrapBox || BuildsDataAssets.IsEmpty()) return;
-
-	ListBorder->SetVisibility(ESlateVisibility::Visible);
-	SelectionBorder->SetVisibility(ESlateVisibility::Visible);
-
-	WrapBox->ClearChildren();
-	UnitEntryList.Empty();
 	
-	for (UStructureDataAsset* Data : BuildsDataAssets)
-	{
-		if (Data)
-		{
-			if (UBuildsEntry* UnitWidget = CreateWidget<UBuildsEntry>(GetWorld(), BuildsEntryClass))
-			{
-				UnitWidget->InitEntry(Data);
-				
-				WrapBox->AddChild(UnitWidget);
-				BuildEntryList.Add(UnitWidget);
-			}
-		}
-	}
+	WrapBox->ClearWrapper();
+	bIsOpen = true;
+	
+	SelectionBox->SetVisibility(ESlateVisibility::Visible);
+	WrapBox->SetupWrapBox(BuildsDataAssets);
+	
+	StopAllAnimations();
+	PlayAnimation(OpenSelection, 0.f, 1, EUMGSequencePlayMode::Forward, 1.f, false);
 }
 
-
-void USelectorWidget::SwitchToUnit(TArray<UUnitsProductionDataAsset*> UnitsDataAssets)
+void USelectorWidget::ShowBuildEntries(TArray<AActor*> SelectedBuilds)
 {
-	if (!WrapBox || UnitsDataAssets.IsEmpty()) return;
-	
-	ListBorder->SetVisibility(ESlateVisibility::Visible);
-	SelectionBorder->SetVisibility(ESlateVisibility::Collapsed);
+	if (!WrapBox || SelectedBuilds.IsEmpty()) return;
 
-	WrapBox->ClearChildren();
-	BuildEntryList.Empty();
+	WrapBox->ClearWrapper();
+	bIsOpen = true;
 	
-	for (UUnitsProductionDataAsset* Data : UnitsDataAssets)
-	{
-		if (Data)
-		{
-			if (UUnitEntryWidget* UnitWidget = CreateWidget<UUnitEntryWidget>(GetWorld(), UnitEntryClass))
-			{
-				UnitWidget->InitEntry(Data);
-				
-				WrapBox->AddChild(UnitWidget);
-				UnitEntryList.Add(UnitWidget);
-			}
-		}
-	}
+	SelectionBox->SetVisibility(ESlateVisibility::Visible);
+	WrapBox->SetupWrapBox(SelectedBuilds);
+
+	StopAllAnimations();
+	PlayAnimation(OpenSelection, 0.f, 1, EUMGSequencePlayMode::Forward, 1.f, false);
 }
+
+
 
 void USelectorWidget::ClearSelectionWidget()
 {
-	WrapBox->ClearChildren();
+	if (!bIsOpen) return;
 	
-	BuildEntryList.Empty();
-	UnitEntryList.Empty();
+	PlayAnimationForward(CloseSelection);
 
-	ListBorder->SetVisibility(ESlateVisibility::Collapsed);
-	SelectionBorder->SetVisibility(ESlateVisibility::Collapsed);
+	WrapBox->ClearWrapper();
+	bIsOpen = false;
 }
 
-void USelectorWidget::UpdateSelection(const TMap<UUnitsProductionDataAsset*, FGroupedActors>& GroupedSelection)
+
+// ---------------------- ToolTip Widgets ----------------------
+#pragma region ToolTip Widgets
+
+void USelectorWidget::ShowPendingToolTip()
 {
-	if (GroupedSelection.IsEmpty()) return;
-    
-	SelectionWrapBox->ClearChildren();
-
-	for (const TPair<UUnitsProductionDataAsset*, FGroupedActors>& Pair : GroupedSelection)
+	if (PendingData && ToolTipInfo)
 	{
-		UUnitsProductionDataAsset* DataAsset = Pair.Key;
-		const FGroupedActors& Group = Pair.Value;
-
-		if (DataAsset)
-		{
-			if (USelectionEntryWidget* SelectionWidget = CreateWidget<USelectionEntryWidget>(GetWorld(), SelectionEntryClass))
-			{
-				SelectionWidget->InitEntry(DataAsset, Group.Actors.Num());
-				SelectionWrapBox->AddChild(SelectionWidget);
-			}
-		}
+		ToolTipInfo->ShowToolTip(PendingData);
 	}
 }
+
+void USelectorWidget::ShowToolTip(UDataAsset* Data)
+{
+	PendingData = Data;
+	GetWorld()->GetTimerManager().SetTimer(ToolTipTimerHandle, this, &USelectorWidget::ShowPendingToolTip, 0.7f, false);
+}
+
+void USelectorWidget::HideToolTip()
+{
+	GetWorld()->GetTimerManager().ClearTimer(ToolTipTimerHandle);
+	PendingData = nullptr;
+	
+	if (ToolTipInfo)
+	{
+		ToolTipInfo->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+#pragma endregion

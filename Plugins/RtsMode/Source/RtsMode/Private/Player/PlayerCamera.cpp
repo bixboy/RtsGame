@@ -669,7 +669,6 @@ FCommandData APlayerCamera::CreateCommandData(const ECommandType Type, AActor* E
 
 void APlayerCamera::CreatePreviewMesh()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, "Preview Units");
 	if(PreviewUnits) return;
 	
 	if(UWorld* World = GetWorld())
@@ -724,7 +723,6 @@ void APlayerCamera::HidePreview()
 {
 	if (PreviewUnits)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, "Hide Preview");
 		PreviewUnits->HidePreview();
 		
 		bIsInSpawnUnits = false;

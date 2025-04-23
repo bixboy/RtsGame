@@ -1,5 +1,6 @@
 ﻿#include "Units/UnitsMaster.h"
 #include "Components/BuilderComponent.h"
+#include "Components/Weapons/ArtilleryComponent.h"
 #include "Player/RtsPlayerController.h"
 
 
@@ -25,6 +26,24 @@ void AUnitsMaster::Tick(float DeltaTime)
 
 #pragma endregion
 
+
+void AUnitsMaster::OnStartAttack(AActor* Target)
+{
+	if (!Target) return;
+
+	if (UArtilleryComponent* ArtilleryComp = GetComponentByClass<UArtilleryComponent>())
+	{
+		ArtilleryComp->StartAIFiring(Target);
+		return;
+	}
+	
+	Super::OnStartAttack(Target);
+}
+
+
+// ------------ Selection ------------
+#pragma region
+
 void AUnitsMaster::Select()
 {   
 	Super::Select();
@@ -39,6 +58,8 @@ void AUnitsMaster::Highlight(const bool Highlight)
 {
 	Super::Highlight(Highlight);
 }
+
+#pragma endregion
 
 // ------------ Getters ------------
 #pragma region Getters
@@ -56,6 +77,11 @@ ESelectionType AUnitsMaster::GetSelectionType_Implementation()
 EFaction AUnitsMaster::GetCurrentFaction_Implementation()
 {
 	return CurrentFaction;
+}
+
+UUnitsProductionDataAsset* AUnitsMaster::GetUnitData_Implementation()
+{
+	return UnitInfo;
 }
 
 #pragma endregion

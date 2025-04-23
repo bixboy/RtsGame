@@ -17,6 +17,7 @@ class ACameraVehicle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVehicleMoveDelegate, float, FowardInput, float, RightInput);
 
+
 UCLASS()
 class LANDVEHICULE_API AVehicleMaster : public APawn, public IVehiclesInteractions
 {
@@ -60,6 +61,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> LookAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Vehicle|Inputs",  Meta = (DisplayThumbnail = false))
+	TObjectPtr<UInputAction> SwitchEngine;
+
 #pragma endregion	
 
 //---------------------------- Components ----------------------------
@@ -102,9 +106,6 @@ protected:
 	TMap<APlayerController*, ACameraVehicle*> AssignedCameras;
 
 	UPROPERTY()
-	ACameraVehicle* CurrentCamera;
-
-	UPROPERTY()
 	FRotator CameraRotationOffset;
 
 	/*- Functions -*/
@@ -120,9 +121,6 @@ protected:
 	
 	UFUNCTION(Server, Reliable)
 	void Server_SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera);
-	
-	UFUNCTION(Client, Reliable)
-	void Client_SwitchToCamera(ACameraVehicle* NewCamera);
 
 	UFUNCTION(BlueprintCallable)
 	ACameraVehicle* SwitchToNextCamera(APlayerController* Player);
@@ -138,23 +136,25 @@ protected:
 
 #pragma endregion
 
+//---------------------------- Player Mesh ----------------------------
 #pragma region Player Mesh
 protected:
 
 	UFUNCTION()
-	void ShowPlayerMesh(APlayerController* PlayerController);
+	int ShowPlayerMesh(APlayerController* PlayerController, int PlaceNum = -1);
 	
 	UFUNCTION()
 	void HidePlayerMesh(APlayerController* PlayerController, int MeshNumber = 0);
+
+	UFUNCTION()
+	UVehiclePlayerMesh* GetPlayerMesh(APlayerController* PlayerController);
+	FVector FindClosestExitLocation(APlayerController* PlayerController);
 
 	UPROPERTY()
 	TArray<UVehiclePlayerMesh*> VehiclePlayersMesh;
 
 	UPROPERTY()
 	TMap<APlayerController*, UVehiclePlayerMesh*> PlayersMeshAssigned;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	USkeletalMesh* NewMesh;
 
 #pragma endregion	
 
@@ -165,6 +165,13 @@ public:
 	FOnVehicleMoveDelegate OnVehicleMove;
 
 protected:
+	/*- Function -*/
+	UFUNCTION()
+	virtual void Input_OnMove(const FInputActionValue& InputActionValue);
+
+	UFUNCTION(Server, Reliable)
+	void Server_OnMove(float InForward, float InTurn);
+	
 	/*- Variables -*/
 	UPROPERTY(Replicated)
 	float ForwardInput = 0.0f;
@@ -174,13 +181,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Movement")
 	float MaxSpeed = 3000.0f;
-
-	/*- Function -*/
-	UFUNCTION()
-	virtual void Input_OnMove(const FInputActionValue& InputActionValue);
-
-	UFUNCTION(Server, Reliable)
-	void Server_OnMove(float InForward, float InTurn);
 
 public:
 	// Getters pour les entrées de mouvement
@@ -196,25 +196,32 @@ public:
 #pragma region Vehicle Settings
 
 protected:
+	
+	/*- Functions -*/
+	UFUNCTION(Server, Reliable, BlueprintCallable)
+	void Server_SwitchEngine(bool OnOff);
+
+	UFUNCTION()
+	void Input_SwitchEngine();
+	
 	/*- Variables -*/
 	UPROPERTY(Replicated, EditAnywhere, Category = "Settings|Vehicle")
-	bool EngineOn = false;
+	bool bEngineOn = false;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
 	int PlacesNumber;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
+	float OutOfVehicleOffset = 50.f;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
+	bool bHaveTurret = false;
 
 	UPROPERTY()
 	int CurrentPlace;
 
 	UPROPERTY(BlueprintReadOnly, Replicated)
 	APawn* CurrentDriver;
-
-	UPROPERTY(EditAnywhere, Category = "Settings|Vehicle")
-	bool bHaveTurret = false;
-
-	/*- Functions -*/
-	UFUNCTION(BlueprintCallable)
-	void TurnEngineOn(bool OnOff);
 
 #pragma endregion
 
@@ -223,21 +230,43 @@ protected:
 
 protected:
 	/*- Variables -*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio")
+	UAudioComponent* StartEngineAudio;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio")
+	UAudioComponent* EngineAudio;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio")
+	UAudioComponent* MovementAudio;
+	
+	// Sound Settings
 	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")
 	USoundBase* SoundEngineOn;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")
-	USoundBase* SoundMoveForward;
+	USoundBase* SoundEngineOff;
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")
-	USoundBase* SoundBrake;
+	USoundBase* SoundIdleLoop;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")
+	USoundBase* SoundStartAcceleration;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")
+	USoundBase* SoundDriveLoop;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Sounds")
+	USoundBase* SoundBrakeLoop;
 
 	/*- Functions -*/
-	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "PlaySound"))
-	void PlaySound(USoundBase* Sound);
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlaySound(USoundBase* Sound, UAudioComponent* AudioComp);
 
-	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "StopSound"))
-	void StopSound();
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_StopSound(UAudioComponent* AudioComp);
+
+	UFUNCTION()
+	bool GetSoundIsPlaying(USoundBase* Sound, UAudioComponent* AudioComp);
 
 #pragma endregion
 
@@ -246,9 +275,6 @@ protected:
 public:
 	UFUNCTION()
 	virtual bool Interact_Implementation(ACustomPlayerController* PlayerInteract) override;
-
-	UFUNCTION()
-	virtual ACameraVehicle* GetCurrentCameraVehicle_Implementation() override;
 
 	UFUNCTION()
 	virtual ACameraVehicle* ChangePlace_Implementation(ACustomPlayerController* Player) override;
@@ -261,6 +287,27 @@ public:
 #pragma region Turret System
 	
 protected:
+
+	/*- Functions -*/
+	UFUNCTION()
+	void AssignRole(APawn* Player, EVehiclePlaceType RoleName);
+	
+	UFUNCTION(BlueprintCallable)
+	APawn* GetPlayerByRole(EVehiclePlaceType RoleName) const;
+	
+	UFUNCTION()
+	EVehiclePlaceType GetRoleByPlayer(const APawn* Player) const;
+
+	UFUNCTION()
+	void ReleaseRole(APawn* Player);
+
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	void Multicast_SetTurretRotation(ACameraVehicle* Camera, int IndexOfCamera, FRotator TurretAngle);
+
+	UFUNCTION(BlueprintCallable)
+	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime, ACameraVehicle* CameraToMove);
+
+	
 	/*- Variables -*/
 	UPROPERTY(Replicated)
 	TArray<FVehicleRole> VehicleRoles;
@@ -273,24 +320,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Turret")
 	float TurretRotationSpeed = 0.07f;
-
-	/*- Functions -*/
-	UFUNCTION()
-	void AssignRole(APawn* Player, EVehiclePlaceType RoleName);
-	
-	UFUNCTION(BlueprintCallable)
-	APawn* GetPlayerForRole(EVehiclePlaceType RoleName) const;
-	UFUNCTION()
-	EVehiclePlaceType GetRoleByPlayer(const APawn* Player) const;
-
-	UFUNCTION()
-	void ReleaseRole(APawn* Player);
-
-	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
-	void Multicast_SetTurretRotation(ACameraVehicle* Camera, int IndexOfCamera, FRotator TurretAngle);
-
-	UFUNCTION(BlueprintCallable)
-	void ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime, ACameraVehicle* CameraToMove);
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)

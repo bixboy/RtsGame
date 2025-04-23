@@ -28,7 +28,7 @@ public:
 	UResourceEntryWidget* Metal;
 
 	UFUNCTION()
-	void UpdateResourceValue(const FResourcesCost& NewResources);
+	void UpdateResourceValue(const FResourcesCost NewResources);
 
 protected:
 	UPROPERTY()

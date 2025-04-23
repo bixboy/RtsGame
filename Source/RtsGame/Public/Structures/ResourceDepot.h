@@ -1,18 +1,24 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "StructureBase.h"
+#include "Interfaces/StorageBuildInterface.h"
 #include "ResourceDepot.generated.h"
 
 class URtsResourcesComponent;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStorageUpdatedDelegate, FResourcesCost, NewResources);
 
+
 UCLASS()
-class RTSGAME_API AResourceDepot : public AStructureBase
+class RTSGAME_API AResourceDepot : public AStructureBase, public IStorageBuildInterface
 {
 	GENERATED_BODY()
 
 public:
 	AResourceDepot();
+
+	UFUNCTION()
+	virtual FResourcesCost GetResource_Implementation() override;
 
 	UFUNCTION()
 	FResourcesCost GetStorage();

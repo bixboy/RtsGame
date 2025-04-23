@@ -2,8 +2,9 @@
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/WrapBox.h"
+#include "Data/StructureDataAsset.h"
 #include "Widget/CustomButtonWidget.h"
-#include "Widgets/BuildsEntry.h"
+#include "Widgets/Entries/BuildsEntry.h"
 
 
 void UBuildSelector::NativeOnInitialized()
@@ -30,12 +31,12 @@ void UBuildSelector::SetupBuildsList()
 			UBuildsEntry* UnitWidget = CreateWidget<UBuildsEntry>(GetWorld(), BuildsEntryClass);
 			if (UnitWidget)
 			{
-				UnitWidget->InitEntry(Data);
+				UnitWidget->InitializeEntry(Data);
 				
 				WrapBox->AddChild(UnitWidget);
 				EntryList.Add(UnitWidget);
 				
-				UnitWidget->BuildButton->OnButtonClicked.AddDynamic(this, &UBuildSelector::OnBuildSelected);
+				UnitWidget->CustomButton->OnButtonClicked.AddDynamic(this, &UBuildSelector::OnBuildSelected);
 			}
 		}
 	}
@@ -58,7 +59,7 @@ void UBuildSelector::OnBuildSelected(UCustomButtonWidget* Button, int Index)
 	for (UBuildsEntry* EntryWidget : EntryList)
 	{
 		if (EntryWidget)
-			EntryWidget->BuildButton->ToggleButtonIsSelected(false);
+			EntryWidget->CustomButton->ToggleButtonIsSelected(false);
 	}
 
 	if (Button)

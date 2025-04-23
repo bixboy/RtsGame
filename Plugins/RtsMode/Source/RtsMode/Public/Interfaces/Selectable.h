@@ -26,6 +26,9 @@ public:
 	virtual void Highlight(const bool Highlight) = 0;
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	bool GetIsSelected();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	ESelectionType GetSelectionType();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)

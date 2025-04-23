@@ -4,15 +4,6 @@
 #include "Data/DataRts.h"
 #include "RtsResourcesComponent.generated.h"
 
-UENUM(BlueprintType)
-enum class EResourceType : uint8
-{
-	Wood UMETA(DisplayName = "Wood"),
-	Food UMETA(DisplayName = "Food"),
-	Metal UMETA(DisplayName = "Metal"),
-	None
-};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResourcesChanged, const FResourcesCost&, NewResources);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -23,6 +14,7 @@ class RTSGAME_API URtsResourcesComponent : public UActorComponent
 public:
 	URtsResourcesComponent();
 
+	// ===== Multi Resources =====
 	UFUNCTION(BlueprintCallable, Category="Resources")
 	void AddResources(FResourcesCost NewResources);
 
@@ -33,13 +25,26 @@ public:
 	FResourcesCost GetResources();
 
 	UFUNCTION(BlueprintCallable, Category="Resources")
+	FResourcesCost GetMaxResource();
+	int32 GetMaxResource(EResourceType Type);
+
+	// ===== Mono Resource =====
+	UFUNCTION(BlueprintCallable, Category="Resources")
+	void AddResource(EResourceType Type, int32 Amount);
+
+	UFUNCTION(BlueprintCallable, Category="Resources")
+	void RemoveResource(EResourceType Type, int32 Amount);
+
+	UFUNCTION(BlueprintCallable, Category="Resources")
+	int32 GetResource(EResourceType Type);
+
+
+	
+	UFUNCTION(BlueprintCallable, Category="Resources")
 	bool GetStorageIsFull(EResourceType CheckResource = EResourceType::None);
 
 	UFUNCTION(BlueprintCallable, Category="Resources")
 	bool GetStorageIsEmpty(EResourceType CheckResource = EResourceType::None);
-
-	UFUNCTION(BlueprintCallable, Category="Resources")
-	FResourcesCost GetMaxResource();
 
 	UPROPERTY(BlueprintAssignable, Category="Resources")
 	FOnResourcesChanged OnResourcesChanged;
@@ -52,7 +57,10 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentResources();
 
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentResources, EditAnywhere, Category="Resources")
+	UFUNCTION(NetMulticast, reliable)
+	void Multicast_UpdateResources(const FResourcesCost NewResources);
+
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentResources)
 	FResourcesCost CurrentResources;
 
 	UPROPERTY(EditAnywhere, Category="Resources")

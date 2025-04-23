@@ -41,8 +41,13 @@ void AStructureBase::BeginPlay()
 
 	OwnerController = Cast<ARtsPlayerController>(Owner);
 
-	if (StructureData && !StructureData->Structure.bNeedToBuild)
-		SetBuildData(StructureData->Structure);
+	if (HasAuthority())
+	{
+		if (StructureData)
+		{
+			SetBuildData(StructureData->Structure);	
+		}
+	}
 }
 
 void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -58,6 +63,10 @@ void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	
 	DOREPLIFETIME(AStructureBase, CurrentStepIndex);
 	DOREPLIFETIME(AStructureBase, BuildElapsedTime);
+
+	DOREPLIFETIME(AStructureBase, bCanUpgraded);
+	DOREPLIFETIME(AStructureBase, bInUpgrade);
+	DOREPLIFETIME(AStructureBase, CurrentUpgradeIndex);
 }
 
 ARtsPlayerController* AStructureBase::GetOwnerController()
@@ -68,6 +77,8 @@ ARtsPlayerController* AStructureBase::GetOwnerController()
 //------------ Data
 void AStructureBase::SetBuildData(FStructure NewData)
 {
+	if (!HasAuthority()) return;
+		
 	BuildData = NewData;
 
 	if (!BuildData.bNeedToBuild)
@@ -75,16 +86,6 @@ void AStructureBase::SetBuildData(FStructure NewData)
 		MeshComp->SetStaticMesh(BuildData.StructureMesh);
 		OnConstructionCompleted();
 	}
-}
-
-void AStructureBase::OnRep_BuildData()
-{
-	if (!MeshComp) return;
-
-	/* if (BuildData.StructureMesh)
-		MeshComp->SetStaticMesh(BuildData.StructureMesh);
-	else
-		MeshComp->SetStaticMesh(nullptr); */
 }
 
 #pragma endregion
@@ -132,7 +133,7 @@ EFaction AStructureBase::GetCurrentFaction_Implementation()
 	return Faction;
 }
 
-bool AStructureBase::GetIsSelected() const
+bool AStructureBase::GetIsSelected_Implementation()
 {
 	return Selected;
 }
@@ -143,17 +144,20 @@ bool AStructureBase::GetIsSelected() const
 // ----------------------- Build -----------------------
 #pragma region Build
 
-void AStructureBase::StartBuild(ARtsPlayerController* RequestingPC)
+void AStructureBase::StartBuild()
 {
-	Server_StartBuild(RequestingPC);
+	Server_StartBuild();
 }
 
-void AStructureBase::Server_StartBuild_Implementation(ARtsPlayerController* RequestingPC)
+void AStructureBase::Server_StartBuild_Implementation()
 {
+	if (bIsBuilt) return;
+	
 	CurrentStepIndex = 0;
 	CurrentBuilder = 0;
-	BuildElapsedTime = 0.f;
 	TotalResource = 0;
+	
+	BuildElapsedTime = 0.f;
 	
 	CurrentResources = FResourcesCost();
 	MissingResourcesForBuild = BuildData.BuildCost;
@@ -178,7 +182,7 @@ void AStructureBase::RemoveWorker()
 
 bool AStructureBase::GetNeedsResources(FResourcesCost& NeededResources) const
 {
-	if (GetIsBuilt())
+	if (GetIsBuilt() && !GetIsInUpgrading())
 	{
 		return false;
 	}
@@ -202,14 +206,34 @@ void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
 	CurrentBuilder = CurrentBuilder + NewWorker;
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "New Worker: " + CurrentBuilder);
-
-	if (!GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle) && CurrentBuilder > 0)
+	
+	if (CurrentBuilder > 0)
 	{
-		GetWorld()->GetTimerManager().SetTimer(ConstructionTimerHandle, this, &AStructureBase::UpdateConstruction, 1.0f, true);
+		if (bInUpgrade)
+		{
+			if (!GetWorld()->GetTimerManager().IsTimerActive(UpgradeTimerHandle))
+			{
+				GetWorld()->GetTimerManager().SetTimer(UpgradeTimerHandle, this, &AStructureBase::UpdateUpgrade, 1.0f, true);
+			}
+		}
+		else
+		{
+			if (!GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle))
+			{
+				GetWorld()->GetTimerManager().SetTimer(ConstructionTimerHandle, this, &AStructureBase::UpdateConstruction, 1.0f, true);
+			}
+		}
 	}
-	else if (GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle) && CurrentBuilder == 0)
+	else if (CurrentBuilder <= 0)
 	{
-		GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
+		if (bInUpgrade)
+		{
+			GetWorld()->GetTimerManager().ClearTimer(UpgradeTimerHandle);
+		}
+		else
+		{
+			GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
+		}
 	}
 }
 
@@ -290,16 +314,154 @@ void AStructureBase::UpdateConstruction()
 
 void AStructureBase::OnRep_CurrentStepIndex()
 {
-	if (MeshComp && BuildData.BuildSteps.IsValidIndex(CurrentStepIndex))
+	if (!MeshComp) return;
+	
+	if (bInUpgrade)
 	{
-		MeshComp->SetStaticMesh(BuildData.BuildSteps[CurrentStepIndex]);
+		const FStructureUpgrade Upg = BuildData.Upgrades[CurrentUpgradeIndex];
+	
+		if (MeshComp && Upg.UpgradeSteps.IsValidIndex(CurrentStepIndex))
+		{
+			MeshComp->SetStaticMesh(Upg.UpgradeSteps[CurrentStepIndex]);
+		}
 	}
+	else
+	{
+		if (BuildData.BuildSteps.IsValidIndex(CurrentStepIndex))
+		{
+			MeshComp->SetStaticMesh(BuildData.BuildSteps[CurrentStepIndex]);
+		}	
+	}
+}
+
+void AStructureBase::OnRep_BuildData()
+{
+	if (!MeshComp || BuildData.bNeedToBuild || !BuildData.StructureMesh) return;
+
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, "Build Data");
+	
+	MeshComp->SetStaticMesh(BuildData.StructureMesh);
 }
 
 void AStructureBase::OnConstructionCompleted()
 {
 	bIsBuilt = true;
+	bCanUpgraded = true;
+	
 	OnBuildComplete.Broadcast();
+}
+
+#pragma endregion
+
+
+// ----------------------- Upgrade -----------------------
+#pragma region Upgrade
+
+void AStructureBase::StartUpgrade(int32 UpgradeIndex)
+{
+    if (!BuildData.Upgrades.IsValidIndex(UpgradeIndex)) return;
+
+    Server_StartUpgrade(UpgradeIndex);
+}
+
+void AStructureBase::Server_StartUpgrade_Implementation(int32 UpgradeIndex)
+{
+	if (BuildData.Upgrades.IsEmpty() || !bIsBuilt) return;
+	
+	bInUpgrade = true;
+
+	CurrentStepIndex = 0;
+    CurrentUpgradeIndex = UpgradeIndex;
+	
+    CurrentBuilder = 0;
+    UpgradeElapsedTime = 0.f;
+	
+    CurrentResources = FResourcesCost();
+    MissingResourcesForBuild = BuildData.Upgrades[UpgradeIndex].UpgradeCost;
+}
+
+void AStructureBase::UpdateUpgrade()
+{
+	if (CurrentResources <= FResourcesCost() || CurrentBuilder == 0)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(UpgradeTimerHandle);
+		return;
+	}
+	
+	float DeltaTime = 1.0f * CurrentBuilder;
+
+	const FStructureUpgrade Upg = BuildData.Upgrades[CurrentUpgradeIndex];
+	
+	BuildElapsedTime += DeltaTime;
+	float BuildProgress;
+	FResourcesCost ResourcesConsumed;
+
+	// 🔹 Update Resources
+	{
+		float Scalar = DeltaTime / Upg.UpgradeTime;
+    	
+		ResourcesConsumed = Upg.UpgradeCost * Scalar;
+		ResourcesConsumed = ResourcesConsumed.GetClamped(CurrentResources);
+
+		CurrentResources -= ResourcesConsumed;
+		MissingResourcesForBuild -=  ResourcesConsumed;
+	}
+
+	// 🔹 Update Steps Index
+	{
+		BuildProgress = (BuildElapsedTime / Upg.UpgradeTime) * 100.0f;
+    	
+		int32 NewStepIndex = FMath::FloorToInt((BuildProgress / 100.0f) * Upg.UpgradeSteps.Num());
+		NewStepIndex = FMath::Clamp(NewStepIndex, 0, Upg.UpgradeSteps.Num() - 1);
+
+		if (NewStepIndex != Upg.UpgradeSteps.Num() - 1 && NewStepIndex != CurrentStepIndex)
+			CurrentStepIndex = NewStepIndex;
+	}
+
+    // On atteint la fin
+    if (UpgradeElapsedTime >= Upg.UpgradeTime)
+    {
+        GetWorld()->GetTimerManager().ClearTimer(UpgradeTimerHandle);
+        OnUpgradeCompleted();
+    }
+
+	// 🔹 Debug Screen
+	if (GEngine)
+	{
+		FString DebugProgress = FString::Printf(TEXT("Progression: %.2f%%"), BuildProgress);
+		FString DebugCurrent = FString::Printf(TEXT("Current Resources: %d"), CurrentResources.Woods);
+		FString DebugConsumed = FString::Printf(TEXT("Consumed: %d"), ResourcesConsumed.Woods);
+		FString DebugElapsed = FString::Printf(TEXT("Build Time Elapsed: %.2f / %.2f sec"), BuildElapsedTime, Upg.UpgradeTime);
+		FString DebugBuildSteps = FString::Printf(TEXT("Current Build Step: %d"), CurrentStepIndex);
+
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, DebugProgress);
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, DebugCurrent);
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, DebugConsumed);
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, DebugElapsed);
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, DebugBuildSteps);
+	}
+}
+
+void AStructureBase::OnRep_CurrentUpgradeIndex()
+{
+	const FStructureUpgrade Upg = BuildData.Upgrades[CurrentUpgradeIndex];
+	
+	if (MeshComp && Upg.UpgradeSteps.IsValidIndex(CurrentStepIndex))
+	{
+		MeshComp->SetStaticMesh(Upg.UpgradeSteps[CurrentStepIndex]);
+	}
+}
+
+void AStructureBase::OnUpgradeCompleted()
+{
+    if (BuildData.Upgrades.IsValidIndex(CurrentUpgradeIndex))
+    {
+	    if (UStructureDataAsset* Next = BuildData.Upgrades[CurrentUpgradeIndex].NextStructure)
+        {
+	    	bInUpgrade = false;
+			BuildData = Next->Structure;
+        }
+    }
 }
 
 #pragma endregion
@@ -319,6 +481,19 @@ FStructure AStructureBase::GetBuildData()
 bool AStructureBase::GetIsBuilt() const
 {
 	return bIsBuilt;
+}
+
+bool AStructureBase::GetIsInUpgrading() const
+{
+	return bInUpgrade;
+}
+
+UStructureDataAsset* AStructureBase::GetDataAsset_Implementation()
+{
+	if (StructureData)
+		return StructureData;
+
+	return nullptr;
 }
 
 #pragma endregion

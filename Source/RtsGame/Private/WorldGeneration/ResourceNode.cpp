@@ -16,14 +16,16 @@ AResourceNode::AResourceNode()
 	
 	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
 	BoxComp->SetupAttachment(RootComponent);
-	BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AResourceNode::OnOverlapBegin);
 }
 
 void AResourceNode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ResourcesComp->AddResources(ResourcesComp->GetMaxResource());
+	if (HasAuthority())
+	{
+		ResourcesComp->AddResources(ResourcesComp->GetMaxResource());	
+	}
 }
 
 
@@ -58,19 +60,17 @@ void AResourceNode::Highlight(const bool Highlight)
 #pragma endregion
 
 
-FResourcesCost AResourceNode::StartResourceCollect(int TakeNumber)
+int AResourceNode::StartResourceCollect(int TakeNumber)
 {
-	if (!HasAuthority() || ResourcesComp->GetStorageIsEmpty()) return FResourcesCost();
+	if (!HasAuthority()) return 0;
 
-	FResourcesCost Available = ResourcesComp->GetResources();
-	FResourcesCost Desired(TakeNumber);
-	FResourcesCost Collected = Desired.GetClamped(Available);
+	int32 Available = ResourcesComp->GetResource(ResourceType);
+	
+	if (Available <= 0) return 0;
 
-	ResourcesComp->RemoveResources(Collected);
-    
-	UE_LOG(LogTemp, Warning, TEXT("StartResourceCollect: Collected Woods=%d, Food=%d, Metal=%d"),
-		   Collected.Woods, Collected.Food, Collected.Metal);
-    
+	int32 Collected = FMath::Min(TakeNumber, Available);
+	ResourcesComp->RemoveResource(ResourceType, Collected);
+
 	return Collected;
 }
 
@@ -79,28 +79,6 @@ void AResourceNode::OnResourceUpdated(const FResourcesCost& NewResources)
 	if (NewResources <= FResourcesCost())
 	{
 		//Destroy();
-	}
-}
-
-void AResourceNode::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (!HasAuthority()) return;
-	
-	if (OtherActor && OtherActor->Implements<UUnitTypeInterface>() && IUnitTypeInterface::Execute_GetUnitType(OtherActor) == EUnitsType::Builder)
-	{
-		float Distance = FVector::Dist(GetActorLocation(), OtherActor->GetActorLocation());
-		const float CollectDistanceThreshold = 200.f;
-        
-		UE_LOG(LogTemp, Warning, TEXT("Overlap detected: Distance = %f"), Distance);
-        
-		if (Distance <= CollectDistanceThreshold)
-		{
-			IUnitTypeInterface::Execute_StartCollect(OtherActor);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Overlap ignored: Unit too far to collect (Distance = %f)"), Distance);
-		}
 	}
 }
 

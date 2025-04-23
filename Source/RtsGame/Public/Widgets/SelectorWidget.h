@@ -4,13 +4,10 @@
 #include "Widget/CustomButtonWidget.h"
 #include "SelectorWidget.generated.h"
 
-class USelectionEntryWidget;
-class UUnitEntryWidget;
-class UUnitsProductionDataAsset;
-class UStructureDataAsset;
-class UBuildsEntry;
-class UBorder;
-class UWrapBox;
+class UToolTipWidget;
+class USelectorWrapBox;
+class UHorizontalBox;
+
 
 USTRUCT(BlueprintType)
 struct FGroupedActors
@@ -30,47 +27,58 @@ class RTSGAME_API USelectorWidget : public UUserWidget
 public:
 	void NativeOnInitialized();
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
-	TArray<UStructureDataAsset*> Builds;
-
 	UFUNCTION()
-	void SwitchToBuild(TArray<UStructureDataAsset*> BuildsDataAssets);
-
+	void ShowUnitEntries(TArray<AActor*> BuildsDataAssets);
+	
 	UFUNCTION()
-	void SwitchToUnit(TArray<UUnitsProductionDataAsset*> UnitsDataAssets);
+	void ShowBuildEntries(TArray<AActor*> SelectedBuilds);
 
 	UFUNCTION()
 	void ClearSelectionWidget();
 
 	UFUNCTION()
-	void UpdateSelection(const TMap<UUnitsProductionDataAsset*, FGroupedActors>& GroupedSelection);
+	bool GetIsOpen() { return bIsOpen; }
+
+	UFUNCTION()
+	void ShowToolTip(UDataAsset* Data);
+
+	UFUNCTION()
+	void HideToolTip();
+
+	UFUNCTION()
+	void ShowPendingToolTip();
 
 protected:
 	
+	// Components
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UWrapBox* WrapBox;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UBorder* ListBorder;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UWrapBox* SelectionWrapBox;
+	USelectorWrapBox* WrapBox;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UBorder* SelectionBorder;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UHorizontalBox* SelectionBox;
+	
+	UPROPERTY(Transient, BlueprintReadOnly, meta = (BindWidgetAnim))
+	UWidgetAnimation* OpenSelection;
+
+	UPROPERTY(Transient, BlueprintReadOnly, meta = (BindWidgetAnim))
+	UWidgetAnimation* CloseSelection;
+	
 	UPROPERTY()
-	TArray<UBuildsEntry*> BuildEntryList;
+	UToolTipWidget* ToolTipInfo;
 
+	// Variables
 	UPROPERTY()
-	TArray<UUnitEntryWidget*> UnitEntryList;
+	bool bIsOpen = false;
+	
+	UPROPERTY()
+	UDataAsset* PendingData;
 
+	FTimerHandle ToolTipTimerHandle;
+	
+	// Widgets Class
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
-	TSubclassOf<UBuildsEntry> BuildsEntryClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
-	TSubclassOf<UUnitEntryWidget> UnitEntryClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
-	TSubclassOf<USelectionEntryWidget> SelectionEntryClass;
+	TSubclassOf<UToolTipWidget> ToolTipClass;
 };

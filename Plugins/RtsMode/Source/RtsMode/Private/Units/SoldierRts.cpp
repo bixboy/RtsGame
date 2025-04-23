@@ -32,26 +32,6 @@ void ASoldierRts::OnConstruction(const FTransform& Transform)
 	AIControllerClass = AiControllerRtsClass;
 }
 
-void ASoldierRts::PossessedBy(AController* NewController)
-{
-	Super::PossessedBy(NewController);
-	
-	AAiControllerRts* ControllerAi = Cast<AAiControllerRts>(NewController);
-	if (CommandComp && ControllerAi)
-	{
-		CommandComp->SetOwnerAIController(ControllerAi);
-		SetAIController(ControllerAi);
-	}
-}
-
-FCommandData ASoldierRts::GetCurrentCommand_Implementation()
-{
-	if (CommandComp)
-		return CommandComp->GetCurrentCommand();
-	
-	return FCommandData();
-}
-
 void ASoldierRts::BeginPlay()
 {
 	Super::BeginPlay();
@@ -64,6 +44,23 @@ void ASoldierRts::BeginPlay()
 			CurrentWeapon->SetAiOwner(this);
 			HaveWeapon = true;
 		}
+	}
+}
+
+void ASoldierRts::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (HasAuthority())
+	{
+		AAiControllerRts* ControllerAi = Cast<AAiControllerRts>(NewController);
+		if (CommandComp && ControllerAi)
+		{
+			CommandComp->SetOwnerAIController(ControllerAi);
+			SetAIController(ControllerAi);
+
+			ControllerAi->OnStartAttack.AddDynamic(this, &ASoldierRts::OnStartAttack);
+		}	
 	}
 }
 
@@ -108,7 +105,7 @@ void ASoldierRts::Highlight(const bool Highlight)
 	}
 }
 
-bool ASoldierRts::GetIsSelected() const
+bool ASoldierRts::GetIsSelected_Implementation()
 {
 	return Selected;
 }
@@ -147,10 +144,30 @@ void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
 	GetCommandComponent()->CommandMoveToLocation(CommandData);
 }
 
+FCommandData ASoldierRts::GetCurrentCommand_Implementation()
+{
+	if (CommandComp)
+		return CommandComp->GetCurrentCommand();
+	
+	return FCommandData();
+}
+
 #pragma endregion
 
 // ------------------- Attack ---------------------
 #pragma region Attack
+
+void ASoldierRts::OnStartAttack(AActor* Target)
+{
+	if (GetCurrentWeapon())
+	{
+		GetCurrentWeapon()->AIShoot(Target);
+	}
+	else
+	{
+		IDamageable::Execute_TakeDamage(Target, this);
+	}
+}
 
 void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 {
@@ -194,7 +211,7 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 		UpdateActorsInArea();
 		ActorsInRange.AddUnique(OtherActor);
 
-		if (AIController && CombatBehavior == ECombatBehavior::Aggressive && !AIController->GetHaveTarget())
+		if (AIController && CombatBehavior == ECombatBehavior::Aggressive && !AIController->HasAttackTarget())
 		{
 			FCommandData CommandData;
 			CommandData.Type = ECommandType::CommandAttack;
@@ -223,7 +240,7 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 			ActorsInRange.Remove(OtherActor);
 
 		// Handle Aggressive Combat Behavior
-		if (CombatBehavior == ECombatBehavior::Aggressive && AIController && AIController->GetHaveTarget() &&
+		if (CombatBehavior == ECombatBehavior::Aggressive && AIController && AIController->HasAttackTarget() &&
 			AIController->GetCurrentCommand().Target == OtherActor)
 		{
 			AActor* NewTarget = nullptr;
@@ -241,14 +258,14 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 			}
 			else if (AIController->GetCombatBehavior() == ECombatBehavior::Aggressive)
 			{
-				AIController->StopAttack();
+				AIController->ResetAttack();
 			}
 		}
 
 		if (ActorsInRange.Num() == 0 && AIController)
 		{
 			if (AIController->GetCombatBehavior() == ECombatBehavior::Aggressive)
-				AIController->StopAttack();
+				AIController->ResetAttack();
 		}
 	}
 }
@@ -257,6 +274,7 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 
 // ------------------- Behavior ---------------------
 #pragma region Behavior
+
 void ASoldierRts::SetBehavior_Implementation(const ECombatBehavior NewBehavior)
 {
 	ISelectable::SetBehavior_Implementation(NewBehavior);
@@ -267,7 +285,7 @@ void ASoldierRts::SetBehavior_Implementation(const ECombatBehavior NewBehavior)
 		AIController->SetupVariables();
 		if (CombatBehavior == ECombatBehavior::Passive)
 		{
-			AIController->StopAttack();
+			AIController->ResetAttack();
 		}
 		else if (CombatBehavior == ECombatBehavior::Aggressive)
 		{
@@ -289,7 +307,7 @@ ECombatBehavior ASoldierRts::GetBehavior_Implementation()
 
 bool ASoldierRts::GetIsInAttack_Implementation()
 {
-	return GetAiController()->GetHaveTarget();
+	return GetAiController()->HasAttackTarget();
 }
 
 void ASoldierRts::UpdateActorsInArea()

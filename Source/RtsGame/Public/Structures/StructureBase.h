@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Data/DataRts.h"
 #include "GameFramework/Actor.h"
+#include "Interfaces/BuildInterface.h"
 #include "Interfaces/FactionsInterface.h"
 #include "Interfaces/Selectable.h"
 #include "StructureBase.generated.h"
@@ -16,7 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBuildCompleteDelegate);
 
 
 UCLASS()
-class RTSGAME_API AStructureBase : public AActor, public ISelectable, public IFactionsInterface
+class RTSGAME_API AStructureBase : public AActor, public ISelectable, public IFactionsInterface, public IBuildInterface
 {
 	GENERATED_BODY()
 
@@ -62,7 +63,10 @@ public:
 	virtual EFaction GetCurrentFaction_Implementation() override;
 
 	UFUNCTION()
-	bool GetIsSelected() const;
+	virtual bool GetIsSelected_Implementation() override;
+
+	UFUNCTION()
+	virtual UStructureDataAsset* GetDataAsset_Implementation() override;
 
 	UPROPERTY()
 	FStructureSelectedDelegate OnSelected;
@@ -109,7 +113,7 @@ protected:
 public:
 	
 	UFUNCTION()
-	void StartBuild(ARtsPlayerController* RequestingPC);
+	void StartBuild();
 
 	UFUNCTION()
 	void DeliverResources(FResourcesCost DeliveredResources);
@@ -141,7 +145,7 @@ protected:
 	
 	/*--- Replication ---*/
 	UFUNCTION(Server, Reliable)
-	void Server_StartBuild(ARtsPlayerController* RequestingPC);
+	void Server_StartBuild();
 
 	UFUNCTION(Server, Reliable)
 	void Server_NewWorker(int NewWorker);
@@ -177,6 +181,46 @@ protected:
 	UPROPERTY(Replicated)
 	bool bIsBuilt;
 
-#pragma endregion	
+#pragma endregion
+
 	
+// ----------------------- Build -----------------------
+#pragma region Upgrading
+public:	
+	UFUNCTION(BlueprintCallable, Category = "Upgrade")
+	void StartUpgrade(int32 UpgradeIndex);
+
+	UFUNCTION(Server, Reliable)
+	void Server_StartUpgrade(int32 UpgradeIndex);
+
+	UFUNCTION()
+	bool GetIsInUpgrading() const;
+
+protected:
+	// Upgrade update
+	UFUNCTION()
+	void UpdateUpgrade();
+	
+	UFUNCTION()
+	void OnRep_CurrentUpgradeIndex();
+	
+	UFUNCTION()
+	void OnUpgradeCompleted();
+	
+	// Upgrade state
+	UPROPERTY(ReplicatedUsing=OnRep_CurrentUpgradeIndex, BlueprintReadOnly, Category = "Upgrade")
+	int32 CurrentUpgradeIndex;
+
+	UPROPERTY()
+	float UpgradeElapsedTime;
+
+	UPROPERTY(Replicated)
+	bool bInUpgrade = false;
+
+	UPROPERTY(Replicated)
+	bool bCanUpgraded = false;
+
+	FTimerHandle UpgradeTimerHandle;
+	
+#pragma endregion	
 };

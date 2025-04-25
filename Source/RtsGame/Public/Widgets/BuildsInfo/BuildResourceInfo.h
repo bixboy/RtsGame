@@ -14,7 +14,7 @@ class RTSGAME_API UBuildResourceInfo : public UUserWidget
 
 public:
 	UFUNCTION()
-	void UpdateResources(FResourcesCost NewResource);
+	void UpdateResources(FResourcesCost NewResource, FResourcesCost MaxResource);
 
 protected:
 

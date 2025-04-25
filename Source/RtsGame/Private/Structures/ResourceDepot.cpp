@@ -54,6 +54,11 @@ FResourcesCost AResourceDepot::GetResource_Implementation()
 	return GetStorage();
 }
 
+FResourcesCost AResourceDepot::GetMaxResource_Implementation()
+{
+	return ResourcesComp->GetMaxResource();
+}
+
 URtsResourcesComponent* AResourceDepot::GetResourcesComp()
 {
 	return ResourcesComp;

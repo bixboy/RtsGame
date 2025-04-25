@@ -2,9 +2,9 @@
 #include "Widgets/Entries/ResourceEntryWidget.h"
 
 
-void UBuildResourceInfo::UpdateResources(FResourcesCost NewResource)
+void UBuildResourceInfo::UpdateResources(FResourcesCost NewResource, FResourcesCost MaxResource)
 {
-	if (WoodEntry)  WoodEntry ->SetTextValue(NewResource.Woods);
-	if (FoodEntry)  FoodEntry ->SetTextValue(NewResource.Food);
-	if (MetalEntry) MetalEntry->SetTextValue(NewResource.Metal);
+	if (WoodEntry)  WoodEntry->SetTextValue(NewResource.Woods, MaxResource.Woods);
+	if (FoodEntry)  FoodEntry->SetTextValue(NewResource.Food, MaxResource.Food);
+	if (MetalEntry) MetalEntry->SetTextValue(NewResource.Metal, MaxResource.Metal);
 }

@@ -1,8 +1,8 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "AdvancedFriendsGameInstance.h"
 #include "SGameInstance.generated.h"
+
 
 UCLASS()
 class MULTIPLAYERMENU_API USGameInstance : public UAdvancedFriendsGameInstance

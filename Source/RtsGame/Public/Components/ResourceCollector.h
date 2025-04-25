@@ -35,6 +35,9 @@ public:
 	void StopCollect(const FCommandData CommandData);
 
 	UFUNCTION()
+	void StopAll(const FCommandData CommandData);
+
+	UFUNCTION()
 	bool GetIsCollecting();
 
 	UFUNCTION()

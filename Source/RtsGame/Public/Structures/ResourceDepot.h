@@ -21,6 +21,9 @@ public:
 	virtual FResourcesCost GetResource_Implementation() override;
 
 	UFUNCTION()
+	virtual FResourcesCost GetMaxResource_Implementation() override;
+
+	UFUNCTION()
 	FResourcesCost GetStorage();
 
 	UFUNCTION()

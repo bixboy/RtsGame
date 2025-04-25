@@ -73,24 +73,12 @@ public:
 	UFUNCTION()
 	void SetActivated(bool bActivate);
 
-	UPROPERTY(EditAnywhere)
-	FPrimaryAssetId LobbyLevel;
-
-	UFUNCTION(BlueprintImplementableEvent, Category = Sessions)
-	void OnCreateSessionSuccess();
-
 protected:
 	UFUNCTION()
 	void InitTextDisplays();
 
 	UFUNCTION()
 	void HostSession();
-
-	UFUNCTION(BlueprintImplementableEvent, Category = Sessions)
-	void DestroySession(APlayerController* Controller);
-
-	UFUNCTION()
-	void OnCreateSessionFailure();
 
 	UFUNCTION()
 	void OnCreteSessionSuccessGenerateId();
@@ -131,6 +119,9 @@ protected:
 	TEnumAsByte<ESettingPlayerHealth> Setting2;
 	UPROPERTY()
 	TEnumAsByte<ESessionAccess> Setting3;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	TSoftObjectPtr<UWorld> LevelLobby;
 	
 
 	UPROPERTY()
@@ -175,9 +166,5 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USButtonBaseWidget* ChangeSessionAccessButton;
-
-	/*- Utility -*/
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	FString GetLevelPath(FSoftObjectPath Level);
 	
 };

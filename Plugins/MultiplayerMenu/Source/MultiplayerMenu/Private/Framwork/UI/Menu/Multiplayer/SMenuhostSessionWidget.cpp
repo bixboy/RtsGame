@@ -5,6 +5,7 @@
 #include "CreateSessionCallbackProxyAdvanced.h"
 #include "Components/EditableText.h"
 #include "Components/Slider.h"
+#include "Framwork/Managers/SGameInstanceSubSystem.h"
 #include "Framwork/UI/Menu/SButtonBaseWidget.h"
 
 
@@ -256,58 +257,10 @@ void USMenuhostSessionWidget::OnSessionAccessButtonClicked()
 
 void USMenuhostSessionWidget::HostSession()
 {
-    UE_LOG(LogTemp, Log, TEXT("HostSession: Début de la fonction."));
-	
-    UWorld* World = GetWorld();
-	APlayerController* PlayerController = World->GetFirstPlayerController();
-
-	DestroySession(PlayerController);
-	
-    TArray<FSessionPropertyKeyPair> SessionProperties;
-    SessionProperties.Add(FSessionPropertyKeyPair(TEXT("GameName"), GameSettings.GameName));
-    SessionProperties.Add(FSessionPropertyKeyPair(TEXT("MapName"), GameSettings.MapName));
-	SessionProperties.Add(FSessionPropertyKeyPair(TEXT("SessionAccess"), GameSettings.IsPrivateGame ? 1 : 0));
-	
-    // Créer la session
-    UCreateSessionCallbackProxyAdvanced* CreateSessionProxy = UCreateSessionCallbackProxyAdvanced::CreateAdvancedSession(
-        World,
-        SessionProperties,
-        PlayerController,
-        GameSettings.MaxPlayers,
-        0,
-        false,
-		true,
-		false,
-		true,
-		true,
-		true,
-		false,
-		false,
-		false,
-		true,
-		false,
-		true
-    );
-
-    if (CreateSessionProxy)
-    {
-        UE_LOG(LogTemp, Log, TEXT("HostSession: CreateSessionProxy créé avec succès."));
-
-        CreateSessionProxy->OnSuccess.AddDynamic(this, &USMenuhostSessionWidget::OnCreteSessionSuccessGenerateId);
-        CreateSessionProxy->OnFailure.AddDynamic(this, &USMenuhostSessionWidget::OnCreateSessionFailure);
-
-    	CreateSessionProxy->Activate();
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("HostSession: Échec de la création du CreateSessionProxy."));
-    }
-}
-
-void USMenuhostSessionWidget::OnCreateSessionFailure()
-{
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Session creation failed"));
-	UE_LOG(LogTemp, Error, TEXT("Session creation failed"));
+	if (auto* Subsys = GetGameInstance()->GetSubsystem<USGameInstanceSubSystem>())
+	{
+		Subsys->HostSession(GameSettings, LevelLobby);
+	}
 }
 
 void USMenuhostSessionWidget::OnCreteSessionSuccessGenerateId()
@@ -319,8 +272,6 @@ void USMenuhostSessionWidget::OnCreteSessionSuccessGenerateId()
 
 	if (SessionInterface)
 		SessionInterface->CreateSessionIdFromString(SessionIdStr); */
-
-	OnCreateSessionSuccess();
 }
 
 FString USMenuhostSessionWidget::GenerateTruncatedGuid()
@@ -335,21 +286,3 @@ FString USMenuhostSessionWidget::GenerateTruncatedGuid()
 }
 
 #pragma endregion
-
-FString USMenuhostSessionWidget::GetLevelPath(FSoftObjectPath Level)
-{
-	FString LevelPath = Level.GetAssetPathString();
-
-	int32 LastDotIndex;
-	if (LevelPath.FindLastChar('.', LastDotIndex))
-	{
-		LevelPath = LevelPath.Left(LastDotIndex) + TEXT("?listen");
-	}
-	else
-	{
-		LevelPath += TEXT("?listen");
-	}
-
-	return LevelPath;
-	
-}

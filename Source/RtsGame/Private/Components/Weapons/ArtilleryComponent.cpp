@@ -52,22 +52,20 @@ void UArtilleryComponent::HandleAIFire()
     {
         MuzzleLoc = GetOwner()->GetActorLocation();
     }
-
+    
     FVector TargetLoc = AITarget->GetActorLocation();
+    float Distance2D = FVector::Dist2D(MuzzleLoc, TargetLoc);
+    
+    float ArcParam = FMath::GetMappedRangeValueClamped(
+        FVector2D(300.f, 3000.f),
+        FVector2D(0.8f, 0.3f),
+        Distance2D
+    );
 
     float SpreadRadius = ShotSpread;
     FVector2D RandomOffset2D = FMath::RandPointInCircle(SpreadRadius);
     TargetLoc += FVector(RandomOffset2D.X, RandomOffset2D.Y, 0.f);
     
-    float Distance2D = FVector::Dist2D(MuzzleLoc, TargetLoc);
-    
-    float ArcParam = FMath::GetMappedRangeValueClamped(
-        FVector2D(300.f, 3000.f),
-        FVector2D(1.f, 0.3f),
-        Distance2D
-    );
-    
-
     FVector LaunchVelocity;
     bool bFound = UGameplayStatics::SuggestProjectileVelocity_CustomArc(
         GetWorld(),

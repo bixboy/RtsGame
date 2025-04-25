@@ -49,6 +49,9 @@ protected:
 	UPROPERTY()
 	TArray<UUnitEntryWidget*> UnitEntryList;
 
+	UPROPERTY()
+	TArray<AResourceDepot*> ResourceDepotList;
+
 	// --------
 	UFUNCTION()
 	void CreateResourceEntry(TArray<AActor*> SelectedBuilds);

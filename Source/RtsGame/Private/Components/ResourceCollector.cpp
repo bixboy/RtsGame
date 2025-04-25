@@ -20,10 +20,14 @@ void UResourceCollector::BeginPlay()
 {
 	Super::BeginPlay();
 
-	OwnerUnit = Cast<AUnitsMaster>(GetOwner());
-	if (OwnerUnit)
+	if (GetOwner()->HasAuthority())
 	{
-		OwnerResourcesComp = OwnerUnit->GetComponentByClass<URtsResourcesComponent>();
+		OwnerUnit = Cast<AUnitsMaster>(GetOwner());
+		if (OwnerUnit)
+		{
+			OwnerResourcesComp = OwnerUnit->GetComponentByClass<URtsResourcesComponent>();
+			OwnerUnit->GetAiController()->OnNewDestination.AddDynamic(this, &UResourceCollector::StopAll);
+		}	
 	}
 }
 
@@ -37,9 +41,9 @@ void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType
 	if (!GetOwner()->HasAuthority()) return;
 
 	// ----- Move To Storage -----
-	if (DropOffBuilding && bMoveToStorage)
+	if (DropOffBuilding && bMoveToStorage && TargetResourceNode)
 	{
-		if (HasReachedActor(DropOffBuilding, 50.f))
+		if (!DropOffBuilding->GetResourcesComp()->GetStorageIsFull(TargetResourceNode->GetResourceType()) && HasReachedActor(DropOffBuilding, 50.f))
 		{
 			if (OwnerUnit->GetAiController())
 			{
@@ -53,7 +57,7 @@ void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType
 			DropOffBuilding = nullptr;
 			bMoveToStorage = false;
 
-			if (TargetResourceNode && !TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
+			if (!TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
 			{
 				StartMoveToResource(TargetResourceNode);
 			}
@@ -64,6 +68,13 @@ void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType
 					StartMoveToResource(Node);
 				}
 			}
+		}
+		else
+		{
+			DropOffBuilding = nullptr;
+			bMoveToStorage = false;
+			
+			MoveToNearestStorage();
 		}
 	}
 
@@ -109,15 +120,21 @@ void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType
 // ------------------ Movement ------------------
 void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
 {
-	if (!OwnerUnit->HasAuthority()) return;
+	if (!OwnerUnit->HasAuthority() || !ResourceNode) return;
 	
-	AResourceNode* TargetNode = ResourceNode;
+	TargetResourceNode = ResourceNode;
 
-	if (!ResourceNode || ResourceNode->GetIsEmpty(ResourceNode->GetResourceType()))
+	if (OwnerResourcesComp->GetStorageIsFull(TargetResourceNode->GetResourceType()))
 	{
-		TargetNode = GetNearestResourceNode();
+		MoveToNearestStorage();
+		return;
+	}
+
+	if (TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
+	{
+		TargetResourceNode = GetNearestResourceNode();	
 		
-		if (!TargetNode)
+		if (!TargetResourceNode)
 		{
 			StopCollect(FCommandData());
 			return;
@@ -128,8 +145,7 @@ void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
 	{
 		if (AAiControllerRts* AiController = OwnerUnit->GetAiController())
 		{
-			TargetResourceNode = TargetNode;
-			AiController->MoveToLocation(TargetNode->GetActorLocation());
+			AiController->MoveToLocation(TargetResourceNode->GetActorLocation());
 			
 			bIsCollecting = true;
 
@@ -141,8 +157,7 @@ void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
 
 void UResourceCollector::MoveToNearestStorage()
 {
-	if (!GetOwner()->HasAuthority())
-		return;
+	if (!GetOwner()->HasAuthority()) return;
     
 	ARtsPlayerController* PC = Cast<ARtsPlayerController>(OwnerUnit->OwnerPlayer);
 	if (!PC || !PC->RtsComponent)
@@ -156,7 +171,7 @@ void UResourceCollector::MoveToNearestStorage()
 		AResourceDepot* Storage = Cast<AResourceDepot>(Build);
 		if (!Storage) continue;
 		
-		if (!Storage->GetResourcesComp()->GetStorageIsFull())
+		if (Storage->GetIsBuilt() && !Storage->GetResourcesComp()->GetStorageIsFull(TargetResourceNode->GetResourceType()))
 		{
 			float Distance = FVector::Dist(OwnerUnit->GetActorLocation(), Storage->GetActorLocation());
 			if (Distance < NearestDistance)
@@ -236,7 +251,6 @@ void UResourceCollector::StartCollectResource()
 	int32 Collected = TargetResourceNode->StartResourceCollect(ToCollect);
 	if (Collected <= 0 || TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
 	{
-		TargetResourceNode = nullptr;
 		StopCollect(FCommandData());
 		MoveToNearestStorage();
 		return;
@@ -269,6 +283,18 @@ void UResourceCollector::StopCollect(const FCommandData CommandData)
 	bIsCollecting = false;
 }
 
+void UResourceCollector::StopAll(const FCommandData CommandData)
+{
+	if (CommandData.Target == TargetResourceNode || !OwnerUnit->HasAuthority()) return;
+
+	GetWorld()->GetTimerManager().ClearTimer(CollectionTimerHandle);
+	
+	bIsCollecting = false;
+	TargetResourceNode = nullptr;
+	
+	bMoveToStorage = false;
+	DropOffBuilding = nullptr;
+}
 
 
 AResourceNode* UResourceCollector::GetNearestResourceNode()

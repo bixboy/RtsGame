@@ -22,6 +22,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	virtual void Input_SelectAllUnitType() override;
 	
 	virtual void CreatePreviewMesh() override;
 

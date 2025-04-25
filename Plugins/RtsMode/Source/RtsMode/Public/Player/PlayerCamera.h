@@ -213,7 +213,7 @@ protected:
 	void HandleLeftMouse(EInputEvent InputEvent, float Value);
 	
 	UFUNCTION()
-	void Input_SelectAllUnitType();
+	virtual void Input_SelectAllUnitType();
 
 	
 	// Alt Click

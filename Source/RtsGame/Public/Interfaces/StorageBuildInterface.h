@@ -19,4 +19,7 @@ class RTSGAME_API IStorageBuildInterface
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	FResourcesCost GetResource();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	FResourcesCost GetMaxResource();
 };

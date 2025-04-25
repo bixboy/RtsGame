@@ -35,6 +35,52 @@ void ARtsPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 #pragma endregion
 
 
+void ARtsPlayer::Input_SelectAllUnitType()
+{
+	const TArray<AActor*>& Selected = Player->SelectionComponent->GetSelectedActors();
+	if (Selected.Num() == 0) return;
+
+	AActor* Reference = Selected[0];
+	if (!Reference) return;
+
+	UClass* TargetClass = Reference->GetClass();
+
+	TArray<AActor*> Candidates = GetAllActorsOfClassInCameraBound<AActor>(GetWorld(), TargetClass);
+	if (Candidates.Num() == 0) return;
+
+	const bool bReferenceHasFaction = Reference->Implements<UFactionsInterface>();
+	const EFaction ReferenceFaction = bReferenceHasFaction ? IFactionsInterface::Execute_GetCurrentFaction(Reference) : EFaction::None;
+
+	TArray<AActor*> ActorsToSelect;
+	ActorsToSelect.Reserve(Candidates.Num());
+
+	for (AActor* Candidate : Candidates)
+	{
+		if (!Candidate)
+		{
+			continue;
+		}
+
+		if (bReferenceHasFaction && Candidate->Implements<UFactionsInterface>())
+		{
+			EFaction CandidateFaction = IFactionsInterface::Execute_GetCurrentFaction(Candidate);
+			if (CandidateFaction != ReferenceFaction)
+			{
+				continue;
+			}
+		}
+
+		ActorsToSelect.Add(Candidate);
+	}
+
+	if (ActorsToSelect.Num() > 0)
+	{
+		Player->SelectionComponent->Handle_Selection(ActorsToSelect);
+	}
+}
+
+
+// ========== Preview ========== //
 void ARtsPlayer::CreatePreviewMesh()
 {
 	if(PreviewUnits) return;

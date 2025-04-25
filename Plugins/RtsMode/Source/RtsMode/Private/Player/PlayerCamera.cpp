@@ -411,6 +411,7 @@ void APlayerCamera::Input_SelectAllUnitType()
 {
 	TArray<AActor*> SelectedInCameraBound = GetAllActorsOfClassInCameraBound<AActor>(GetWorld(), ASoldierRts::StaticClass());
 	TArray<AActor*> ActorsToSelect;
+	
 	if (!SelectedInCameraBound.IsEmpty())
 	{
 		for (AActor* Solider : SelectedInCameraBound)

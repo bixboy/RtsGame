@@ -1,6 +1,4 @@
 ﻿#include "Framwork/SLobbyPlayerController.h"
-
-#include "EnhancedInputComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "Framwork/Components/SChatComponent.h"
 #include "Framwork/Managers/Lobby/SGameModeLobby.h"

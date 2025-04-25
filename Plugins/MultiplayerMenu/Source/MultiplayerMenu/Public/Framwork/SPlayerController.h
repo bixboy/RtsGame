@@ -1,10 +1,10 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "SPlayerController.generated.h"
 
 class USMenuMultiplayerWidget;
 class UCommonActivatableWidget;
+
 
 UCLASS()
 class MULTIPLAYERMENU_API ASPlayerController : public APlayerController

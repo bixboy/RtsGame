@@ -32,16 +32,10 @@ void UCustomButtonWidget::SetButtonText(const FText& InText)
 
 void UCustomButtonWidget::ToggleButtonIsSelected(bool bNewValue)
 {
-
 	if (ButtonBorder)
 	{
 		if (UMaterialInstanceDynamic* MaterialInstance = ButtonBorder->GetDynamicMaterial())
 		{
-			bool bUseTexture;
-			FGuid Guid;
-			FMaterialParameterInfo ParameterInfo(FName(TEXT("UseTexture")));
-			MaterialInstance->GetStaticSwitchParameterValue(ParameterInfo, bUseTexture, Guid);
-			if (bUseTexture) return;
 
 			bIsSelected = bNewValue;
 			if (bIsSelected )

@@ -162,6 +162,9 @@ void USMenuJoinSessionWidget::OnSessionSearchComplete(const TArray<FBlueprintSes
 	SessionsList = Results;
 	bSearchInProgress = false;
 	SetSpinnerDisplay(false);
+
+	int NumSession = Results.Num();
+	UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::OnSessionSearchComplete] - Session Found : %d"), NumSession);
     
 	TArray<UObject*> WrappedResults;
 	for (const FBlueprintSessionResult& Result : Results)
@@ -211,6 +214,7 @@ void USMenuJoinSessionWidget::OnSessionSearchComplete(const TArray<FBlueprintSes
 	{
 		OnSessionSearchFailed(Results);
 		NoSessionsDisplay->SetVisibility(ESlateVisibility::Visible);
+		return;
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[USMenuJoinSessionWidget::OnSessionSearchComplete] - Success Session Search"))

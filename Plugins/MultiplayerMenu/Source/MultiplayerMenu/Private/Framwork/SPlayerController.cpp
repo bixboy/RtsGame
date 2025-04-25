@@ -12,7 +12,21 @@ void ASPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	DestroySession(this);
+	IOnlineSubsystem* Subsys = Online::GetSubsystem(GetWorld());
+	if (Subsys)
+	{
+		IOnlineSessionPtr Sessions = Subsys->GetSessionInterface();
+		if (Sessions.IsValid())
+		{
+			FName SessionName = NAME_GameSession; 
+			FNamedOnlineSession* Existing = Sessions->GetNamedSession(SessionName);
+            
+			if (Existing && Existing->SessionState != EOnlineSessionState::NoSession)
+			{
+				Sessions->DestroySession(SessionName);
+			}
+		}
+	}
 	
 	if (MenuWidgetClass)
 	{

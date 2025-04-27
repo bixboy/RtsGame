@@ -1,6 +1,7 @@
 ﻿#include "Widgets/Map/MapWidget.h"
 #include "EngineUtils.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Image.h"

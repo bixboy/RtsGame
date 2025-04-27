@@ -14,6 +14,7 @@
 UResourceCollector::UResourceCollector()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.1f;
 }
 
 void UResourceCollector::BeginPlay()

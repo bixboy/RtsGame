@@ -34,7 +34,7 @@ protected:
 	void HandleHighlight(AActor* ActorInBox, const bool Highlight = true) const;
 
 	UFUNCTION()
-	void OnBoxCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	virtual void OnBoxCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	
 	UPROPERTY()
 	FVector StartLocation;
@@ -46,7 +46,7 @@ protected:
 	UPROPERTY()
 	TArray<AActor*> CenterInBox;
 
-private:
+protected:
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess = true))
 	UBoxComponent* BoxComponent;
 

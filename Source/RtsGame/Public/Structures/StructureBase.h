@@ -26,7 +26,14 @@ public:
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
+	UFUNCTION()
 	ARtsPlayerController* GetOwnerController();
+
+	UFUNCTION()
+	void SetBuildTeam(int NewTeam);
+
+	UFUNCTION()
+	UStaticMeshComponent* GetMeshComponent();
 
 protected:
 	virtual void BeginPlay() override;
@@ -35,6 +42,9 @@ protected:
 
 	UPROPERTY()
 	ARtsPlayerController* OwnerController;
+
+	UPROPERTY(Replicated)
+	int BuildTeam = -1;
 
 // ----------------------- Setup -----------------------
 #pragma region Components
@@ -53,26 +63,26 @@ protected:
 #pragma region Interfaces
 	
 public:
-	/*- Function -*/
 	virtual void Select() override;
+	
 	virtual void Deselect() override;
+	
 	virtual void Highlight(const bool Highlight) override;
 
+	virtual bool GetIsSelected_Implementation() override;
+
+// -----------
 	virtual ESelectionType GetSelectionType_Implementation() override;
 
 	virtual EFaction GetCurrentFaction_Implementation() override;
 
-	UFUNCTION()
-	virtual bool GetIsSelected_Implementation() override;
+	virtual int GetTeam_Implementation() override;
 
-	UFUNCTION()
 	virtual UStructureDataAsset* GetDataAsset_Implementation() override;
 
-	UPROPERTY()
 	FStructureSelectedDelegate OnSelected;
 
 protected:
-	/*- Variables -*/
 	UPROPERTY()
 	bool Selected;
 
@@ -96,14 +106,14 @@ public:
 	void SetBuildData(FStructure NewData);
 	
 protected:
+	UFUNCTION()
+	void OnRep_BuildData();
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Base")
 	UStructureDataAsset* StructureData;
 
 	UPROPERTY(ReplicatedUsing = OnRep_BuildData)
 	FStructure BuildData;
-
-	UFUNCTION()
-	void OnRep_BuildData();
 
 #pragma endregion
 

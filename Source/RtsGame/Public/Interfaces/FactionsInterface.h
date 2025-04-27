@@ -19,4 +19,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	EFaction GetCurrentFaction();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	int GetTeam();
 };

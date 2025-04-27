@@ -11,7 +11,7 @@
 
 AStructureBase::AStructureBase()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	HealthComp = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComp"));
 
@@ -54,6 +54,8 @@ void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(AStructureBase, BuildTeam);
+	
 	DOREPLIFETIME(AStructureBase, BuildData);
 	DOREPLIFETIME(AStructureBase, bIsBuilt);
 
@@ -69,11 +71,6 @@ void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	DOREPLIFETIME(AStructureBase, CurrentUpgradeIndex);
 }
 
-ARtsPlayerController* AStructureBase::GetOwnerController()
-{
-	return OwnerController;
-}
-
 //------------ Data
 void AStructureBase::SetBuildData(FStructure NewData)
 {
@@ -86,6 +83,11 @@ void AStructureBase::SetBuildData(FStructure NewData)
 		MeshComp->SetStaticMesh(BuildData.StructureMesh);
 		OnConstructionCompleted();
 	}
+}
+
+void AStructureBase::SetBuildTeam(int NewTeam)
+{
+	BuildTeam = NewTeam;
 }
 
 #pragma endregion
@@ -131,6 +133,11 @@ ESelectionType AStructureBase::GetSelectionType_Implementation()
 EFaction AStructureBase::GetCurrentFaction_Implementation()
 {
 	return Faction;
+}
+
+int AStructureBase::GetTeam_Implementation()
+{
+	return BuildTeam;
 }
 
 bool AStructureBase::GetIsSelected_Implementation()
@@ -494,6 +501,16 @@ UStructureDataAsset* AStructureBase::GetDataAsset_Implementation()
 		return StructureData;
 
 	return nullptr;
+}
+
+ARtsPlayerController* AStructureBase::GetOwnerController()
+{
+	return OwnerController;
+}
+
+UStaticMeshComponent* AStructureBase::GetMeshComponent()
+{
+	return MeshComp;
 }
 
 #pragma endregion

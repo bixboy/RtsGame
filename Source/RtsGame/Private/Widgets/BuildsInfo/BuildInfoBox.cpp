@@ -1,5 +1,5 @@
 ﻿#include "Widgets/BuildsInfo/BuildInfoBox.h"
-
+#include "Components/Image.h"
 #include "Components/RtsResourcesComponent.h"
 #include "Components/TextBlock.h"
 #include "Data/UnitsProductionDataAsset.h"
@@ -22,10 +22,12 @@ void UBuildInfoBox::SetupBuildInfo(TArray<AActor*> Builds, USelectorWrapBox* Own
 	WrapBox->ClearChildren();
 	ResourceDepotList.Empty();
 
-	if (UStructureDataAsset* Data =IBuildInterface::Execute_GetDataAsset(Builds[0]))
+	if (UStructureDataAsset* Data = IBuildInterface::Execute_GetDataAsset(Builds[0]))
 	{
 		BuildName->SetText(FText::FromString(Data->Structure.Name));
-		BuildDesc->SetText(FText::FromString(Data->Structure.Description));	
+		BuildDesc->SetText(FText::FromString(Data->Structure.Description));
+		
+		BuildImage->SetBrushFromTexture(Data->Structure.Image);	
 	}
 	
 	if (AResourceDepot* Build = Cast<AResourceDepot>(Builds[0]))

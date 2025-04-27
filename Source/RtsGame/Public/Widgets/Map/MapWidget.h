@@ -3,10 +3,11 @@
 #include "Blueprint/UserWidget.h"
 #include "MapWidget.generated.h"
 
+class UImage;
+class UBorder;
 class UMapIconComponent;
 class ADynamicCameraMap;
 class UCanvasPanel;
-class UImage;
 
 
 UCLASS()
@@ -30,10 +31,10 @@ protected:
 	void RemoveIcon(UMapIconComponent* Comp);
 
 	
-	UPROPERTY(meta=(BindWidget))
-	UImage* MinimapImage;
+	UPROPERTY(meta = (BindWidget))
+	UBorder* MinimapImage;
 
-	UPROPERTY(meta=(BindWidget))
+	UPROPERTY(meta = (BindWidget))
 	UCanvasPanel* IconCanvas;
 
 	UPROPERTY(EditAnywhere, Category="Settings")

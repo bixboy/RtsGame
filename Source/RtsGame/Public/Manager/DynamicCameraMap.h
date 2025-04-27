@@ -6,7 +6,7 @@
 
 
 UCLASS()
-class RTSGAME_API ADynamicCameraMap : public ACameraActor
+class RTSGAME_API ADynamicCameraMap : public AActor
 {
 	GENERATED_BODY()
 
@@ -30,6 +30,11 @@ protected:
 
 	UFUNCTION()
 	void UpdateRenderTarget();
+	
+	UFUNCTION()
+	void OnActorSpawned(AActor* SpawnedActor);
+
+	
 
 	UPROPERTY(VisibleAnywhere, Category="Settings")
 	USceneCaptureComponent2D* SceneCaptureComp;
@@ -42,5 +47,7 @@ protected:
 
 	UPROPERTY()
 	TSet<TWeakObjectPtr<UMapIconComponent>> RegisteredIcons;
+
+	FDelegateHandle SpawnedHandle;
 	
 };

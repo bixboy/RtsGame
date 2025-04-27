@@ -6,6 +6,7 @@
 URtsResourcesComponent::URtsResourcesComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.1f;
 }
 
 void URtsResourcesComponent::BeginPlay()

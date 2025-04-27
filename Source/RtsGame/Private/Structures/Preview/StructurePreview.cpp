@@ -1,13 +1,26 @@
-﻿#include "Structures/StructurePreview.h"
+﻿#include "Structures/Preview/StructurePreview.h"
 #include "Components/GridComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SlectionComponent.h"
+#include "Engine/StaticMeshActor.h"
+#include "Player/PlayerControllerRts.h"
+#include "Player/RtsPlayer.h"
 #include "Structures/StructureBase.h"
 
+
+// ========= Setup ========= //
+#pragma region Setup
 
 AStructurePreview::AStructurePreview()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
 	GridComponent = CreateDefaultSubobject<UGridComponent>("Grid Component");
+
+	PreviewMeshInstance = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("PreviewInstance"));
+	PreviewMeshInstance->SetupAttachment(RootComponent);
+	PreviewMeshInstance->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PreviewMeshInstance->SetCastShadow(false);
 
 	BuildingWidth = 1;
 	BuildingHeight = 1;
@@ -16,7 +29,12 @@ AStructurePreview::AStructurePreview()
 void AStructurePreview::BeginPlay()
 {
 	Super::BeginPlay();
+
+	Player = Cast<ARtsPlayer>(GetOwner());
 }
+
+#pragma endregion
+
 
 void AStructurePreview::CheckIsValidPlacement()
 {
@@ -58,6 +76,8 @@ void AStructurePreview::StartPlacingBuilding(const FStructure BuildData)
 	
     Mesh = BuildData.StructureMesh;
     MeshScale = FVector(1.f, 1.f, 1.f);
+
+	bIsPreviewingWall = false;
     
     ShowPreview(Mesh, MeshScale);
 	
@@ -81,6 +101,105 @@ void AStructurePreview::StartPlacingBuilding(const FStructure BuildData)
     }
 }
 
+
+// ========= Wall Preview ========= //
+void AStructurePreview::StartWallPreview(const FStructure BuildData)
+{
+	StartPlacingBuilding(BuildData);
+
+	PreviewMeshInstance->SetVisibility(false);
+	CachedMeshScale = MeshScale;
+
+	if (BuildData.BuildClass)
+	{
+		if (AStructureBase* CDO = BuildData.BuildClass->GetDefaultObject<AStructureBase>())
+		{
+			UStaticMeshComponent* Comp = CDO->GetMeshComponent();
+			if (Comp && Comp->GetStaticMesh())
+			{
+				float LocalLen = Comp->GetStaticMesh()->GetBounds().BoxExtent.X * 2.f;
+				CachedSegmentLength = LocalLen * CachedMeshScale.X;
+
+				PreviewMeshInstance->SetStaticMesh(BuildData.StructureMesh);
+			}
+		}
+	}
+}
+
+void AStructurePreview::ShowWallPreview(FVector MouseLocation)
+{
+	StartTransform = MouseLocation;
+	bIsPreviewingWall = true;
+	
+	PreviewMeshInstance->SetVisibility(true);
+}
+
+void AStructurePreview::StopWallPreview()
+{
+	StartTransform = FVector::ZeroVector;
+	bIsPreviewingWall = false;
+	
+	PreviewMeshInstance->SetVisibility(false);
+}
+
+void AStructurePreview::Tick(float Delta)
+{
+	Super::Tick(Delta);
+
+	if (!bIsPreviewingWall || CachedSegmentLength <= KINDA_SMALL_NUMBER)
+		return;
+
+	PreviewMeshInstance->ClearInstances();
+
+	const FVector Start   = StartTransform;
+	const FVector Current = Player
+	  ->GetRtsPlayerController()
+	  ->SelectionComponent
+	  ->GetMousePositionOnTerrain()
+	  .Location;
+
+	const FVector Dir       = (Current - Start).GetSafeNormal();
+	const float TotalDist   = FVector::Dist(Start, Current);
+	if (TotalDist <= KINDA_SMALL_NUMBER) 
+		return;
+
+	const float SegLen      = CachedSegmentLength;
+	const int32 Count       = FMath::FloorToInt(TotalDist / SegLen);
+	const FRotator Rot      = Dir.Rotation();
+
+	const float HalfOffset  = SegLen * 0.5f;
+
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const float DistAlong = SegLen * i + HalfOffset;
+		const FVector InstanceLoc = Start + Dir * DistAlong;
+
+		const FTransform Tf(Rot, InstanceLoc, CachedMeshScale);
+		PreviewMeshInstance->AddInstance(Tf, true);
+	}
+}
+
+TArray<FTransform> AStructurePreview::ConfirmWallPreview()
+{
+	TArray<FTransform> SpawnsLocation;
+	if (!bIsPreviewingWall) return SpawnsLocation;
+
+	bIsPreviewingWall = false;
+
+	int32 Num = PreviewMeshInstance->GetInstanceCount();
+	for (int32 i = 0; i < Num; ++i)
+	{
+		FTransform Tf;
+		PreviewMeshInstance->GetInstanceTransform(i, Tf, true);
+		
+		SpawnsLocation.Add(Tf);
+	}
+
+	return SpawnsLocation;
+}
+
+
+// ========= Grid ========= //
 FVector2D AStructurePreview::ComputeGridSize(float CellSize)
 {
 	if (!StaticMesh || !Mesh || CellSize <= 0.f)

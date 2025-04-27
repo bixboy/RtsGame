@@ -20,12 +20,17 @@ class RTSGAME_API AUnitsMaster : public ASoldierRts, public IUnitTypeInterface, 
 public:
 	AUnitsMaster(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UFUNCTION()
+	void SetUnitTeam(int NewTeam);
+
 	/*------ Interfaces ------*/	
 	virtual EUnitsType GetUnitType_Implementation() override;
 
 	virtual ESelectionType GetSelectionType_Implementation() override;
 
 	virtual EFaction GetCurrentFaction_Implementation() override;
+
+	virtual int GetTeam_Implementation() override;
 
 	virtual UUnitsProductionDataAsset* GetUnitData_Implementation() override;
 	
@@ -42,6 +47,8 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void OnStartAttack(AActor* Target) override;
@@ -55,5 +62,8 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Settings|Rts")
 	EUnitsType UnitsType = EUnitsType::Builder;
+
+	UPROPERTY(Replicated)
+	int UnitTeam = -1;
 	
 };

@@ -9,6 +9,7 @@
 AAiControllerRts::AAiControllerRts()
 {
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.TickInterval = 0.1f;
 }
 
 void AAiControllerRts::OnPossess(APawn* InPawn)

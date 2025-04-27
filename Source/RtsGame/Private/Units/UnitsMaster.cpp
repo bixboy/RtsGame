@@ -1,6 +1,7 @@
 ﻿#include "Units/UnitsMaster.h"
 #include "Components/BuilderComponent.h"
 #include "Components/Weapons/ArtilleryComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
 
 
@@ -19,6 +20,13 @@ void AUnitsMaster::BeginPlay()
 	OwnerPlayer = Cast<ARtsPlayerController>(GetInstigator()->GetController());
 }
 
+void AUnitsMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AUnitsMaster, UnitTeam);
+}
+
 void AUnitsMaster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -26,6 +34,12 @@ void AUnitsMaster::Tick(float DeltaTime)
 
 #pragma endregion
 
+void AUnitsMaster::SetUnitTeam(int NewTeam)
+{
+	if (!HasAuthority()) return;
+	
+	UnitTeam = NewTeam;
+}
 
 void AUnitsMaster::OnStartAttack(AActor* Target)
 {
@@ -77,6 +91,11 @@ ESelectionType AUnitsMaster::GetSelectionType_Implementation()
 EFaction AUnitsMaster::GetCurrentFaction_Implementation()
 {
 	return CurrentFaction;
+}
+
+int AUnitsMaster::GetTeam_Implementation()
+{
+	return UnitTeam;
 }
 
 UUnitsProductionDataAsset* AUnitsMaster::GetUnitData_Implementation()

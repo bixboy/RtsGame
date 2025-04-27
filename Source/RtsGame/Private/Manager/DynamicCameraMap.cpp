@@ -20,12 +20,7 @@ ADynamicCameraMap::ADynamicCameraMap()
 void ADynamicCameraMap::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	UpdateRenderTarget();
-}
 
-void ADynamicCameraMap::UpdateRenderTarget()
-{
 	if (!MinimapRenderTarget)
 	{
 		MinimapRenderTarget = NewObject<UTextureRenderTarget2D>(this, "MinimapRT");
@@ -34,6 +29,14 @@ void ADynamicCameraMap::UpdateRenderTarget()
 		MinimapRenderTarget->TargetGamma = 2.2f;
 	}
 	SceneCaptureComp->TextureTarget = MinimapRenderTarget;
+	
+	UpdateRenderTarget();
+
+	SpawnedHandle = GetWorld()->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateUObject(this, &ADynamicCameraMap::OnActorSpawned));
+}
+
+void ADynamicCameraMap::UpdateRenderTarget()
+{
 
 	for (auto& Cls : ClassesToHide)
 	{
@@ -44,6 +47,20 @@ void ADynamicCameraMap::UpdateRenderTarget()
 		{
 			if (A)
 				SceneCaptureComp->HiddenActors.AddUnique(A);
+		}
+	}
+}
+
+void ADynamicCameraMap::OnActorSpawned(AActor* SpawnedActor)
+{
+	if (!SpawnedActor) return;
+
+	for (auto& Cls : ClassesToHide)
+	{
+		if (Cls && SpawnedActor->IsA(Cls))
+		{
+			SceneCaptureComp->HiddenActors.AddUnique(SpawnedActor);
+			break;
 		}
 	}
 }

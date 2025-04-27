@@ -18,6 +18,18 @@ public:
 
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditAnywhere)
+	URtsComponent* RtsComponent;
+
+// ---------- Teams
+	UFUNCTION()
+    int GetPlayerTeam();
+
+    UFUNCTION()
+    void SetPlayerTeam(int NewPlayerTeam);
+	
+
+// ---------- Resources	
 	UFUNCTION()
 	void OnNewResources(const FResourcesCost& NewResources);
 
@@ -28,8 +40,12 @@ public:
 	void RemoveResource(FResourcesCost RemoveResource);
 
 	UPROPERTY(EditAnywhere)
-	URtsComponent* RtsComponent;
-
-	UPROPERTY(EditAnywhere)
 	URtsResourcesComponent* ResourcesComponent;
+
+protected:
+	
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	UPROPERTY(Replicated)
+	int CurrentTeam;
 };

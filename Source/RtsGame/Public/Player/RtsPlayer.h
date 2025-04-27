@@ -47,4 +47,7 @@ protected:
 
 	UPROPERTY()
 	bool bIsInSpawnBuild = false;
+
+	UPROPERTY()
+	bool bIsInSpawnWall = false;
 };

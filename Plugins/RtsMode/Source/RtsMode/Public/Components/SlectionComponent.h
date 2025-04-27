@@ -66,10 +66,10 @@ protected:
 	/*- Server Replication -*/
 
 	UFUNCTION(Server, Reliable)
-	void Server_Select(AActor* ActorToSelect);
+	virtual void Server_Select(AActor* ActorToSelect);
 
 	UFUNCTION(Server, Reliable)
-	void Server_Select_Group(const TArray<AActor*>& ActorsToSelect);
+	virtual void Server_Select_Group(const TArray<AActor*>& ActorsToSelect);
 
 	UFUNCTION(Server, Reliable)
 	void Server_DeSelect(AActor* ActorToDeSelect);

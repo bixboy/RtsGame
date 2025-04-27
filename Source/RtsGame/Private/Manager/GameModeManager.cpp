@@ -2,6 +2,8 @@
 #include "Framwork/Managers/SGameInstanceSubSystem.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
+#include "Player/RtsPlayerController.h"
 
 
 // ========== Setup ========= //
@@ -13,9 +15,29 @@ void AGameModeManager::StartPlay()
 
 	if (HasAuthority())
 	{
-		if (USGameInstanceSubSystem* Instance = GetWorld()->GetSubsystem<USGameInstanceSubSystem>())
+		if (APlayerController* LocalPC = UGameplayStatics::GetPlayerController(this, 0))
 		{
-			GameSettings = Instance->GetGameSettings();
+			bool bAlready = false;
+			for (auto& Pair : PlayersTeam)
+			{
+				if (Pair.Value == LocalPC)
+				{
+					bAlready = true;
+					break;
+				}
+			}
+			if (!bAlready)
+			{
+				AssignTeamToPlayer(LocalPC);
+			}
+		}
+
+		if (UGameInstance* GI = GetWorld()->GetGameInstance())
+		{
+			if (USGameInstanceSubSystem* SubSystem = GI->GetSubsystem<USGameInstanceSubSystem>())
+			{
+				GameSettings = SubSystem->GetGameSettings();
+			}
 		}
 		
 		BeginMatch();
@@ -26,11 +48,25 @@ void AGameModeManager::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
 
-	if (NewPlayer)
+	if (!HasAuthority() || !NewPlayer)
+		return;
+	
+	AssignTeamToPlayer(NewPlayer);
+}
+
+void AGameModeManager::AssignTeamToPlayer(APlayerController* PC)
+{
+	if (!PC) return;
+
+	const int32 AssignedTeam = NextTeamId++;
+	PlayersTeam.Add(AssignedTeam, PC);
+
+	if (ARtsPlayerController* RtsPC = Cast<ARtsPlayerController>(PC))
 	{
-		const int32 AssignedTeam = NextTeamId++;
-		PlayersTeam.Add(AssignedTeam, NewPlayer);
+		RtsPC->SetPlayerTeam(AssignedTeam);
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Assigned %s to team %d"), *PC->GetName(), AssignedTeam);
 }
 
 #pragma endregion
@@ -39,7 +75,7 @@ void AGameModeManager::PostLogin(APlayerController* NewPlayer)
 // ========== Match ========= //
 void AGameModeManager::BeginMatch()
 {
-	MatchState = EMatchState::InProgress;
+	GameMatchState = EMatchState::InProgress;
 	GameStartTime = GetWorld()->GetTimeSeconds();
 }
 
@@ -49,13 +85,13 @@ void AGameModeManager::CheckForVictory()
 
 	if (GetElapsedTime() >= 180.f)
 	{
-		EndMatch();
+		EndGameMatch();
 	}
 }
 
-void AGameModeManager::EndMatch()
+void AGameModeManager::EndGameMatch()
 {
-	MatchState = EMatchState::Completed;
+	GameMatchState = EMatchState::Completed;
 	
 	for (auto It = GameState->PlayerArray.CreateIterator(); It; ++It)
 	{
@@ -72,4 +108,26 @@ void AGameModeManager::EndMatch()
 float AGameModeManager::GetElapsedTime() const
 {
 	return GetWorld()->GetTimeSeconds() - GameStartTime;
+}
+
+int AGameModeManager::GetPlayerTeam(APlayerController* Player)
+{
+	if (!Player) return -1;
+
+	if (const int32* FoundTeam = PlayersTeam.FindKey(Player))
+	{
+		return *FoundTeam;
+	}
+
+	return -1;
+}
+
+APlayerController* AGameModeManager::GetPlayerByTeam(int TeamNum)
+{
+	if (APlayerController** FoundPC = PlayersTeam.Find(TeamNum))
+	{
+		return *FoundPC;
+	}
+
+	return nullptr;
 }

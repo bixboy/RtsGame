@@ -164,6 +164,7 @@ void AUnitProduction::OnProductionFinished()
 	    	
         FActorSpawnParameters SpawnParams;
         SpawnParams.Owner = this;
+		SpawnParams.Instigator = GetInstigator();
 	    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;	
 
         if (AUnitsMaster* SpawnedUnit = GetWorld()->SpawnActor<AUnitsMaster>(UnitSelected->UnitProduction.UnitClass, SpawnLocation, SpawnRotation, SpawnParams))
@@ -174,6 +175,7 @@ void AUnitProduction::OnProductionFinished()
         		Multicast_UpdateProductionQueue(ProductionQueue);
         	}
 
+        	SpawnedUnit->SetUnitTeam(BuildTeam); 
         	SpawnedUnit->UnitInfo = UnitSelected;
         	
             FCommandData CommandData = GetDestination();

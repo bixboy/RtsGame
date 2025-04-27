@@ -2,6 +2,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Interfaces/UnitTypeInterface.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
 #include "Structures/ResourceDepot.h"
@@ -22,7 +23,7 @@ URtsComponent::URtsComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void URtsComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+void URtsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
@@ -35,7 +36,8 @@ void URtsComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	RtsController = Cast<ARtsPlayerController>(GetOwner());
+	if (!RtsController)
+		RtsController = Cast<ARtsPlayerController>(GetOwner());
 
 	TArray<AActor*> FoundActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AResourceNode::StaticClass(), FoundActors);
@@ -49,26 +51,32 @@ void URtsComponent::BeginPlay()
 	
 	if (RtsController && RtsController->IsLocalController())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Spawned Widget:"));
 		Client_CreateRtsWidget();
 	}
 
-	if (GetOwner()->HasAuthority())
+	if (RtsController->HasAuthority() && RtsController->IsLocalController())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Spawned build:"));
-		Server_CreatSpawnPoint();
+		//Server_CreatSpawnPoint();
 	}
 }
 
 void URtsComponent::Server_CreatSpawnPoint_Implementation()
 {
-	if (!SpawningBuildClass) return;
+	if (!SpawningBuildClass || !CurrentBuilds.IsEmpty()) return;
 
+	if (!RtsController)
+	{
+		RtsController = Cast<ARtsPlayerController>(GetOwner());
+	}
+	
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = RtsController;
+
+	SpawnPoint += FVector(0.f, UKismetMathLibrary::RandomFloatInRange(100.f, -3000.f), 0);
 	
 	if (AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(SpawningBuildClass, SpawnPoint, FRotator::ZeroRotator, SpawnParams))
 	{
+		Build->SetBuildTeam(RtsController->GetPlayerTeam());
 		CurrentBuilds.Add(Build);
 
 		if (AResourceDepot* Depot = Cast<AResourceDepot>(Build))
@@ -109,7 +117,7 @@ void URtsComponent::Client_UpdateResourceValue_Implementation(FResourcesCost New
 }
 
 
-// -------------------- Widget Selection --------------------
+// ========= Widget Selection =========
 #pragma region Widget Selection
 
 void URtsComponent::UpdateSelectorWidget(TArray<AActor*> NewSelection)
@@ -156,7 +164,7 @@ void URtsComponent::AddUnitToProduction(UUnitsProductionDataAsset* UnitData)
 #pragma endregion
 
 
-// -------------------- Units Command --------------------
+// ========= Units Command =========
 #pragma region Command
 
 void URtsComponent::CommandSelected(FCommandData CommandData)
@@ -223,8 +231,56 @@ void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Bu
 #pragma endregion
 
 
-// -------------------- Build Selection --------------------
-#pragma region Build Selection
+// ========= Selection =========
+#pragma region Selection
+
+void URtsComponent::Server_Select_Group(const TArray<AActor*>& ActorsToSelect)
+{
+	if (ActorsToSelect.IsEmpty()) return;
+	
+	TArray<AActor*> FilteredActors;
+	int CurrentTeam = RtsController->GetPlayerTeam();
+
+	for (AActor* Actor : ActorsToSelect)
+	{
+		if (Actor->Implements<UFactionsInterface>())
+		{
+			if (IFactionsInterface::Execute_GetTeam(Actor) == CurrentTeam || IFactionsInterface::Execute_GetTeam(Actor) == -1)
+			{
+				FilteredActors.Add(Actor);
+			}
+		}
+		else
+		{
+			FilteredActors.Add(Actor);
+		}
+	}
+	
+	Super::Server_Select_Group(FilteredActors);
+}
+
+void URtsComponent::Server_Select(AActor* ActorToSelect)
+{
+	
+	if (ActorToSelect->Implements<UFactionsInterface>())
+	{
+		int CurrentTeam = RtsController->GetPlayerTeam();
+		if (IFactionsInterface::Execute_GetTeam(ActorToSelect) == CurrentTeam || IFactionsInterface::Execute_GetTeam(ActorToSelect) == -1)
+		{
+			Super::Server_Select(ActorToSelect);
+		}
+		return;
+	}
+
+	
+	Super::Server_Select(ActorToSelect);
+}
+
+#pragma endregion
+
+
+// ========= Spawn Builds =========
+#pragma region Spawn Builds
 
 /*- -------------- Preview Build -------------- -*/
 void URtsComponent::ChangeBuildClass(FStructure BuildData)
@@ -271,16 +327,20 @@ void URtsComponent::SpawnBuild()
 	Server_SpawnBuild(HitResult.Location);
 }
 
+void URtsComponent::SpawnBuild(FTransform BuildTransform)
+{
+	Server_SpawnBuild(BuildTransform.GetLocation());
+}
+
 void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = RtsController;
-
-	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Black, "OUIIIIIII");
 	
 	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(BuildToSpawn.BuildClass, HitLocation, FRotator::ZeroRotator, SpawnParams);
 	if (Build)
 	{
+		Build->SetBuildTeam(RtsController->GetPlayerTeam());
 		Build->SetBuildData(BuildToSpawn);
 		
 		if (BuildToSpawn.bNeedToBuild)

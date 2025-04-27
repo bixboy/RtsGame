@@ -1,6 +1,7 @@
 ﻿#include "Player/RtsPlayerController.h"
 #include "Components/RtsComponent.h"
 #include "Components/RtsResourcesComponent.h"
+#include "Net/UnrealNetwork.h"
 
 
 ARtsPlayerController::ARtsPlayerController(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer.SetDefaultSubobjectClass<URtsComponent>(TEXT("SelectionComponent")))
@@ -22,6 +23,30 @@ void ARtsPlayerController::BeginPlay()
 	}
 }
 
+void ARtsPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ARtsPlayerController, CurrentTeam);
+}
+
+
+// ========== Teams ========== //
+int ARtsPlayerController::GetPlayerTeam()
+{
+	return CurrentTeam;
+}
+
+void ARtsPlayerController::SetPlayerTeam(int NewPlayerTeam)
+{
+	if (!HasAuthority()) return;
+
+	CurrentTeam = NewPlayerTeam;
+	RtsComponent->Server_CreatSpawnPoint();
+}
+
+
+// ========== Resources ========== //
 void ARtsPlayerController::OnNewResources(const FResourcesCost& NewResources)
 {
 	if (RtsComponent)
@@ -33,11 +58,15 @@ void ARtsPlayerController::OnNewResources(const FResourcesCost& NewResources)
 void ARtsPlayerController::AddResource(FResourcesCost NewResource)
 {
 	if (HasAuthority())
-		ResourcesComponent->AddResources(NewResource);
+	{
+		ResourcesComponent->AddResources(NewResource);	
+	}
 }
 
 void ARtsPlayerController::RemoveResource(FResourcesCost RemoveResource)
 {
 	if (HasAuthority())
-		ResourcesComponent->RemoveResources(RemoveResource);
+	{
+		ResourcesComponent->RemoveResources(RemoveResource);	
+	}
 }

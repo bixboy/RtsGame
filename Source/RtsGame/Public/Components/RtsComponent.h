@@ -17,6 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuildUpdatedDelegate, FStructure,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnStoragesUpdated, TArray<AResourceDepot*>, NewStorages);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResourceUpdated,FResourcesCost, NewResource);
 
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class RTSGAME_API URtsComponent : public USelectionComponent
 {
@@ -25,13 +26,16 @@ class RTSGAME_API URtsComponent : public USelectionComponent
 public:
 	URtsComponent();
 
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
 	void AddUnitToProduction(UUnitsProductionDataAsset* UnitData);
 
 	UFUNCTION(Client, reliable)
 	void Client_UpdateResourceValue(FResourcesCost NewResources);
+
+	UFUNCTION(Server, Reliable)
+	void Server_CreatSpawnPoint();
 
 	UFUNCTION()
 	TArray<AResourceNode*> GetResourceNodes();
@@ -46,10 +50,7 @@ protected:
 
 	UFUNCTION(Client, reliable)
 	void Client_CreateRtsWidget();
-
-	UFUNCTION(Server, Reliable)
-	void Server_CreatSpawnPoint();
-
+	
 	UFUNCTION(Server, Reliable)
 	void Server_MoveToResource(AResourceNode* Node);
 
@@ -58,6 +59,10 @@ protected:
 	
 /*- Building -*/
 // --------------- Functions ---------------
+
+	virtual void Server_Select_Group(const TArray<AActor*>& ActorsToSelect) override;
+
+	virtual void Server_Select(AActor* ActorToSelect) override;
 
 	UFUNCTION(Server, Reliable)
 	void Server_MoveToBuildSelected(AStructureBase* Build);
@@ -86,6 +91,8 @@ public:
 
 	UFUNCTION()
 	void SpawnBuild();
+
+	void SpawnBuild(FTransform BuildTransform);
 	
 	UFUNCTION()
 	TArray<AStructureBase*> GetBuilds();

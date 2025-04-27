@@ -10,6 +10,7 @@
 UGridComponent::UGridComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.1f;
 	
 	LineProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>("LineProceduralMesh");
 	SelectionProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>("SelectionProceduralMesh");

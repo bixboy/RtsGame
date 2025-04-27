@@ -1,7 +1,8 @@
 ﻿#include "Player/RtsPlayer.h"
 #include "Components/RtsComponent.h"
 #include "Player/RtsPlayerController.h"
-#include "Structures/StructurePreview.h"
+#include "Structures/Preview/StructurePreview.h"
+#include "Structures/Wall/WallSegment.h"
 
 
 // --------------- Setup ---------------
@@ -98,8 +99,6 @@ void ARtsPlayer::CreatePreviewMesh()
 			
 			if (Preview)
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, "Preview Units");
-				
 				Preview->SetReplicates(false);
 				Preview->SetOwner(this);
 			
@@ -115,23 +114,32 @@ void ARtsPlayer::CreatePreviewMesh()
 
 void ARtsPlayer::ShowBuildPreview(const FStructure BuildData)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2, FColor::Red, "Build");
-	
 	if (Preview && BuildData.StructureMesh)
 	{
 		bIsInSpawnUnits = true;
 		bIsInSpawnBuild = true;
 		bPreviewFollowMouse = true;
-		Preview->EnabledCollision(true);
+		bIsInSpawnWall = false;
 		
-		Preview->StartPlacingBuilding(BuildData);
+		Preview->EnabledCollision(true);
 		Preview->SetActorLocation(RtsController->SelectionComponent->GetMousePositionOnTerrain().Location);
+
+		if (BuildData.BuildClass.Get()->IsChildOf(AWallSegment::StaticClass()))
+		{
+			bIsInSpawnWall = true;
+			Preview->StartWallPreview(BuildData);
+		}
+		else
+		{
+			Preview->StartPlacingBuilding(BuildData);
+		}
 	}
 }
 
 void ARtsPlayer::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
 {
 	bIsInSpawnBuild = false;
+	bIsInSpawnWall = false;
 	Preview->EnabledCollision(false);
 	
 	Super::ShowUnitPreview(NewUnitClass);
@@ -140,6 +148,7 @@ void ARtsPlayer::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
 void ARtsPlayer::HidePreview()
 {
 	bIsInSpawnBuild = false;
+	bIsInSpawnWall = false;
 	RtsController->RtsComponent->ClearPreviewClass();
 	
 	Super::HidePreview();
@@ -155,6 +164,27 @@ void ARtsPlayer::Input_OnSpawnUnits()
 
 	if (bIsInSpawnBuild && Preview)
 	{
+		if (bIsInSpawnWall)
+		{
+			if (!bPreviewFollowMouse)
+			{
+				TArray<FTransform> WallsTransform = Preview->ConfirmWallPreview();
+				for (FTransform WallTransform : WallsTransform)
+				{
+					RtsController->RtsComponent->SpawnBuild(WallTransform);	
+				}
+
+				Preview->StopWallPreview();
+				bPreviewFollowMouse = true;
+				
+				return;
+			}
+
+			bPreviewFollowMouse = false;
+			Preview->ShowWallPreview(RtsController->RtsComponent->GetMousePositionOnTerrain().Location);
+			return;
+		}
+		
 		if (Preview->GetIsValidPlacement())
 		{
 			RtsController->RtsComponent->SpawnBuild();	

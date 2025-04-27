@@ -15,8 +15,6 @@ class RTSGAME_API UPlayerResourceWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-
-	UPlayerResourceWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UResourceEntryWidget* Wood;

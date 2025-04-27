@@ -105,6 +105,7 @@ protected:
 	
 //------------------------------------ Camera ------------------------------------
 #pragma region Camera Components
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	USceneComponent* SceneComponent;
 
@@ -113,6 +114,7 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	UCameraComponent* CameraComponent;
+	
 #pragma endregion
 
 #pragma region Camera Movement

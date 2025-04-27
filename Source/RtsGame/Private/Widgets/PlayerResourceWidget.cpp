@@ -3,11 +3,6 @@
 #include "Widgets/Entries/ResourceEntryWidget.h"
 
 
-UPlayerResourceWidget::UPlayerResourceWidget(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
-{
-	UE_LOG(LogTemp, Warning, TEXT("UPlayerResourceWidget instance created: %p"), this);
-}
-
 void UPlayerResourceWidget::UpdateResourceValue(const FResourcesCost NewResources)
 {
 	if (Wood)

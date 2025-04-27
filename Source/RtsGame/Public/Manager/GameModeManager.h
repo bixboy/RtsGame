@@ -13,7 +13,7 @@ enum class EMatchState : uint8
 };
 
 UCLASS()
-class RTSGAME_API AGameModeManager : public AGameMode
+class RTSGAME_API AGameModeManager : public AGameModeBase
 {
 	GENERATED_BODY()
 	
@@ -26,6 +26,12 @@ public:
 	UFUNCTION()
 	float GetElapsedTime() const;
 
+	UFUNCTION()
+	int GetPlayerTeam(APlayerController* Player);
+
+	UFUNCTION()
+	APlayerController* GetPlayerByTeam(int TeamNum);
+
 protected:
 
 	UFUNCTION()
@@ -35,13 +41,16 @@ protected:
 	void CheckForVictory();
 
 	UFUNCTION()
-	void EndMatch();
+	void EndGameMatch();
+
+	UFUNCTION()
+	void AssignTeamToPlayer(APlayerController* PC);
 	
 	UPROPERTY()
 	FGameSettings GameSettings;
 
 	UPROPERTY()
-	EMatchState MatchState;
+	EMatchState GameMatchState;
 
 	UPROPERTY()
 	float GameStartTime;
@@ -50,6 +59,6 @@ protected:
 	TMap<int, APlayerController*> PlayersTeam;
 
 	UPROPERTY()
-	int32 NextTeamId = 0;
+	int32 NextTeamId = 1;
 
 };

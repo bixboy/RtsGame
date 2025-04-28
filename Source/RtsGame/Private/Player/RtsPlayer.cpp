@@ -150,6 +150,8 @@ void ARtsPlayer::HidePreview()
 	bIsInSpawnBuild = false;
 	bIsInSpawnWall = false;
 	RtsController->RtsComponent->ClearPreviewClass();
+
+	Preview->StopWallPreview();
 	
 	Super::HidePreview();
 }
@@ -169,6 +171,9 @@ void ARtsPlayer::Input_OnSpawnUnits()
 			if (!bPreviewFollowMouse)
 			{
 				TArray<FTransform> WallsTransform = Preview->ConfirmWallPreview();
+				if (WallsTransform.IsEmpty())
+					return;
+				
 				for (FTransform WallTransform : WallsTransform)
 				{
 					RtsController->RtsComponent->SpawnBuild(WallTransform);	

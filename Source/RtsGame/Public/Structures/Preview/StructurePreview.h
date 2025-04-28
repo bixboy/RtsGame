@@ -87,7 +87,10 @@ protected:
 	TSubclassOf<AStructurePreview> WallPreviewClass;
 
 	UPROPERTY(VisibleAnywhere)
-	UInstancedStaticMeshComponent* PreviewMeshInstance;
+	UInstancedStaticMeshComponent* PreviewValidInstance;
+
+	UPROPERTY(VisibleAnywhere)
+	UInstancedStaticMeshComponent* PreviewInvalidInstance;
 
 
 	UPROPERTY()

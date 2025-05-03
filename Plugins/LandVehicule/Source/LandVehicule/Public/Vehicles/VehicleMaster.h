@@ -15,7 +15,7 @@ class UInputMappingContext;
 class UVehiclesAnimInstance;
 class ACameraVehicle;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVehicleMoveDelegate, float, FowardInput, float, RightInput);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVehicleMoveDelegate, float, NewForwardInput, float, NewRightInput);
 
 
 UCLASS()
@@ -32,6 +32,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -98,6 +100,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Settings|Camera")
 	float Sensitivity = 1.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Camera")
+	bool bCanRotateCamera = true;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
 	TArray<ACameraVehicle*> Turrets;
@@ -199,7 +204,7 @@ protected:
 	
 	/*- Functions -*/
 	UFUNCTION(Server, Reliable, BlueprintCallable)
-	void Server_SwitchEngine(bool OnOff);
+	virtual void Server_SwitchEngine(bool OnOff);
 
 	UFUNCTION()
 	void Input_SwitchEngine();

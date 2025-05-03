@@ -8,13 +8,15 @@
 #include "Structures/ResourceDepot.h"
 #include "Structures/UnitsProduction/UnitProduction.h"
 #include "Widgets/SelectorWrapBox.h"
+#include "Widgets/BuildsInfo/BuildProgressWidget.h"
 #include "Widgets/BuildsInfo/BuildResourceInfo.h"
 #include "Widgets/Entries/UnitEntryWidget.h"
 
 
 void UBuildInfoBox::SetupBuildInfo(TArray<AActor*> Builds, USelectorWrapBox* Owner)
 {
-	if (Builds.IsEmpty()) return;
+	if (Builds.IsEmpty())
+		return;
 
 	if (!OwnerWidget)
 		OwnerWidget = Owner;
@@ -22,6 +24,10 @@ void UBuildInfoBox::SetupBuildInfo(TArray<AActor*> Builds, USelectorWrapBox* Own
 	WrapBox->ClearChildren();
 	ResourceDepotList.Empty();
 
+	WrapBox->SetVisibility(ESlateVisibility::Collapsed);
+	BuildResource->SetVisibility(ESlateVisibility::Collapsed);
+	BuildProgress->SetVisibility(ESlateVisibility::Collapsed);
+	
 	if (UStructureDataAsset* Data = IBuildInterface::Execute_GetDataAsset(Builds[0]))
 	{
 		BuildName->SetText(FText::FromString(Data->Structure.Name));
@@ -29,24 +35,39 @@ void UBuildInfoBox::SetupBuildInfo(TArray<AActor*> Builds, USelectorWrapBox* Own
 		
 		BuildImage->SetBrushFromTexture(Data->Structure.Image);	
 	}
+
+	if (!IBuildInterface::Execute_GetIsBuild(Builds[0]))
+	{
+		BuildProgress->SetVisibility(ESlateVisibility::Visible);
+		CreateBuildProgressEntry(Builds[0]);
+		
+		return;
+	}
 	
 	if (AResourceDepot* Build = Cast<AResourceDepot>(Builds[0]))
 	{
-		WrapBox->SetVisibility(ESlateVisibility::Collapsed);
 		BuildResource->SetVisibility(ESlateVisibility::Visible);
-		
 		CreateResourceEntry(Builds);
+		
 		return;
 	}
 
 	if (AUnitProduction* Build = Cast<AUnitProduction>(Builds[0]))
 	{
 		WrapBox->SetVisibility(ESlateVisibility::Visible);
-		BuildResource->SetVisibility(ESlateVisibility::Collapsed);
-		
 		CreateUnitEntry(Builds);
 	}
 }
+
+
+// ==== Progress Entry ==== //
+void UBuildInfoBox::CreateBuildProgressEntry(AActor* Build)
+{
+	if (!Build) return;
+
+	BuildProgress->UpdateProgress(Build);
+}
+
 
 // ==== Resource Entry ==== //
 void UBuildInfoBox::CreateResourceEntry(TArray<AActor*> SelectedBuilds)

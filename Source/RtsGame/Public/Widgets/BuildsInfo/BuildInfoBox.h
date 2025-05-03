@@ -4,6 +4,7 @@
 #include "Data/DataRts.h"
 #include "BuildInfoBox.generated.h"
 
+class UBuildProgressWidget;
 class AResourceDepot;
 class USelectorWrapBox;
 class UWrapBox;
@@ -39,9 +40,13 @@ protected:
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
 	UWrapBox* WrapBox;
 
-	// -------
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
 	UBuildResourceInfo* BuildResource;
+
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	UBuildProgressWidget* BuildProgress;
+
+	// -------
 	
 	UPROPERTY(EditAnywhere, Category = Settings)
 	TSubclassOf<UUnitEntryWidget> UnitsProdEntryClass;
@@ -53,6 +58,9 @@ protected:
 	TArray<AResourceDepot*> ResourceDepotList;
 
 	// --------
+	UFUNCTION()
+	void CreateBuildProgressEntry(AActor* Build);
+	
 	UFUNCTION()
 	void CreateResourceEntry(TArray<AActor*> SelectedBuilds);
 

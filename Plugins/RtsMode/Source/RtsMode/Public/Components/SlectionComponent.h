@@ -101,15 +101,9 @@ public:
 	UFUNCTION()
 	void UpdateFormation(EFormation Formation);
 
-	UFUNCTION()
-	void CreateFormationData();
-
 protected:
 
 	/*- Functions -*/
-	UFUNCTION()
-	void OnFormationDataLoaded(TArray<FPrimaryAssetId> Formations);
-	
 	UFUNCTION()
 	UFormationDataAsset* GetFormationData() const;
 	
@@ -121,12 +115,8 @@ protected:
 
 
 	/*- Variables -*/
-public:
-	UPROPERTY()
-	TObjectPtr<UAssetManager> AssetManager;
 	
-protected:	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Settings|UI")
 	TArray<UFormationDataAsset*> FormationData;
 	
 	UPROPERTY(EditAnywhere, Category = "Settings|UI")

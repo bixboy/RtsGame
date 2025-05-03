@@ -58,7 +58,7 @@ protected:
 	float BreakForce = 1250.f;
 
 	// Boost
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
 	bool bBoostActive = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Hover|Movement|Boost")
@@ -95,10 +95,10 @@ protected:
 	UPROPERTY()
 	UMaterialInstanceDynamic* SpeedLineInstance;
 
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	bool bSpeedLineFadingOut = false;
 	
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	float SpeedLineFadeTime = 0.f;
 
 	// ---------------
@@ -142,6 +142,9 @@ protected:
 	FRotator BaseRotation;
 	
 	/*- Function -*/
+
+	virtual void Server_SwitchEngine(bool OnOff) override;
+	
 	UFUNCTION()
 	void Hovering(float DeltaTime);
 
@@ -153,16 +156,18 @@ protected:
 
 	UFUNCTION()
 	void Input_OnBoost();
-	void UpdateSpeedLineFade();
+
+	UFUNCTION(NetMulticast, reliable)
+	void Multicast_UpdateSpeedLineFade();
 
 	UFUNCTION(Server, Reliable)
 	void Server_StartBoost();
 
 	UFUNCTION(NetMulticast, Reliable)
-	void Client_UpdateCameraFOV();
+	void Multicast_UpdateCameraFOV();
 
-	UFUNCTION()
-	void EndBoost();
+	UFUNCTION(Server, Reliable)
+	void Server_EndBoost();
 
 	UFUNCTION()
 	void Frictions();

@@ -40,7 +40,7 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UFUNCTION()
-	virtual void BeginDestroy() override;
+	virtual void Destroyed() override;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UCommandComponent> CommandComp;

@@ -4,6 +4,7 @@
 #include "Data/StructureDataAsset.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
+#include "WorldGeneration/ResourceNode.h"
 
 
 // ----------------------- Setup -----------------------
@@ -50,6 +51,13 @@ void AStructureBase::BeginPlay()
 	}
 }
 
+void AStructureBase::Destroyed()
+{
+	Super::Destroyed();
+
+	BuildDestroy();
+}
+
 void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -58,6 +66,7 @@ void AStructureBase::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	
 	DOREPLIFETIME(AStructureBase, BuildData);
 	DOREPLIFETIME(AStructureBase, bIsBuilt);
+	DOREPLIFETIME(AStructureBase, bIsInBuild);
 
 	DOREPLIFETIME(AStructureBase, CurrentResources);
 	DOREPLIFETIME(AStructureBase, CurrentBuilder);
@@ -151,6 +160,20 @@ bool AStructureBase::GetIsSelected_Implementation()
 // ----------------------- Build -----------------------
 #pragma region Build
 
+void AStructureBase::BuildDestroy()
+{
+	if (HasAuthority() && ResourceNodeClass)
+	{
+		if (AResourceNode* Node = GetWorld()->SpawnActor<AResourceNode>(ResourceNodeClass, GetActorTransform()))
+		{
+			FResourcesCost Resources = StructureData->Structure.BuildCost;
+			Resources = Resources / 2;
+			
+			Node->SetupResourceNode(Resources);
+		}
+	}
+}
+
 void AStructureBase::StartBuild()
 {
 	Server_StartBuild();
@@ -221,6 +244,9 @@ void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
 			if (!GetWorld()->GetTimerManager().IsTimerActive(UpgradeTimerHandle))
 			{
 				GetWorld()->GetTimerManager().SetTimer(UpgradeTimerHandle, this, &AStructureBase::UpdateUpgrade, 1.0f, true);
+				
+				bIsInBuild = true;
+				Multicast_BuildStatueDelegate(true);
 			}
 		}
 		else
@@ -228,6 +254,9 @@ void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
 			if (!GetWorld()->GetTimerManager().IsTimerActive(ConstructionTimerHandle))
 			{
 				GetWorld()->GetTimerManager().SetTimer(ConstructionTimerHandle, this, &AStructureBase::UpdateConstruction, 1.0f, true);
+
+				bIsInBuild = true;
+				Multicast_BuildStatueDelegate(true);
 			}
 		}
 	}
@@ -236,10 +265,16 @@ void AStructureBase::Server_NewWorker_Implementation(int NewWorker)
 		if (bInUpgrade)
 		{
 			GetWorld()->GetTimerManager().ClearTimer(UpgradeTimerHandle);
+
+			bIsInBuild = false;
+			Multicast_BuildStatueDelegate(false);
 		}
 		else
 		{
 			GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
+			
+			bIsInBuild = false;
+			Multicast_BuildStatueDelegate(false);
 		}
 	}
 }
@@ -264,6 +299,8 @@ void AStructureBase::UpdateConstruction()
     if (CurrentResources <= FResourcesCost() || CurrentBuilder == 0)
     {
         GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
+    	Multicast_BuildStatueDelegate(false);
+    	
         return;
     }
 	
@@ -299,8 +336,8 @@ void AStructureBase::UpdateConstruction()
 	if (BuildElapsedTime >= BuildData.TimeToBuild)
 	{
 		CurrentStepIndex++;
-    	
 		GetWorld()->GetTimerManager().ClearTimer(ConstructionTimerHandle);
+		
 		OnConstructionCompleted();
 	}
 
@@ -317,6 +354,21 @@ void AStructureBase::UpdateConstruction()
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, DebugConsumed);
     	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, DebugElapsed);
     }
+}
+
+void AStructureBase::Multicast_BuildStatueDelegate_Implementation(bool NewStatue)
+{
+	float Progress = BuildElapsedTime / BuildData.TimeToBuild;
+	float NewProgress = FMath::Clamp(Progress, 0.f, 1.f);
+	
+	if (NewStatue)
+	{
+		OnBuildStart.Broadcast(NewProgress);
+	}
+	else
+	{
+		OnBuildStop.Broadcast();
+	}
 }
 
 void AStructureBase::OnRep_CurrentStepIndex()
@@ -344,8 +396,6 @@ void AStructureBase::OnRep_CurrentStepIndex()
 void AStructureBase::OnRep_BuildData()
 {
 	if (!MeshComp || BuildData.bNeedToBuild || !BuildData.StructureMesh) return;
-
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, "Build Data");
 	
 	MeshComp->SetStaticMesh(BuildData.StructureMesh);
 }
@@ -355,6 +405,11 @@ void AStructureBase::OnConstructionCompleted()
 	bIsBuilt = true;
 	bCanUpgraded = true;
 	
+	OnBuildComplete.Broadcast();
+}
+
+void AStructureBase::OnRep_BuildCompleted()
+{
 	OnBuildComplete.Broadcast();
 }
 
@@ -490,18 +545,22 @@ bool AStructureBase::GetIsBuilt() const
 	return bIsBuilt;
 }
 
+bool AStructureBase::GetIsInBuild()
+{
+	return bIsInBuild;
+}
+
+int AStructureBase::GetBuilders()
+{
+	return CurrentBuilder;
+}
+
 bool AStructureBase::GetIsInUpgrading() const
 {
 	return bInUpgrade;
 }
 
-UStructureDataAsset* AStructureBase::GetDataAsset_Implementation()
-{
-	if (StructureData)
-		return StructureData;
-
-	return nullptr;
-}
+// ----------- Components
 
 ARtsPlayerController* AStructureBase::GetOwnerController()
 {
@@ -511,6 +570,32 @@ ARtsPlayerController* AStructureBase::GetOwnerController()
 UStaticMeshComponent* AStructureBase::GetMeshComponent()
 {
 	return MeshComp;
+}
+
+// ----------- Interfaces
+
+UStructureDataAsset* AStructureBase::GetDataAsset_Implementation()
+{
+	if (StructureData)
+		return StructureData;
+
+	return nullptr;
+}
+
+bool AStructureBase::GetIsBuild_Implementation()
+{
+	return GetIsBuilt();
+}
+
+float AStructureBase::GetBuildProgress_Implementation()
+{
+	if (BuildData.TimeToBuild <= 0.f)
+	{
+		return 0.f;
+	}
+	
+	float Progress = BuildElapsedTime / BuildData.TimeToBuild;
+	return FMath::Clamp(Progress, 0.f, 1.f);
 }
 
 #pragma endregion

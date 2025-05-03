@@ -1,21 +1,19 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "AiData.h"
 #include "Engine/DataAsset.h"
 #include "FormationDataAsset.generated.h"
 
-UCLASS(BlueprintType)
-class RTSMODE_API UFormationDataAsset : public UPrimaryDataAsset
+
+UCLASS()
+class RTSMODE_API UFormationDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Data Settings")
 	FPrimaryAssetType DataType;
-
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId(DataType, GetFName()); }
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	TEnumAsByte<EFormation> FormationType;
 	

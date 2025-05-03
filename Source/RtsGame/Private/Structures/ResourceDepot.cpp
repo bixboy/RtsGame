@@ -26,6 +26,18 @@ void AResourceDepot::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
+
+void AResourceDepot::BuildDestroy()
+{
+	Super::BuildDestroy();
+
+	if (HasAuthority() && OwnerController)
+	{
+		OwnerController->RemoveResource(GetStorage());
+	}
+}
+
+
 // Storage
 void AResourceDepot::AddResources(FResourcesCost NewResources)
 {

@@ -20,7 +20,7 @@ void UBuildSelector::NativeOnInitialized()
 
 void UBuildSelector::SetupBuildsList()
 {
-	if (!WrapBox) return;
+	if (!WrapBox || BuildsDataAssets.IsEmpty()) return;
 
 	WrapBox->ClearChildren();
 

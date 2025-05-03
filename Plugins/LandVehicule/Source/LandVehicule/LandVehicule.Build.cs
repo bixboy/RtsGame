@@ -40,6 +40,7 @@ public class LandVehicule : ModuleRules
 				"SlateCore", 
 				"AITestSuite", 
 				"EnhancedInput",
+				"ControlRig"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

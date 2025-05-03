@@ -17,7 +17,6 @@ AResourceNode::AResourceNode()
 	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
 	BoxComp->SetupAttachment(RootComponent);
 }
-
 void AResourceNode::BeginPlay()
 {
 	Super::BeginPlay();
@@ -25,6 +24,14 @@ void AResourceNode::BeginPlay()
 	if (HasAuthority())
 	{
 		ResourcesComp->AddResources(ResourcesComp->GetMaxResource());	
+	}
+}
+
+void AResourceNode::SetupResourceNode(FResourcesCost NewResources)
+{
+	if (HasAuthority())
+	{
+		ResourcesComp->SetResources(NewResources);
 	}
 }
 

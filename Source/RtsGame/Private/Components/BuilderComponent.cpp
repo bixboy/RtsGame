@@ -81,11 +81,8 @@ void UBuilderComponent::StartBuilding(AStructureBase* Build)
 
 	TargetBuild = nullptr;
 	SavedConstruction = nullptr;
-
-	if (OwnerAIController->OnNewDestination.IsBound())
-	{
-		OwnerAIController->OnNewDestination.RemoveDynamic(this, &UBuilderComponent::StopBuild);
-	}
+	
+	OwnerAIController->OnNewDestination.RemoveDynamic(this, &UBuilderComponent::StopBuild);
 	
 	MoveToBuild(Build);
 }
@@ -108,10 +105,8 @@ void UBuilderComponent::MoveToBuild(AStructureBase* Build)
 	
 	if (Build->GetIsFullyResourced())
 	{
-		if (!OwnerAIController->OnNewDestination.IsBound())
-		{
-			OwnerAIController->OnNewDestination.AddDynamic(this, &UBuilderComponent::StopBuild);
-		}
+		OwnerAIController->OnNewDestination.RemoveDynamic(this, &UBuilderComponent::StopBuild);
+		OwnerAIController->OnNewDestination.AddDynamic(this, &UBuilderComponent::StopBuild);
         
 		FCommandData Command;
 		Command.Location = Build->GetActorLocation();
@@ -136,10 +131,8 @@ void UBuilderComponent::MoveToBuild(AStructureBase* Build)
 		return;
 	}
     
-	if (!OwnerAIController->OnNewDestination.IsBound())
-	{
-		OwnerAIController->OnNewDestination.AddDynamic(this, &UBuilderComponent::StopBuild);
-	}
+	OwnerAIController->OnNewDestination.RemoveDynamic(this, &UBuilderComponent::StopBuild);
+	OwnerAIController->OnNewDestination.AddDynamic(this, &UBuilderComponent::StopBuild);
     
 	FCommandData Command;
 	Command.Location = Build->GetActorLocation();

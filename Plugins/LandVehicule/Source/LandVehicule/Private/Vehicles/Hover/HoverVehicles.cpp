@@ -66,6 +66,10 @@ void AHoverVehicles::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AHoverVehicles, BaseRotation);
+
+	DOREPLIFETIME(AHoverVehicles, bSpeedLineFadingOut);
+	DOREPLIFETIME(AHoverVehicles, SpeedLineFadeTime);
+	DOREPLIFETIME(AHoverVehicles, bBoostActive);
 }
 
 #pragma endregion
@@ -79,11 +83,19 @@ void AHoverVehicles::Tick(float DeltaTime)
 		Hovering(DeltaTime);
 		HandleManualRotation(DeltaTime);
 	}
+}
 
-	if (HasAuthority() && !bEngineOn)
+void AHoverVehicles::Server_SwitchEngine(bool OnOff)
+{
+	Super::Server_SwitchEngine(OnOff);
+
+	if (OnOff)
 	{
-		if (DustComponent->IsActive())
-			DustComponent->Deactivate();
+		DustComponent->Activate();
+	}
+	else
+	{
+		DustComponent->Deactivate();
 	}
 }
 
@@ -110,7 +122,7 @@ void AHoverVehicles::Hovering(float DeltaTime)
             SumContactLocations += HitResult.Location;
             ContactCount++;
 
-            // --- Calcul de la force de sustentation (inchangé) ---
+            // --- Calcul de la force de sustentation ---
             const float DistanceError = HoverPointComp->HoverPoint.FloatingDistance - CurrentDistance;
             const float VelocityZ = BaseVehicle->GetPhysicsLinearVelocity().Z;
             const float SpringForce = DistanceError * HoverPointComp->HoverPoint.SpringStiffness;
@@ -177,20 +189,17 @@ void AHoverVehicles::HandleManualRotation(float DeltaTime)
 {
 	FVector AngularVelocity = BaseVehicle->GetPhysicsAngularVelocityInDegrees();
     
-	// Si l'angle est très faible, on considère qu'il est nul pour éviter des corrections fines inutiles
 	if (AngularVelocity.Size() < 0.1f)
 	{
 		AngularVelocity = FVector::ZeroVector;
 	}
     
-	// Appliquer le torque de rotation manuel uniquement si le joueur fournit une commande
 	if (!FMath::IsNearlyZero(TurnInput))
 	{
 		FVector DesiredTorque = FVector(0.f, 0.f, TurnInput * TurnForce);
 		AddTorque(DesiredTorque);
 	}
     
-	// Appliquer un torque stabilisant pour absorber les légers décalages
 	FVector StabilizingTorque = -AngularVelocity * 4.f;
 	AddTorque(StabilizingTorque);
 }
@@ -230,7 +239,7 @@ void AHoverVehicles::Movement(float DeltaTime)
         }
         else if (CurrentSpeed < MaxReverseSpeed)
         {
-        	if (bBoostActive) EndBoost();
+        	if (bBoostActive) Server_EndBoost();
         	
             FVector ReverseForce = ForwardVector * ForwardInput * MoveForce * ReversMoveForceFactor;
             ApplyForce(ReverseForce);
@@ -269,16 +278,16 @@ void AHoverVehicles::Server_StartBoost_Implementation()
 	if (bBoostActive || !bEngineOn) return;
 	
 	bBoostActive = true;
-
 	bSpeedLineFadingOut = false;
 	SpeedLineFadeTime = 0.f;
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle_SpeedLineFade, this, &AHoverVehicles::UpdateSpeedLineFade, 0.02f, true);
 	
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle_FOV, this, &AHoverVehicles::Client_UpdateCameraFOV, 0.02f, true);
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle_Boost, this, &AHoverVehicles::EndBoost, BoostDuration, false);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_SpeedLineFade, this, &AHoverVehicles::Multicast_UpdateSpeedLineFade, 0.02f, true);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_FOV, this, &AHoverVehicles::Multicast_UpdateCameraFOV, 0.02f, true);
+	
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_Boost, this, &AHoverVehicles::Server_EndBoost, BoostDuration, false);
 }
 
-void AHoverVehicles::UpdateSpeedLineFade()
+void AHoverVehicles::Multicast_UpdateSpeedLineFade_Implementation()
 {
 	if (!SpeedLineInstance) return;
 
@@ -295,7 +304,7 @@ void AHoverVehicles::UpdateSpeedLineFade()
 	}
 }
 
-void AHoverVehicles::Client_UpdateCameraFOV_Implementation()
+void AHoverVehicles::Multicast_UpdateCameraFOV_Implementation()
 {
 	if (UCameraComponent* Camera = MainCamera)
 	{
@@ -314,15 +323,15 @@ void AHoverVehicles::Client_UpdateCameraFOV_Implementation()
 	}
 }
 
-void AHoverVehicles::EndBoost()
+void AHoverVehicles::Server_EndBoost_Implementation()
 {
 	bBoostActive = false;
 	
 	bSpeedLineFadingOut = true;
 	SpeedLineFadeTime = 0.f;
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle_SpeedLineFade, this, &AHoverVehicles::UpdateSpeedLineFade, 0.02f, true);
 	
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle_FOV, this, &AHoverVehicles::Client_UpdateCameraFOV, 0.02f, true);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_SpeedLineFade, this, &AHoverVehicles::Multicast_UpdateSpeedLineFade, 0.02f, true);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_FOV, this, &AHoverVehicles::Multicast_UpdateCameraFOV, 0.02f, true);
 }
 
 void AHoverVehicles::Frictions()

@@ -74,7 +74,7 @@ protected:
 	void Server_ClearPreviewClass();
 
 	UFUNCTION(Server, Reliable)
-	void Server_SpawnBuild(FVector HitLocation);
+	void Server_SpawnBuild(FVector HitLocation, FRotator BuildRotation = FRotator::ZeroRotator);
 
 	UFUNCTION()
 	void OnRep_BuildClass();

@@ -15,6 +15,10 @@ public:
 	URtsResourcesComponent();
 
 	// ===== Multi Resources =====
+
+	UFUNCTION(BlueprintCallable, Category="Resources")
+	void SetResources(FResourcesCost NewResources);
+	
 	UFUNCTION(BlueprintCallable, Category="Resources")
 	void AddResources(FResourcesCost NewResources);
 
@@ -29,6 +33,9 @@ public:
 	int32 GetMaxResource(EResourceType Type);
 
 	// ===== Mono Resource =====
+	UFUNCTION(BlueprintCallable, Category="Resources")
+	void SetResource(EResourceType Type, int32 Amount);
+	
 	UFUNCTION(BlueprintCallable, Category="Resources")
 	void AddResource(EResourceType Type, int32 Amount);
 

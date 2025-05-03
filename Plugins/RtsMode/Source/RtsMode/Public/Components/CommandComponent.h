@@ -18,10 +18,6 @@ class RTSMODE_API UCommandComponent : public UActorComponent
 
 public:
 	UCommandComponent();
-	
-	virtual void BeginPlay() override;
-	
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION()
 	void CommandMoveToLocation(const FCommandData CommandData);
@@ -36,6 +32,13 @@ public:
 	FCommandData GetCurrentCommand() const;
 
 protected:
+	
+	virtual void BeginPlay() override;
+	
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;;
+	
 	UFUNCTION()
 	void InitializeMovementComponent() const;
 
@@ -68,7 +71,8 @@ private:
 	FCommandData CurrentCommand;
 
 #pragma endregion
-	
+
+
 // Variables
 #pragma region Variables
 protected:
@@ -100,6 +104,8 @@ protected:
 	
 #pragma endregion
 
+
+// Move Marker	
 #pragma region Move Marker
 public:
 	UFUNCTION(Client, Reliable)

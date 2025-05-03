@@ -7,6 +7,7 @@
 #include "Interfaces/Selectable.h"
 #include "StructureBase.generated.h"
 
+class AResourceNode;
 class ARtsPlayerController;
 class UHealthComponent;
 class UStructureDataAsset;
@@ -15,6 +16,8 @@ class AGridManager;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStructureSelectedDelegate, bool, bIsSelected);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBuildCompleteDelegate);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBuildStartDelegate, float, Progress);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBuildStopDelegate);
 
 UCLASS()
 class RTSGAME_API AStructureBase : public AActor, public ISelectable, public IFactionsInterface, public IBuildInterface
@@ -38,7 +41,12 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void Destroyed() override;
+
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UFUNCTION()
+	virtual void BuildDestroy();
 
 	UPROPERTY()
 	ARtsPlayerController* OwnerController;
@@ -79,6 +87,11 @@ public:
 	virtual int GetTeam_Implementation() override;
 
 	virtual UStructureDataAsset* GetDataAsset_Implementation() override;
+
+// -----------
+	virtual bool GetIsBuild_Implementation() override;
+
+	virtual float GetBuildProgress_Implementation() override;
 
 	FStructureSelectedDelegate OnSelected;
 
@@ -143,8 +156,20 @@ public:
 	UFUNCTION()
 	bool GetIsBuilt() const;
 
+	UFUNCTION()
+	bool GetIsInBuild();
+
+	UFUNCTION()
+	int GetBuilders();
+
 	UPROPERTY()
 	FBuildCompleteDelegate OnBuildComplete;
+
+	UPROPERTY()
+	FBuildStartDelegate OnBuildStart;
+
+	UPROPERTY()
+	FBuildStopDelegate OnBuildStop;
 	
 protected:
 	UFUNCTION()
@@ -163,10 +188,20 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_DeliverResources(FResourcesCost DeliveredResources);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_BuildStatueDelegate(bool NewStatue);
+
 	UFUNCTION()
 	void OnRep_CurrentStepIndex();
+
+	UFUNCTION()
+	void OnRep_BuildCompleted();
+
 	
 	/*--- Variables ---*/
+	UPROPERTY(EditAnywhere, category = Settings)
+	TSubclassOf<AResourceNode> ResourceNodeClass;
+	
 	UPROPERTY(Replicated)
 	float BuildElapsedTime;
 
@@ -188,8 +223,11 @@ protected:
 	UPROPERTY(Replicated)
 	int CurrentBuilder = 1;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_BuildCompleted)
 	bool bIsBuilt;
+
+	UPROPERTY(Replicated)
+	bool bIsInBuild;
 
 #pragma endregion
 

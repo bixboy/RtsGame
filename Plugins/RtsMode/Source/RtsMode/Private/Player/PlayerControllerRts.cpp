@@ -17,8 +17,6 @@ void APlayerControllerRts::BeginPlay()
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	}
 	
-	verify((SelectionComponent->AssetManager = UAssetManager::GetIfInitialized()) != nullptr);
-	
 	FInputModeGameAndUI InputMode;
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
@@ -26,7 +24,6 @@ void APlayerControllerRts::BeginPlay()
 
 	if (SelectionComponent)
 	{
-		SelectionComponent->CreateFormationData();
 		SelectionComponent->CreateHud();	
 	}
 }

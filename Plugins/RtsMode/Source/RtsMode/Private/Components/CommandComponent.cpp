@@ -28,6 +28,13 @@ void UCommandComponent::BeginPlay()
 	InitializeMovementComponent();
 }
 
+void UCommandComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+{
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
+	
+	if (MoveMarker) MoveMarker->Destroy();
+}
+
 void UCommandComponent::InitializeMovementComponent() const
 {
 	if (!OwnerCharaMovementComp) return;

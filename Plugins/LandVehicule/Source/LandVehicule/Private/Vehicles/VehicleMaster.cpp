@@ -22,16 +22,9 @@ AVehicleMaster::AVehicleMaster()
 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
     SpringArm->SetupAttachment(RootComponent);
-    SpringArm->bUsePawnControlRotation = false;
     
-    SpringArm->TargetArmLength = CameraDistance;
-    SpringArm->TargetOffset = FVector(0, 0, 200.f);
-    SpringArm->bEnableCameraRotationLag = true;
-    SpringArm->CameraRotationLagSpeed = 10.0f;
-
     MainCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     MainCamera->SetupAttachment(SpringArm);
-    MainCamera->bUsePawnControlRotation = true;
 
     bReplicates = true;
 
@@ -66,6 +59,27 @@ void AVehicleMaster::BeginPlay()
 
     
     GetComponents<UVehiclePlayerMesh>(VehiclePlayersMesh);
+}
+
+void AVehicleMaster::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
+
+    if (SpringArm && MainCamera)
+    {
+        SpringArm->bUsePawnControlRotation = false;
+        MainCamera->bUsePawnControlRotation = false;
+        
+        SpringArm->TargetArmLength = CameraDistance;
+        SpringArm->TargetOffset = FVector(0, 0, 200.f);
+        
+        SpringArm->bEnableCameraRotationLag = true;
+    }
+
+    if (!bCanRotateCamera)
+    {
+        SpringArm->bEnableCameraLag = true;
+    }
 }
 
 void AVehicleMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -148,21 +162,24 @@ void AVehicleMaster::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-    FRotator VehicleRotation;
-    if (BaseVehicle)
+    if (bCanRotateCamera)
     {
-        VehicleRotation = BaseVehicle->GetComponentRotation();
-    }
-    else if (SkeletalBaseVehicle)
-    {
-        VehicleRotation = SkeletalBaseVehicle->GetComponentRotation();
-    }
+        FRotator VehicleRotation;
+        if (BaseVehicle)
+        {
+            VehicleRotation = BaseVehicle->GetComponentRotation();
+        }
+        else if (SkeletalBaseVehicle)
+        {
+            VehicleRotation = SkeletalBaseVehicle->GetComponentRotation();
+        }
     
-    FRotator TargetSpringArmRotation = VehicleRotation + CameraRotationOffset;
-    if (SpringArm)
-    {
-        FRotator NewRotation = FMath::RInterpTo(SpringArm->GetComponentRotation(), TargetSpringArmRotation, DeltaSeconds, 8.f);
-        SpringArm->SetWorldRotation(NewRotation);
+        FRotator TargetSpringArmRotation = VehicleRotation + CameraRotationOffset;
+        if (SpringArm)
+        {
+            FRotator NewRotation = FMath::RInterpTo(SpringArm->GetComponentRotation(), TargetSpringArmRotation, DeltaSeconds, 8.f);
+            SpringArm->SetWorldRotation(NewRotation);
+        }   
     }
 
     // Sounds
@@ -315,6 +332,9 @@ void AVehicleMaster::OutOfVehicle_Implementation(ACustomPlayerController* Player
             CurrentDriver = nullptr;
             CurrentPlace--;
 
+            ForwardInput = 0.f;
+            TurnInput = 0.f;
+
             HidePlayerMesh(PlayerController, 1);
         }
     }
@@ -423,12 +443,15 @@ EVehiclePlaceType AVehicleMaster::GetRoleByPlayer(const APawn* Player) const
 
 void AVehicleMaster::Input_OnUpdateCameraRotation(const FInputActionValue& InputActionValue)
 {
-    FVector2D InputVector = InputActionValue.Get<FVector2D>();
+    if (bCanRotateCamera)
+    {
+        FVector2D InputVector = InputActionValue.Get<FVector2D>();
 
-    CameraRotationOffset.Pitch += (InputVector.Y * Sensitivity);
-    CameraRotationOffset.Yaw   += (InputVector.X * Sensitivity);
+        CameraRotationOffset.Pitch += (InputVector.Y * Sensitivity);
+        CameraRotationOffset.Yaw   += (InputVector.X * Sensitivity);
 
-    CameraRotationOffset.Pitch = FMath::Clamp(CameraRotationOffset.Pitch, -80.f, 80.f);
+        CameraRotationOffset.Pitch = FMath::Clamp(CameraRotationOffset.Pitch, -80.f, 80.f);   
+    }
 }
 
 

@@ -16,14 +16,9 @@ class RTSGAME_API AResourceNode : public AActor, public ISelectable
 public:
 	AResourceNode();
 
-protected:
-	virtual void BeginPlay() override;
-
 	UFUNCTION()
-	void OnResourceUpdated(const FResourcesCost& NewResources);
-
-public:
-	/*---- Variables ----*/
+	void SetupResourceNode(FResourcesCost NewResources);
+	
 	UFUNCTION()
 	int StartResourceCollect(int TakeNumber);
 
@@ -33,7 +28,12 @@ public:
 	UFUNCTION()
 	EResourceType GetResourceType();
 	
-protected:	
+protected:
+	virtual void BeginPlay() override;
+
+	UFUNCTION()
+	void OnResourceUpdated(const FResourcesCost& NewResources);
+	
 	/*---- Variables ----*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UBoxComponent* BoxComp;

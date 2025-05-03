@@ -47,6 +47,19 @@ void ASoldierRts::BeginPlay()
 	}
 }
 
+void ASoldierRts::Destroyed()
+{
+	Super::Destroyed();
+	
+	for (AActor* Soldier : ActorsInRange)
+	{
+		if (ASoldierRts* SoldierRts = Cast<ASoldierRts>(Soldier))
+		{
+			SoldierRts->UpdateActorsInArea();
+		}
+	}
+}
+
 void ASoldierRts::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -315,18 +328,6 @@ void ASoldierRts::UpdateActorsInArea()
 	// Remove invalid actors from area lists
 	ActorsInRange.RemoveAll([](AActor* Actor) { return !IsValid(Actor); });
 	AllyInRange.RemoveAll([](AActor* Actor) { return !IsValid(Actor); });
-}
-
-void ASoldierRts::BeginDestroy()
-{
-	for (AActor* Soldier : ActorsInRange)
-	{
-		if (ASoldierRts* SoldierRts = Cast<ASoldierRts>(Soldier))
-		{
-			SoldierRts->UpdateActorsInArea();
-		}
-	}
-	Super::BeginDestroy();
 }
 
 void ASoldierRts::OnRep_CombatBehavior()

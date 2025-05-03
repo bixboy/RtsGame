@@ -43,6 +43,8 @@ protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
+	virtual void BuildDestroy() override;
+
 	UFUNCTION()
 	void OnStorageUpdate(const FResourcesCost& NewResources);
 

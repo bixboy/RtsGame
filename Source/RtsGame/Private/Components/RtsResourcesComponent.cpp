@@ -21,6 +21,20 @@ void URtsResourcesComponent::GetLifetimeReplicatedProps(TArray<class FLifetimePr
 	DOREPLIFETIME(URtsResourcesComponent, CurrentResources);
 }
 
+
+void URtsResourcesComponent::SetResources(FResourcesCost NewResources)
+{
+	if (!GetOwner()->HasAuthority()) return;
+	
+	CurrentResources = NewResources.GetClamped(MaxResource);
+
+	Multicast_UpdateResources(CurrentResources);
+	OnResourcesChanged.Broadcast(CurrentResources);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s: New Current Resource : %d"), *GetOwner()->GetName(), CurrentResources.Woods);
+}
+
+
 // ------- Add -------
 void URtsResourcesComponent::AddResources(FResourcesCost NewResources)
 {
@@ -113,6 +127,24 @@ void URtsResourcesComponent::Multicast_UpdateResources_Implementation(const FRes
 
 
 // -----
+
+void URtsResourcesComponent::SetResource(EResourceType Type, int32 Amount)
+{
+	if (!GetOwner()->HasAuthority() || Amount <= 0) return;
+
+	int32  Max  = MaxResource.GetByType(Type);
+	int32 NewResource = FMath::Clamp(Amount, 0, Max);
+	
+	Multicast_UpdateResources(CurrentResources);
+	OnResourcesChanged.Broadcast(CurrentResources);
+
+	UE_LOG(LogTemp, Warning, TEXT("%s: +%d %s → now %d"),
+		*GetOwner()->GetName(),
+		Amount,
+		*UEnum::GetValueAsString(Type),
+		NewResource);
+}
+
 void URtsResourcesComponent::AddResource(EResourceType Type, int32 Amount)
 {
 	if (!GetOwner()->HasAuthority() || Amount <= 0) return;

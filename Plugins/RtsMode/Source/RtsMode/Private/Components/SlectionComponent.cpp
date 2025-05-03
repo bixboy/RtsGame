@@ -253,44 +253,10 @@ UFormationDataAsset* USelectionComponent::GetFormationData() const
     return nullptr;
 }
 
-void USelectionComponent::CreateFormationData()
-{
-    const FPrimaryAssetType AssetType("FormationData");
-    TArray<FPrimaryAssetId> Formations;
-    AssetManager->GetPrimaryAssetIdList(AssetType, Formations);
-
-    if (Formations.Num() > 0)
-    {
-        const TArray<FName> Bundles;
-        const FStreamableDelegate FormationDataLoadedDelegate = FStreamableDelegate::CreateUObject(this, &USelectionComponent::OnFormationDataLoaded, Formations);
-        AssetManager->LoadPrimaryAssets(Formations, Bundles, FormationDataLoadedDelegate);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("No assets found for type: %s"), *AssetType.ToString());
-    }
-}
-
-void USelectionComponent::OnFormationDataLoaded(TArray<FPrimaryAssetId> Formations)
-{
-    for (FPrimaryAssetId FormationId : Formations)
-    {
-        if (UFormationDataAsset* FormationDataAsset = Cast<UFormationDataAsset>(AssetManager->GetPrimaryAssetObject(FormationId)))
-        {
-            FormationData.Add(FormationDataAsset);
-            UE_LOG(LogTemp, Log, TEXT("Loaded formation asset: %s"), *FormationDataAsset->GetName());
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("Failed to load formation asset: %s"), *FormationId.ToString());
-        }
-    }
-}
-
 void USelectionComponent::CalculateOffset(int Index, FCommandData& CommandData)
 {
     if (FormationData.IsEmpty()) return;
-
+    
     CurrentFormationData = GetFormationData();
     if (!CurrentFormationData) return;
     

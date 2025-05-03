@@ -62,7 +62,7 @@ struct FResourcesCost
 	FResourcesCost() {}
 
 	FResourcesCost(int32 Uniform)
-		: Woods(Uniform), Food(Uniform), Metal(Uniform)
+	: Woods(Uniform), Food(Uniform), Metal(Uniform)
 	{}
 
 	FResourcesCost(int32 InWoods, int32 InFood, int32 InMetal)
@@ -104,13 +104,23 @@ struct FResourcesCost
 		return *this;
 	}
 
-	FResourcesCost operator*(float Scalar) const
+	FResourcesCost operator * (float Scalar) const
 	{
 		FResourcesCost Result;
 		Result.Woods = FMath::FloorToInt(Woods * Scalar);
 		Result.Food  = FMath::FloorToInt(Food * Scalar);
 		Result.Metal = FMath::FloorToInt(Metal * Scalar);
 		return Result;
+	}
+
+	FResourcesCost operator / (float Scalar) const
+	{
+		FResourcesCost Out;
+		Out.Woods = FMath::RoundToInt(Woods / Scalar);
+		Out.Food = FMath::RoundToInt(Food / Scalar);
+		Out.Metal = FMath::RoundToInt(Metal / Scalar);
+		
+		return Out;
 	}
 
 	FResourcesCost GetClamped(const FResourcesCost& Other) const
@@ -235,6 +245,9 @@ struct FStructure
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
 	UStaticMesh* StructureMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
+	UStaticMesh* DestroyedMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
 	bool bNeedToBuild = true;

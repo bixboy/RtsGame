@@ -19,4 +19,10 @@ class RTSGAME_API IBuildInterface
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	UStructureDataAsset* GetDataAsset();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	bool GetIsBuild();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	float GetBuildProgress();
 };

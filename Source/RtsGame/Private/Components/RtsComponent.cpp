@@ -329,15 +329,15 @@ void URtsComponent::SpawnBuild()
 
 void URtsComponent::SpawnBuild(FTransform BuildTransform)
 {
-	Server_SpawnBuild(BuildTransform.GetLocation());
+	Server_SpawnBuild(BuildTransform.GetLocation(), BuildTransform.GetRotation().Rotator());
 }
 
-void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation)
+void URtsComponent::Server_SpawnBuild_Implementation(FVector HitLocation, FRotator BuildRotation)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = RtsController;
 	
-	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(BuildToSpawn.BuildClass, HitLocation, FRotator::ZeroRotator, SpawnParams);
+	AStructureBase* Build = GetWorld()->SpawnActor<AStructureBase>(BuildToSpawn.BuildClass, HitLocation, BuildRotation, SpawnParams);
 	if (Build)
 	{
 		Build->SetBuildTeam(RtsController->GetPlayerTeam());

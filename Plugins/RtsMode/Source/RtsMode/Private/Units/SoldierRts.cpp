@@ -172,6 +172,8 @@ FCommandData ASoldierRts::GetCurrentCommand_Implementation()
 
 void ASoldierRts::OnStartAttack(AActor* Target)
 {
+	if (!bCanAttack) return;
+	
 	if (GetCurrentWeapon())
 	{
 		GetCurrentWeapon()->AIShoot(Target);
@@ -224,7 +226,7 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 		UpdateActorsInArea();
 		ActorsInRange.AddUnique(OtherActor);
 
-		if (AIController && CombatBehavior == ECombatBehavior::Aggressive && !AIController->HasAttackTarget())
+		if (AIController && bCanAttack && CombatBehavior == ECombatBehavior::Aggressive && !AIController->HasAttackTarget())
 		{
 			FCommandData CommandData;
 			CommandData.Type = ECommandType::CommandAttack;
@@ -237,7 +239,7 @@ void ASoldierRts::OnAreaAttackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                          UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (OtherActor == this) return;
+	if (OtherActor == this || !bCanAttack) return;
 
 	if (OtherActor->Implements<USelectable>())
 	{
@@ -302,7 +304,7 @@ void ASoldierRts::SetBehavior_Implementation(const ECombatBehavior NewBehavior)
 		}
 		else if (CombatBehavior == ECombatBehavior::Aggressive)
 		{
-			if (ActorsInRange.Num() > 0)
+			if (bCanAttack && ActorsInRange.Num() > 0)
 			{
 				FCommandData NewCommandData;
 				NewCommandData.Type = ECommandType::CommandAttack;
@@ -320,7 +322,17 @@ ECombatBehavior ASoldierRts::GetBehavior_Implementation()
 
 bool ASoldierRts::GetIsInAttack_Implementation()
 {
-	return GetAiController()->HasAttackTarget();
+	if (bCanAttack)
+	{
+		return GetAiController()->HasAttackTarget();
+	}
+
+	return false;
+}
+
+bool ASoldierRts::GetCanAttack_Implementation()
+{
+	return bCanAttack;
 }
 
 void ASoldierRts::UpdateActorsInArea()

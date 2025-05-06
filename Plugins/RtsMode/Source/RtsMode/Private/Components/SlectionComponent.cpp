@@ -105,8 +105,13 @@ void USelectionComponent::Server_CommandSelected_Implementation(FCommandData Com
     {
         if (!Soldier || !Soldier->Implements<USelectable>()) continue;
 
-        if (CommandData.Target && ISelectable::Execute_GetCurrentTeam(Soldier) == ISelectable::Execute_GetCurrentTeam(CommandData.Target))
-            continue;
+        if (CommandData.Target)
+        {
+            if (!ISelectable::Execute_GetCanAttack(Soldier) || ISelectable::Execute_GetCurrentTeam(Soldier) == ISelectable::Execute_GetCurrentTeam(CommandData.Target))
+            {
+                continue;
+            }
+        }
 
         // Calcul de l'offset
         if (!CommandData.Target)

@@ -48,5 +48,8 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	bool GetIsInAttack();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	bool GetCanAttack();
 	
 };

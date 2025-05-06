@@ -59,7 +59,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<AAiControllerRts> AIController;
 	
-	UPROPERTY(EditAnywhere, Category = "Settings|DefaultValue")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	TSubclassOf<AAiControllerRts> AiControllerRtsClass;
 
 #pragma endregion	
@@ -105,6 +105,8 @@ public:
 	virtual void TakeDamage_Implementation(AActor* DamageOwner) override;
 	
 	virtual bool GetIsInAttack_Implementation() override;
+
+	virtual bool GetCanAttack_Implementation() override;
 	
 	/*- Getter -*/
 	UFUNCTION()
@@ -143,14 +145,17 @@ protected:
 	/*- Variables -*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<USphereComponent> AreaAttack;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
+	bool bCanAttack = true;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Attack", ReplicatedUsing = OnRep_CombatBehavior)
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_CombatBehavior, meta = (EditCondition = "bCanAttack", EditConditionHides), Category = "Settings|Attack")
 	ECombatBehavior CombatBehavior = ECombatBehavior::Passive;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
+	UPROPERTY(EditAnywhere, meta = (EditCondition = "bCanAttack", EditConditionHides), Category = "Settings|Attack")
 	float AttackCooldown = 1.5f;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Attack")
+	UPROPERTY(EditAnywhere, meta = (EditCondition = "bCanAttack", EditConditionHides), Category = "Settings|Attack")
 	float AttackRange = 200.f;
 	
 	UPROPERTY()
@@ -187,13 +192,13 @@ public:
 	bool GetHaveWeapon();
 	
 protected:
-	UPROPERTY(EditAnywhere, Category = "Settings|Weapons")
+	UPROPERTY(EditAnywhere, meta = (EditCondition = "bCanAttack", EditConditionHides), Category = "Settings|Attack")
 	TSubclassOf<UWeaponMaster> WeaponClass;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = true))
 	UWeaponMaster* CurrentWeapon;
 	
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY()
 	bool HaveWeapon;
 
 #pragma endregion

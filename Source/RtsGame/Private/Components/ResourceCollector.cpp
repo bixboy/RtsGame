@@ -78,6 +78,16 @@ void UResourceCollector::TickComponent(float DeltaTime, enum ELevelTick TickType
 			MoveToNearestStorage();
 		}
 	}
+	else if (DropOffBuilding && bMoveToStorage && !TargetResourceNode)
+	{
+		if (HasReachedActor(DropOffBuilding, 50.f))
+		{
+			StartCollectResource(DropOffBuilding);
+			
+			DropOffBuilding = nullptr;
+			bMoveToStorage = false;
+		}
+	}
 
 	// ----- Move To Node -----
 	if (TargetResourceNode && !bMoveToStorage)
@@ -154,6 +164,32 @@ void UResourceCollector::StartMoveToResource(AResourceNode* ResourceNode)
 				AiController->OnNewDestination.AddDynamic(this, &UResourceCollector::StopCollect);
 		}
 	}
+}
+
+void UResourceCollector::StartMoveToStorage(AResourceDepot* Storage)
+{
+	if (!GetOwner()->HasAuthority() || !Storage) return;
+
+	ARtsPlayerController* PC = Cast<ARtsPlayerController>(OwnerUnit->OwnerPlayer);
+	if (!PC || !PC->RtsComponent)
+		return;
+
+	if (OwnerResourcesComp->GetStorageIsFull(TargetResourceNode->GetResourceType()))
+	{
+		return;
+	}
+
+	if (!Storage->GetStorage().HasAnyResource())
+	{
+		return;
+	}
+
+	OwnerUnit->GetAiController()->MoveToLocation(Storage->GetActorLocation());
+
+	TargetResourceNode = nullptr;
+	DropOffBuilding = Storage;
+	
+	bMoveToStorage = true;
 }
 
 void UResourceCollector::MoveToNearestStorage()
@@ -237,8 +273,8 @@ void UResourceCollector::StartCollectResource()
 
 	// 3) Capacité restante pour ce type
 	int32 CurrentAmt = OwnerResourcesComp->GetResource(RT);
-	int32 MaxAmt     = OwnerResourcesComp->GetMaxResource(RT);
-	int32 Available  = FMath::Max(0, MaxAmt - CurrentAmt);
+	int32 MaxAmt = OwnerResourcesComp->GetMaxResource(RT);
+	int32 Available = FMath::Max(0, MaxAmt - CurrentAmt);
 
 	if (Available <= 0)
 	{
@@ -248,8 +284,8 @@ void UResourceCollector::StartCollectResource()
 	}
 	
 	int32 ToCollect = FMath::Min(ResourceCollectNumber, Available);
-	
 	int32 Collected = TargetResourceNode->StartResourceCollect(ToCollect);
+	
 	if (Collected <= 0 || TargetResourceNode->GetIsEmpty(TargetResourceNode->GetResourceType()))
 	{
 		StopCollect(FCommandData());
@@ -276,6 +312,20 @@ void UResourceCollector::StartCollectResource()
 	}
 }
 
+void UResourceCollector::StartCollectResource(AResourceDepot* ResourceDepot)
+{
+	if (ResourceDepot->GetStorage().HasAnyResource())
+	{
+		FResourcesCost MaxReceivable = OwnerResourcesComp->GetMaxResource() - OwnerResourcesComp->GetResources();
+		FResourcesCost Transferable  = ResourceDepot->GetStorage().GetClamped(MaxReceivable);
+
+		ResourceDepot->RemoveResources(Transferable);
+		OwnerResourcesComp->AddResources(Transferable);
+	}
+}
+
+
+// ========== Stop Actions ==========
 void UResourceCollector::StopCollect(const FCommandData CommandData)
 {
 	if (!OwnerUnit->HasAuthority()) return;
@@ -298,6 +348,7 @@ void UResourceCollector::StopAll(const FCommandData CommandData)
 }
 
 
+// ========== Getters ==========
 AResourceNode* UResourceCollector::GetNearestResourceNode()
 {
 	if (!GetOwner()->HasAuthority()) return nullptr;

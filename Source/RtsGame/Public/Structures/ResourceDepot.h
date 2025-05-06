@@ -30,6 +30,9 @@ public:
 	URtsResourcesComponent* GetResourcesComp();
 
 	UFUNCTION()
+	bool GetIsEmpty(EResourceType CheckResource);
+
+	UFUNCTION()
 	void AddResources(FResourcesCost NewResources);
 
 	UFUNCTION()

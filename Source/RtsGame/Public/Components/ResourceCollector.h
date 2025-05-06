@@ -29,7 +29,12 @@ public:
 	void StartMoveToResource(AResourceNode* ResourceNode);
 
 	UFUNCTION()
+	void StartMoveToStorage(AResourceDepot* Storage);
+
+	UFUNCTION()
 	void StartCollectResource();
+
+	void StartCollectResource(AResourceDepot* ResourceDepot);
 
 	UFUNCTION()
 	void StopCollect(const FCommandData CommandData);

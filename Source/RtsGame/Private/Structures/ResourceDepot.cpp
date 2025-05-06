@@ -76,4 +76,9 @@ URtsResourcesComponent* AResourceDepot::GetResourcesComp()
 	return ResourcesComp;
 }
 
+bool AResourceDepot::GetIsEmpty(EResourceType CheckResource)
+{
+	return ResourcesComp->GetStorageIsEmpty(CheckResource);
+}
+
 

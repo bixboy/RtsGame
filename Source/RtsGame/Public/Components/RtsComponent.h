@@ -52,7 +52,10 @@ protected:
 	void Client_CreateRtsWidget();
 	
 	UFUNCTION(Server, Reliable)
-	void Server_MoveToResource(AResourceNode* Node);
+	void Server_MoveToResourceNode(AResourceNode* Node);
+
+	UFUNCTION(Server, Reliable)
+	void Server_MoveToStorage(AResourceDepot* Storage);
 
 	UFUNCTION()
 	void UpdateSelectorWidget(TArray<AActor*> NewSelection);

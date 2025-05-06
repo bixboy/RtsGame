@@ -176,13 +176,19 @@ void URtsComponent::CommandSelected(FCommandData CommandData)
 	{
 		if (AStructureBase* Build = Cast<AStructureBase>(CommandData.Target))
 		{
+			if (AResourceDepot* Storage = Cast<AResourceDepot>(Build))
+			{
+				Server_MoveToStorage(Storage);
+				return;
+			}
+			
 			Server_MoveToBuildSelected(Build);
 			return;
 		}
 		
 		if (AResourceNode* Node = Cast<AResourceNode>(CommandData.Target))
 		{
-			Server_MoveToResource(Node);
+			Server_MoveToResourceNode(Node);
 			return;
 		}
 	}
@@ -190,7 +196,7 @@ void URtsComponent::CommandSelected(FCommandData CommandData)
 	Super::CommandSelected(CommandData);
 }
 
-void URtsComponent::Server_MoveToResource_Implementation(AResourceNode* Node)
+void URtsComponent::Server_MoveToResourceNode_Implementation(AResourceNode* Node)
 {
 	if (!GetOwner()->HasAuthority() || !Node) return;
 
@@ -203,7 +209,23 @@ void URtsComponent::Server_MoveToResource_Implementation(AResourceNode* Node)
 
 		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
 		{
-			IUnitTypeInterface::Execute_MoveToResource(Soldier, Node);
+			IUnitTypeInterface::Execute_MoveToResourceNode(Soldier, Node);
+		}
+	}
+}
+
+void URtsComponent::Server_MoveToStorage_Implementation(AResourceDepot* Storage)
+{
+	for (AActor* Soldier : SelectedActors)
+	{
+		if (!Soldier ||
+			!Soldier->Implements<USelectable>() ||
+			!Soldier->Implements<UUnitTypeInterface>() ||
+			!Soldier->Implements<UFactionsInterface>()) continue;
+
+		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
+		{
+			IUnitTypeInterface::Execute_MoveToResourceStorage(Soldier, Storage);
 		}
 	}
 }

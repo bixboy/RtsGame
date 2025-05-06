@@ -4,6 +4,9 @@
 #include "Components/RtsResourcesComponent.h"
 
 
+// ====== Setup ======
+#pragma region Setup
+
 ABuilderUnits::ABuilderUnits(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer.SetDefaultSubobjectClass<UBuilderComponent>(TEXT("CommandComponent")))
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -18,11 +21,10 @@ void ABuilderUnits::BeginPlay()
 	Super::BeginPlay();
 }
 
-URtsResourcesComponent* ABuilderUnits::GetResourcesComp()
-{
-	return ResourcesComp;
-}
+#pragma endregion
 
+
+// ====== Movement ======
 void ABuilderUnits::MoveToBuild_Implementation(AStructureBase* BuildDest)
 {
 	if (!BuildDest->GetIsBuilt() || BuildDest->GetIsInUpgrading())
@@ -31,18 +33,18 @@ void ABuilderUnits::MoveToBuild_Implementation(AStructureBase* BuildDest)
 	}
 }
 
-void ABuilderUnits::MoveToResource_Implementation(AResourceNode* Node)
+void ABuilderUnits::MoveToResourceNode_Implementation(AResourceNode* Node)
 {
 	ResourcesCollectorComp->StartMoveToResource(Node);
 }
 
-void ABuilderUnits::Select()
+void ABuilderUnits::MoveToResourceStorage_Implementation(AResourceDepot* Storage)
 {
-	Super::Select();
+	ResourcesCollectorComp->StartMoveToStorage(Storage);
 }
 
-void ABuilderUnits::Deselect()
-{
-	Super::Deselect();
-}
 
+URtsResourcesComponent* ABuilderUnits::GetResourcesComp()
+{
+	return ResourcesComp;
+}

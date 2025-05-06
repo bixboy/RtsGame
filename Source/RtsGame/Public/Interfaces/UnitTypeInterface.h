@@ -4,6 +4,7 @@
 #include "UObject/Interface.h"
 #include "UnitTypeInterface.generated.h"
 
+class AResourceDepot;
 class AResourceNode;
 
 
@@ -27,7 +28,10 @@ public:
 	void MoveToBuild(AStructureBase* BuildDest);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	void MoveToResource(AResourceNode* Node);
+	void MoveToResourceNode(AResourceNode* Node);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void MoveToResourceStorage(AResourceDepot* Storage);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	UUnitsProductionDataAsset* GetUnitData();

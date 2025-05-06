@@ -20,10 +20,10 @@ public:
 	virtual void MoveToBuild_Implementation(AStructureBase* BuildDest) override;
 
 	UFUNCTION()
-	virtual void MoveToResource_Implementation(AResourceNode* Node) override;
+	virtual void MoveToResourceNode_Implementation(AResourceNode* Node) override;
 
-	virtual void Select() override;
-	virtual void Deselect() override;
+	UFUNCTION()
+	virtual void MoveToResourceStorage_Implementation(AResourceDepot* Storage) override;
 
 protected:
 	virtual void BeginPlay() override;

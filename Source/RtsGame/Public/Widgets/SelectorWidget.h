@@ -4,6 +4,7 @@
 #include "Widget/CustomButtonWidget.h"
 #include "SelectorWidget.generated.h"
 
+class UPlayerHudWidget;
 class UToolTipWidget;
 class USelectorWrapBox;
 class UHorizontalBox;
@@ -25,7 +26,9 @@ class RTSGAME_API USelectorWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	void NativeOnInitialized();
+	
+	UFUNCTION()
+	virtual void NativeOnInitialized() override;
 
 	UFUNCTION()
 	void ShowUnitEntries(TArray<AActor*> BuildsDataAssets);
@@ -46,7 +49,7 @@ public:
 	void HideToolTip();
 
 	UFUNCTION()
-	void ShowPendingToolTip();
+	void SetParentWidget(UPlayerHudWidget* InParent) { ParentWidget = InParent; }
 
 protected:
 	
@@ -65,20 +68,11 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (BindWidgetAnim))
 	UWidgetAnimation* CloseSelection;
-	
-	UPROPERTY()
-	UToolTipWidget* ToolTipInfo;
 
 	// Variables
 	UPROPERTY()
 	bool bIsOpen = false;
-	
-	UPROPERTY()
-	UDataAsset* PendingData;
 
-	FTimerHandle ToolTipTimerHandle;
-	
-	// Widgets Class
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
-	TSubclassOf<UToolTipWidget> ToolTipClass;
+	UPROPERTY()
+	UPlayerHudWidget* ParentWidget;
 };

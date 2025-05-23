@@ -1,6 +1,7 @@
 ﻿#include "Widgets/SelectorWidget.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Image.h"
+#include "Widgets/PlayerHudWidget.h"
 #include "Widgets/SelectorWrapBox.h"
 #include "Widgets/ToolTipWidget.h"
 
@@ -8,15 +9,6 @@
 void USelectorWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-
-
-	if (UToolTipWidget* ToolTip = CreateWidget<UToolTipWidget>(this, ToolTipClass))
-	{
-		ToolTip->HideToolTip();
-		ToolTip->AddToViewport(9999);
-		
-		ToolTipInfo = ToolTip;
-	}
 	
 	bIsOpen = true;
 	ClearSelectionWidget();
@@ -66,29 +58,16 @@ void USelectorWidget::ClearSelectionWidget()
 // ---------------------- ToolTip Widgets ----------------------
 #pragma region ToolTip Widgets
 
-void USelectorWidget::ShowPendingToolTip()
-{
-	if (PendingData && ToolTipInfo)
-	{
-		ToolTipInfo->ShowToolTip(PendingData);
-	}
-}
-
 void USelectorWidget::ShowToolTip(UDataAsset* Data)
 {
-	PendingData = Data;
-	GetWorld()->GetTimerManager().SetTimer(ToolTipTimerHandle, this, &USelectorWidget::ShowPendingToolTip, 0.7f, false);
+	if (ParentWidget)
+		ParentWidget->ShowToolTip(Data);
 }
 
 void USelectorWidget::HideToolTip()
 {
-	GetWorld()->GetTimerManager().ClearTimer(ToolTipTimerHandle);
-	PendingData = nullptr;
-	
-	if (ToolTipInfo)
-	{
-		ToolTipInfo->SetVisibility(ESlateVisibility::Collapsed);
-	}
+	if (ParentWidget)
+		ParentWidget->HideToolTip();
 }
 
 #pragma endregion

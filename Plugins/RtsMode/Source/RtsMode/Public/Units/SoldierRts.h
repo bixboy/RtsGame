@@ -198,7 +198,7 @@ protected:
 	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = true))
 	UWeaponMaster* CurrentWeapon;
 	
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	bool HaveWeapon;
 
 #pragma endregion

@@ -8,35 +8,51 @@ void UToolTipWidget::ShowToolTip(UDataAsset* DataAsset)
 {
 	if (!ToolTipImage || !TitleText) return;
 
-	if (UStructureDataAsset* BuildData = Cast<UStructureDataAsset>(DataAsset))
+	if (!PC)
 	{
-		FStructure Data = BuildData->Structure;
-	
-		ToolTipImage->SetBrushFromTexture(Data.Image);
-		TitleText->SetText(FText::FromString(Data.Name));
-
-		bFollowMouse = true;
-
-		this->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		return;
+		PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	}
 
-	if (UUnitsProductionDataAsset* UnitData = Cast<UUnitsProductionDataAsset>(DataAsset))
+	if (PC)
 	{
-		FUnitsProd Data = UnitData->UnitProduction;
+		float MouseX, MouseY;
+		if (PC->GetMousePosition(MouseX, MouseY))
+		{
+			const FVector2D Offset(10.f, -100.f);
+			SetPositionInViewport(FVector2D(MouseX, MouseY) + Offset);
+		}
+
+		if (UStructureDataAsset* BuildData = Cast<UStructureDataAsset>(DataAsset))
+		{
+			bFollowMouse = true;
 		
-		ToolTipImage->SetBrushFromTexture(Data.UnitImage);
-		TitleText->SetText(FText::FromString(Data.Name));
+			FStructure Data = BuildData->Structure;
+	
+			ToolTipImage->SetBrushFromTexture(Data.Image);
+			TitleText->SetText(FText::FromString(Data.Name));
 
-		bFollowMouse = true;
+			this->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			return;
+		}
 
-		this->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		if (UUnitsProductionDataAsset* UnitData = Cast<UUnitsProductionDataAsset>(DataAsset))
+		{
+			bFollowMouse = true;
+		
+			FUnitsProd Data = UnitData->UnitProduction;
+		
+			ToolTipImage->SetBrushFromTexture(Data.UnitImage);
+			TitleText->SetText(FText::FromString(Data.Name));
+
+			this->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}	
 	}
 }
 
 void UToolTipWidget::HideToolTip()
 {
 	this->SetVisibility(ESlateVisibility::Collapsed);
+	
 	bFollowMouse = false;
 }
 
@@ -44,15 +60,12 @@ void UToolTipWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (bFollowMouse)
+	if (bFollowMouse && PC)
 	{
-		APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-		if (!PC) return;
-
 		float MouseX, MouseY;
 		if (PC->GetMousePosition(MouseX, MouseY))
 		{
-			const FVector2D Offset(10.f, -115.f);
+			const FVector2D Offset(10.f, -100.f);
 			SetPositionInViewport(FVector2D(MouseX, MouseY) + Offset);
 		}
 	}

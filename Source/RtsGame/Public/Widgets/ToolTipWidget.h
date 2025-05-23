@@ -37,4 +37,7 @@ protected:
 
 	UPROPERTY()
 	bool bFollowMouse = false;
+
+	UPROPERTY()
+	APlayerController* PC;
 };

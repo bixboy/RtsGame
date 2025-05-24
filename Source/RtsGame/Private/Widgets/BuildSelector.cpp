@@ -59,9 +59,13 @@ void UBuildSelector::OnBuildSelected(UCustomButtonWidget* Button, int Index)
 	for (UBuildsEntry* EntryWidget : EntryList)
 	{
 		if (EntryWidget)
-			EntryWidget->CustomButton->ToggleButtonIsSelected(false);
+		{
+			EntryWidget->CustomButton->ToggleButtonIsSelected(false);	
+		}
 	}
 
 	if (Button)
+	{
 		Button->ToggleButtonIsSelected(true);
+	}
 }

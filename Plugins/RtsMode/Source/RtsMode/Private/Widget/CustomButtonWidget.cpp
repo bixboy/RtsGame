@@ -36,8 +36,8 @@ void UCustomButtonWidget::ToggleButtonIsSelected(bool bNewValue)
 	{
 		if (UMaterialInstanceDynamic* MaterialInstance = ButtonBorder->GetDynamicMaterial())
 		{
-
 			bIsSelected = bNewValue;
+			
 			if (bIsSelected )
 			{
 				MaterialInstance->SetScalarParameterValue("Hover_Animate", 10.f);

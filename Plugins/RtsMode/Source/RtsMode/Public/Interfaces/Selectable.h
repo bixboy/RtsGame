@@ -19,6 +19,7 @@ class RTSMODE_API ISelectable
 public:
 	UFUNCTION()
 	virtual void Select() = 0;
+	
 	UFUNCTION()
 	virtual void Deselect() = 0;
 

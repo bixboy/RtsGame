@@ -86,44 +86,6 @@ auto ASoldierRts::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 
 #pragma endregion
 
-// ------------------- Selection ---------------------
-#pragma region Selection
-
-void ASoldierRts::Select()
-{
-	Selected = true;
-	Highlight(Selected);
-
-	OnSelected.Broadcast(Selected);
-}
-
-void ASoldierRts::Deselect()
-{
-	Selected = false;
-	Highlight(Selected);
-
-	OnSelected.Broadcast(Selected);
-}
-
-void ASoldierRts::Highlight(const bool Highlight)
-{
-	TArray<UPrimitiveComponent*> Components;
-	GetComponents<UPrimitiveComponent>(Components);
-	for (UPrimitiveComponent* VisualComp : Components)
-	{
-		if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(VisualComp))
-		{
-			Prim->SetRenderCustomDepth(Highlight);
-		}
-	}
-}
-
-bool ASoldierRts::GetIsSelected_Implementation()
-{
-	return Selected;
-}
-
-#pragma endregion
 
 // ------------------- Set & Get AiController ---------------------
 #pragma region Set & Get AiController
@@ -148,24 +110,70 @@ UCommandComponent* ASoldierRts::GetCommandComponent() const
 
 #pragma endregion
 
+
+// ------------------- Selection ---------------------
+#pragma region Selection
+
+void ASoldierRts::Select()
+{
+	Selected = true;
+	Highlight(Selected);
+
+	OnSelected.Broadcast(Selected);
+}
+
+void ASoldierRts::Deselect()
+{
+	Selected = false;
+	Highlight(Selected);
+
+	OnSelected.Broadcast(Selected);
+}
+
+void ASoldierRts::Highlight(const bool Highlight)
+{
+	TArray<UPrimitiveComponent*> Components;
+	GetComponents<UPrimitiveComponent>(Components);
+	
+	for (UPrimitiveComponent* VisualComp : Components)
+	{
+		if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(VisualComp))
+		{
+			Prim->SetRenderCustomDepth(Highlight);
+		}
+	}
+}
+
+bool ASoldierRts::GetIsSelected_Implementation()
+{
+	return Selected;
+}
+
+#pragma endregion
+
+
 // ------------------- Movement ---------------------
 #pragma region Movement
 
 void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
 {
 	ISelectable::CommandMove_Implementation(CommandData);
+	
 	GetCommandComponent()->CommandMoveToLocation(CommandData);
 }
 
 FCommandData ASoldierRts::GetCurrentCommand_Implementation()
 {
 	if (CommandComp)
-		return CommandComp->GetCurrentCommand();
+	{
+		return CommandComp->GetCurrentCommand();	
+	}
 	
 	return FCommandData();
 }
 
 #pragma endregion
+
 
 // ------------------- Attack ---------------------
 #pragma region Attack
@@ -195,16 +203,24 @@ void ASoldierRts::TakeDamage_Implementation(AActor* DamageOwner)
 		NewCommandData.Target = DamageOwner;
 
 		if (!ISelectable::Execute_GetIsInAttack(this))
-			GetCommandComponent()->CommandMoveToLocation(NewCommandData);
+		{
+			GetCommandComponent()->CommandMoveToLocation(NewCommandData);	
+		}
 
 		// Handle Ally Support
 		for (AActor* Ally : AllyInRange)
 		{
+			if (!ISelectable::Execute_GetCanAttack(Ally))
+				continue;
+			
 			const ECombatBehavior TempEnum = Execute_GetBehavior(Ally);
-			if (DamageOwner && Execute_GetCurrentTeam(Ally) == CurrentTeam && !ISelectable::Execute_GetIsInAttack(Ally) &&
-				(TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive))
+			
+			if (DamageOwner && Execute_GetCurrentTeam(Ally) == CurrentTeam && !ISelectable::Execute_GetIsInAttack(Ally))
 			{
-				ISelectable::Execute_CommandMove(Ally, NewCommandData);
+				if (TempEnum == ECombatBehavior::Neutral || TempEnum == ECombatBehavior::Aggressive)
+				{
+					ISelectable::Execute_CommandMove(Ally, NewCommandData);	
+				}
 			}
 		}
 	}
@@ -287,6 +303,7 @@ void ASoldierRts::OnAreaAttackEndOverlap(UPrimitiveComponent* OverlappedComponen
 
 #pragma endregion
 
+
 // ------------------- Behavior ---------------------
 #pragma region Behavior
 
@@ -349,6 +366,7 @@ void ASoldierRts::OnRep_CombatBehavior()
 
 #pragma endregion
 
+
 // ------------------- Getter ---------------------
 #pragma region Getter
 
@@ -378,6 +396,7 @@ bool ASoldierRts::GetHaveWeapon()
 }
 
 #pragma endregion
+
 
 // ------------------- Team ---------------------
 #pragma region Team

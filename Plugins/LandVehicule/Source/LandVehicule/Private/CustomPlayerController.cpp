@@ -1,4 +1,6 @@
 ﻿#include "CustomPlayerController.h"
+
+#include "CameraVehicle.h"
 #include "EnhancedInputSubsystems.h"
 #include "Net/UnrealNetwork.h"
 #include "Vehicles/VehicleMaster.h"
@@ -91,7 +93,8 @@ void ACustomPlayerController::RotateVehicleTurret(FVector2D NewRotation)
 
 void ACustomPlayerController::Server_RotateVehicleTurret_Implementation(const FVector2D NewRotation)
 {
-    if (!CurrentVehicle || !CurrentCamera) return;
+    if (!CurrentVehicle || !CurrentCamera || !CurrentCamera->GetIsTurret())
+        return;
 
     CurrentVehicle->OnTurretRotate(NewRotation, CurrentCamera);
 }

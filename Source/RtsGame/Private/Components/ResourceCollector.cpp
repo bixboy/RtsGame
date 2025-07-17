@@ -174,15 +174,11 @@ void UResourceCollector::StartMoveToStorage(AResourceDepot* Storage)
 	if (!PC || !PC->RtsComponent)
 		return;
 
-	if (OwnerResourcesComp->GetStorageIsFull(TargetResourceNode->GetResourceType()))
-	{
+	if (OwnerResourcesComp->GetStorageIsFull())
 		return;
-	}
 
 	if (!Storage->GetStorage().HasAnyResource())
-	{
 		return;
-	}
 
 	OwnerUnit->GetAiController()->MoveToLocation(Storage->GetActorLocation());
 

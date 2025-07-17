@@ -45,8 +45,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-
-	virtual void CommandSelected(FCommandData CommandData) override;
+	
+	virtual void Server_CommandSelected(FCommandData CommandData) override;
 
 	UFUNCTION(Client, reliable)
 	void Client_CreateRtsWidget();

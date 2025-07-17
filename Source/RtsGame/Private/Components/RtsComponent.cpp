@@ -9,6 +9,7 @@
 #include "Structures/StructureBase.h"
 #include "Structures/UnitsProduction/UnitProduction.h"
 #include "Units/BuilderUnits.h"
+#include "Units/ResourceTransporter.h"
 #include "Widgets/PlayerHudWidget.h"
 #include "Widgets/SelectorWidget.h"
 #include "Widgets/TopBarHudWidget.h"
@@ -167,33 +168,48 @@ void URtsComponent::AddUnitToProduction(UUnitsProductionDataAsset* UnitData)
 // ========= Units Command =========
 #pragma region Command
 
-void URtsComponent::CommandSelected(FCommandData CommandData)
+void URtsComponent::Server_CommandSelected(FCommandData CommandData)
 {
-	if (GetSelectedActors().IsEmpty()) return;
+	TArray<AActor*> Actors = GetSelectedActors();
+	if (Actors.IsEmpty()) return;
 	
-	ABuilderUnits* Builder = Cast<ABuilderUnits>(GetSelectedActors()[0]);
-	if (CommandData.Target && Builder)
+	ABuilderUnits* Builder = Cast<ABuilderUnits>(Actors[0]);
+	
+	AResourceTransporter* Transporter = nullptr;
+	if (!Builder)
+		Transporter = Cast<AResourceTransporter>(Actors[0]);
+
+	if (CommandData.Target && (Builder || Transporter))
 	{
-		if (AStructureBase* Build = Cast<AStructureBase>(CommandData.Target))
+		// Is Storage
+		if (AResourceDepot* Storage = Cast<AResourceDepot>(CommandData.Target))
 		{
-			if (AResourceDepot* Storage = Cast<AResourceDepot>(Build))
+			if (Storage->GetIsBuilt())
 			{
 				Server_MoveToStorage(Storage);
 				return;
 			}
-			
-			Server_MoveToBuildSelected(Build);
-			return;
 		}
-		
-		if (AResourceNode* Node = Cast<AResourceNode>(CommandData.Target))
+
+		if (!Transporter)
 		{
-			Server_MoveToResourceNode(Node);
-			return;
+			// Is Build
+			if (AStructureBase* Build = Cast<AStructureBase>(CommandData.Target))
+			{
+				Server_MoveToBuildSelected(Build);
+				return;
+			}
+
+			// Is Resource Node
+			if (AResourceNode* Node = Cast<AResourceNode>(CommandData.Target))
+			{
+				Server_MoveToResourceNode(Node);
+				return;
+			}	
 		}
 	}
 	
-	Super::CommandSelected(CommandData);
+	Super::Server_CommandSelected(CommandData);
 }
 
 void URtsComponent::Server_MoveToResourceNode_Implementation(AResourceNode* Node)

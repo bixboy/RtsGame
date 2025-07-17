@@ -34,6 +34,21 @@ public:
 	UFUNCTION()
 	APlayerController* GetCameraController() const;
 
+	
+	// Accessor
+	UFUNCTION()
+	void SetIsTurret(bool NewBool);
+
+	UFUNCTION()
+	void SetSwitchToOtherTypeCam(bool NewBool);
+	
+	UFUNCTION()
+	bool GetIsTurret();
+
+	UFUNCTION()
+	bool GetSwitchToOtherTypeCam();
+
+	
 	UPROPERTY(Replicated)
 	FTurrets Turret;
 
@@ -45,6 +60,12 @@ protected:
 
 	UPROPERTY()
 	bool IsUsed = false;
+
+	UPROPERTY(Replicated)
+	bool bIsTurrets = true;
+
+	UPROPERTY(Replicated)
+	bool bSwitchToOtherTypeCam = true;
 	
 	UPROPERTY()
 	APlayerController* OwningPlayer;

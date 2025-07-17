@@ -4,6 +4,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "VehiclesAnimInstance.h"
+#include "Component/VehicleCamera.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
@@ -55,10 +56,11 @@ void AVehicleMaster::BeginPlay()
     if (SpringArm)
         SpringArm->bUsePawnControlRotation = false;
 
-    InitializeCameras();
-
-    
-    GetComponents<UVehiclePlayerMesh>(VehiclePlayersMesh);
+    if (HasAuthority())
+    {
+        InitializeCameras();
+        GetComponents<UVehiclePlayerMesh>(VehiclePlayersMesh);   
+    }
 }
 
 void AVehicleMaster::OnConstruction(const FTransform& Transform)
@@ -108,13 +110,21 @@ void AVehicleMaster::InitializeCameras()
         if (UStaticMeshComponent* MeshComp = Cast<UStaticMeshComponent>(Component))
             SmTurrets.AddUnique(MeshComp);
     }
+
+    TArray<UVehicleCamera*> Components;
+    GetComponents<UVehicleCamera>(Components);
     
-    for (UActorComponent* Component : GetComponentsByTag(UCameraComponent::StaticClass(), "PlaceCamera"))
+    for (UVehicleCamera* Component : Components)
     {
-        if (UCameraComponent* Cam = Cast<UCameraComponent>(Component))
+        ACameraVehicle* SpawnedCamera = GetWorld()->SpawnActor<ACameraVehicle>(Component->GetComponentLocation(), Component->GetComponentRotation());
+        if (SpawnedCamera)
         {
-            ACameraVehicle* SpawnedCamera = GetWorld()->SpawnActor<ACameraVehicle>(Cam->GetComponentLocation(), Cam->GetComponentRotation());
-            if (SpawnedCamera)
+            SpawnedCamera->SetIsTurret(Component->bIsTurrets);
+            SpawnedCamera->SetSwitchToOtherTypeCam(Component->bSwitchToOtherTypeCam);
+            
+            AllCameras.AddUnique(SpawnedCamera);
+
+            if (SpawnedCamera->GetIsTurret())
             {
                 Turrets.AddUnique(SpawnedCamera);
                 
@@ -131,18 +141,22 @@ void AVehicleMaster::InitializeCameras()
                         SpawnedCamera->AttachToComponent(SmTurrets[TurretIndex], FAttachmentTransformRules::KeepWorldTransform);
                         TurretIndex++;
                     }
-                }
-                else
-                {
-                    SpawnedCamera->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-                }
-                
-                SpawnedCamera->SetActorRotation(Cam->GetComponentRotation());
-                if (AnimInstance)
-                    AnimInstance->TurretAngle.Add(SpawnedCamera->GetAttachParentSocketName(), FRotator::ZeroRotator);
-                Cam->DestroyComponent();
-                CameraIndex++;
+                }   
             }
+            else
+            {
+                SpawnedCamera->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+            }
+            
+            if (AnimInstance)
+            {
+                AnimInstance->TurretAngle.Add(SpawnedCamera->GetAttachParentSocketName(), FRotator::ZeroRotator);   
+            }
+
+            SpawnedCamera->SetActorRotation(Component->GetComponentRotation());
+            
+            Component->DestroyComponent();
+            CameraIndex++;
         }
     }
 }
@@ -457,14 +471,14 @@ void AVehicleMaster::Input_OnUpdateCameraRotation(const FInputActionValue& Input
 
 void AVehicleMaster::SwitchToCamera(APlayerController* PlayerController, ACameraVehicle* NewCamera)
 {
-    if (!bHaveTurret || Turrets.IsEmpty() || !PlayerController || !NewCamera || NewCamera->GetIsUsed())
-        return;
-    
     if (!HasAuthority())
     {
         Server_SwitchToCamera(PlayerController, NewCamera);
         return;
     }
+    
+    if (AllCameras.IsEmpty() || !PlayerController || !NewCamera || NewCamera->GetIsUsed())
+        return;
     
     if (ACameraVehicle** FoundTurretPtr = Turrets.FindByPredicate([PlayerController](const ACameraVehicle* T)
     {
@@ -509,7 +523,7 @@ void AVehicleMaster::Server_SwitchToCamera_Implementation(APlayerController* Pla
 // -------- Next Camera --------
 ACameraVehicle* AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerController)
 {
-    if (!bHaveTurret || !PlayerController || Turrets.IsEmpty())
+    if (!PlayerController || AllCameras.IsEmpty())
         return nullptr;
     
     APawn* Player = PlayerController->GetPawn();
@@ -523,16 +537,22 @@ ACameraVehicle* AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerCont
         PlayerController->Possess(CurrentDriver);
         PlayerController = Cast<APlayerController>(CurrentDriver->GetController());
     }
-    
-    for (int32 i = 0; i < Turrets.Num(); i++)
+
+    ACameraVehicle* CurrentCam = nullptr;
+    if (ACameraVehicle** Found = AssignedCameras.Find(PlayerController))
     {
-        ACameraVehicle* Turret = Turrets[i];
-        if (Turret && Turret->GetIsUsed() && Turret->GetCameraController() == PlayerController)
-        {
-            Turret->SetIsUsed(false);
-            Turret->SetController(nullptr);
+        CurrentCam = *Found;
+    }
     
-            if (i == Turrets.Num() - 1 || !GetAvailableCamera(i))
+    for (int32 i = 0; i < AllCameras.Num(); i++)
+    {
+        ACameraVehicle* Camera = AllCameras[i];
+        if (Camera && Camera->GetIsUsed() && Camera->GetCameraController() == PlayerController)
+        {
+            Camera->SetIsUsed(false);
+            Camera->SetController(nullptr);
+    
+            if (i == AllCameras.Num() - 1 || !GetAvailableCamera(i, CurrentCam))
             {
                 if (!CurrentDriver && MainCamera)
                 {
@@ -541,17 +561,18 @@ ACameraVehicle* AVehicleMaster::SwitchToNextCamera(APlayerController* PlayerCont
                 }
             }
             
-            ACameraVehicle* NextAvailableCamera = GetAvailableCamera(i);
+            ACameraVehicle* NextAvailableCamera = GetAvailableCamera(i, CurrentCam);
             if (NextAvailableCamera)
             {
+                GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, NextAvailableCamera->GetName());
                 SwitchToCamera(PlayerController, NextAvailableCamera);
                 
                 return NextAvailableCamera;
             }
     
-            Turret->SetIsUsed(true);
-            Turret->SetController(PlayerController);
-            return Turret;
+            Camera->SetIsUsed(true);
+            Camera->SetController(PlayerController);
+            return Camera;
         }
     }
     
@@ -597,14 +618,21 @@ ACameraVehicle* AVehicleMaster::GetAttachedCamera(FName ParentName)
     return nullptr;
 }
 
-ACameraVehicle* AVehicleMaster::GetAvailableCamera(int startIndex)
+ACameraVehicle* AVehicleMaster::GetAvailableCamera(int startIndex, ACameraVehicle* CurrentCam)
 {
-    for (int32 j = 1; j < Turrets.Num(); j++)
+    for (int32 j = 1; j < AllCameras.Num(); j++)
     {
-        int32 NextIndex = (startIndex + j) % Turrets.Num();
-        ACameraVehicle* NextCamera = Turrets[NextIndex];
-        if (NextCamera && !NextCamera->GetIsUsed())
-            return NextCamera;
+        int32 NextIndex = (startIndex + j) % AllCameras.Num();
+        ACameraVehicle* NextCamera = AllCameras[NextIndex];
+        
+        if (!NextCamera || NextCamera->GetIsUsed())
+            continue;
+        
+        if (CurrentCam && CurrentCam->GetIsTurret() != NextCamera->GetIsTurret() && !CurrentCam->GetSwitchToOtherTypeCam())
+            continue;
+
+        
+        return NextCamera;
     }
     return nullptr;
 }
@@ -880,6 +908,14 @@ bool AVehicleMaster::GetSoundIsPlaying(USoundBase* Sound, UAudioComponent* Audio
 // ------------------- Turret Controls -------------------
 #pragma region Turret Control
 
+void AVehicleMaster::OnTurretRotate(FVector2D NewRotation, ACameraVehicle* CameraToRotate)
+{
+    if (!bHaveTurret || Turrets.IsEmpty() || !CameraToRotate->GetIsTurret())
+        return;
+    
+    ApplyTurretRotation(NewRotation.X, NewRotation.Y, TurretRotationSpeed, GetWorld()->GetTimeSeconds(), CameraToRotate);
+}
+
 void AVehicleMaster::ApplyTurretRotation(float DeltaYaw, float DeltaPitch, float RotationSpeed, float DeltaTime, ACameraVehicle* CameraToMove)
 {
     if (CameraToMove)
@@ -908,14 +944,6 @@ void AVehicleMaster::Multicast_SetTurretRotation_Implementation(ACameraVehicle* 
     {
         SmTurrets[IndexOfCamera]->SetRelativeRotation(FRotator(TurretAngle.Pitch, TurretAngle.Yaw, 0.f));
     }
-}
-
-void AVehicleMaster::OnTurretRotate(FVector2D NewRotation, ACameraVehicle* CameraToRotate)
-{
-    if (!bHaveTurret || Turrets.IsEmpty())
-        return;
-    
-   ApplyTurretRotation(NewRotation.X, NewRotation.Y, TurretRotationSpeed, GetWorld()->GetTimeSeconds(), CameraToRotate);
 }
 
 

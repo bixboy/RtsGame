@@ -104,8 +104,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Settings|Camera")
 	bool bCanRotateCamera = true;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components", meta = (AllowPrivateAccess = true))
+	UPROPERTY()
 	TArray<ACameraVehicle*> Turrets;
+
+	UPROPERTY()
+	TArray<ACameraVehicle*> AllCameras;
 
 	UPROPERTY()
 	TMap<APlayerController*, ACameraVehicle*> AssignedCameras;
@@ -137,7 +140,7 @@ protected:
 	ACameraVehicle* GetAttachedCamera(FName ParentName);
 	
 	UFUNCTION()
-	ACameraVehicle* GetAvailableCamera(int startIndex);
+	ACameraVehicle* GetAvailableCamera(int startIndex, ACameraVehicle* CurrentCam);
 
 #pragma endregion
 

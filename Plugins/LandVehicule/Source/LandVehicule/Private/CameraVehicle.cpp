@@ -27,6 +27,8 @@ void ACameraVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ACameraVehicle, Turret);
+	DOREPLIFETIME(ACameraVehicle, bIsTurrets);
+	DOREPLIFETIME(ACameraVehicle, bSwitchToOtherTypeCam);
 }
 
 UCameraComponent* ACameraVehicle::GetCameraComponent()
@@ -59,5 +61,25 @@ APlayerController* ACameraVehicle::GetCameraController() const
 	if (OwningPlayer) return OwningPlayer;
 
 	return nullptr;
+}
+
+void ACameraVehicle::SetIsTurret(bool NewBool)
+{
+	bIsTurrets = NewBool;
+}
+
+void ACameraVehicle::SetSwitchToOtherTypeCam(bool NewBool)
+{
+	bSwitchToOtherTypeCam = NewBool;
+}
+
+bool ACameraVehicle::GetIsTurret()
+{
+	return bIsTurrets;
+}
+
+bool ACameraVehicle::GetSwitchToOtherTypeCam()
+{
+	return bSwitchToOtherTypeCam;
 }
 

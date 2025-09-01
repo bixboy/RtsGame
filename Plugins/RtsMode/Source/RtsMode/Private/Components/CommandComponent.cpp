@@ -79,7 +79,7 @@ FCommandData UCommandComponent::GetCurrentCommand() const
 	return CurrentCommand;
 }
 
-void UCommandComponent::CommandMoveToLocation(const FCommandData CommandData)
+void UCommandComponent::CommandMoveToLocation(const FCommandData& CommandData)
 {
 	TargetLocation = CommandData.Location;
 	CurrentCommand = CommandData;

@@ -23,7 +23,7 @@ void AResourceNode::BeginPlay()
 
 	if (HasAuthority())
 	{
-		ResourcesComp->AddResources(ResourcesComp->GetMaxResource());	
+		ResourcesComp->AddResources(ResourcesComp->GetMaxResources());	
 	}
 }
 

@@ -1,19 +1,17 @@
 ﻿#include "Units/BuilderUnits.h"
-#include "Components/BuilderComponent.h"
-#include "Components/ResourceCollector.h"
+#include "Components/WorkerComp/BuilderComponent.h"
 #include "Components/RtsResourcesComponent.h"
 
 
 // ====== Setup ======
 #pragma region Setup
 
-ABuilderUnits::ABuilderUnits(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer.SetDefaultSubobjectClass<UBuilderComponent>(TEXT("CommandComponent")))
+ABuilderUnits::ABuilderUnits()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	BuilderComp = Cast<UBuilderComponent>(CommandComp);
+	BuilderComp = CreateDefaultSubobject<UBuilderComponent>(TEXT("BuilderComponent"));
 	ResourcesComp = CreateDefaultSubobject<URtsResourcesComponent>(TEXT("ResourcesComponent"));
-	ResourcesCollectorComp = CreateDefaultSubobject<UResourceCollector>(TEXT("ResourcesCollectorComponent"));
 }
 
 void ABuilderUnits::BeginPlay()
@@ -24,25 +22,18 @@ void ABuilderUnits::BeginPlay()
 #pragma endregion
 
 
-// ====== Movement ======
-void ABuilderUnits::MoveToBuild_Implementation(AStructureBase* BuildDest)
+void ABuilderUnits::StartWork_Implementation(const FTaskJob& Job)
 {
-	if (!BuildDest->GetIsBuilt() || BuildDest->GetIsInUpgrading())
+	if (BuilderComp)
 	{
-		BuilderComp->StartBuilding(BuildDest);
+		BuilderComp->NotifyAssignedJob(Job);	
+	}
+	else
+	{
+		BuilderComp = GetComponentByClass<UBuilderComponent>();
+		BuilderComp->NotifyAssignedJob(Job);
 	}
 }
-
-void ABuilderUnits::MoveToResourceNode_Implementation(AResourceNode* Node)
-{
-	ResourcesCollectorComp->StartMoveToResource(Node);
-}
-
-void ABuilderUnits::MoveToResourceStorage_Implementation(AResourceDepot* Storage)
-{
-	ResourcesCollectorComp->StartMoveToStorage(Storage);
-}
-
 
 URtsResourcesComponent* ABuilderUnits::GetResourcesComp()
 {

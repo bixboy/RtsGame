@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "UnitsMaster.h"
+#include "Components/WorkerComp/TaskManagerComponent.h"
 #include "BuilderUnits.generated.h"
 
 class UResourceCollector;
@@ -11,19 +12,13 @@ class RTSGAME_API ABuilderUnits : public AUnitsMaster
 	GENERATED_BODY()
 
 public:
-	ABuilderUnits(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ABuilderUnits();
 
 	UFUNCTION(BlueprintCallable)
 	URtsResourcesComponent* GetResourcesComp();
 
 	UFUNCTION()
-	virtual void MoveToBuild_Implementation(AStructureBase* BuildDest) override;
-
-	UFUNCTION()
-	virtual void MoveToResourceNode_Implementation(AResourceNode* Node) override;
-
-	UFUNCTION()
-	virtual void MoveToResourceStorage_Implementation(AResourceDepot* Storage) override;
+	virtual void StartWork_Implementation(const FTaskJob& Job) override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -34,7 +29,4 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UBuilderComponent* BuilderComp;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	UResourceCollector* ResourcesCollectorComp;
 };

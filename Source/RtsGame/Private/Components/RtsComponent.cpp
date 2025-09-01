@@ -216,6 +216,15 @@ void URtsComponent::Server_MoveToResourceNode_Implementation(AResourceNode* Node
 {
 	if (!GetOwner()->HasAuthority() || !Node) return;
 
+	TArray<AActor*> Workers;
+
+	FTaskJob NewJob;
+	NewJob.bForced = true;
+	NewJob.JobName = "Collect";
+	NewJob.Owner = RtsController;
+	NewJob.Target = Node;
+	NewJob.TaskType = ETaskType::Collect;
+
 	for (AActor* Soldier : SelectedActors)
 	{
 		if (!Soldier ||
@@ -225,9 +234,12 @@ void URtsComponent::Server_MoveToResourceNode_Implementation(AResourceNode* Node
 
 		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder)
 		{
-			IUnitTypeInterface::Execute_MoveToResourceNode(Soldier, Node);
+			Workers.Add(Soldier);
 		}
 	}
+
+	if (Workers.Num() > 0)
+		RtsController->TaskManager->AssignJobToWorkers(NewJob, Workers);
 }
 
 void URtsComponent::Server_MoveToStorage_Implementation(AResourceDepot* Storage)
@@ -252,6 +264,15 @@ void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Bu
 
 	const auto BuildFaction = IFactionsInterface::Execute_GetCurrentFaction(Build);
 
+	TArray<AActor*> Workers;
+
+	FTaskJob NewJob;
+	NewJob.bForced = true;
+	NewJob.JobName = "Building";
+	NewJob.Owner = RtsController;
+	NewJob.Target = Build;
+	NewJob.TaskType = ETaskType::Build;
+
 	for (AActor* Soldier : SelectedActors)
 	{
 		if (!Soldier || 
@@ -261,9 +282,12 @@ void URtsComponent::Server_MoveToBuildSelected_Implementation(AStructureBase* Bu
 
 		if (IUnitTypeInterface::Execute_GetUnitType(Soldier) == EUnitsType::Builder && IFactionsInterface::Execute_GetCurrentFaction(Soldier) == BuildFaction)
 		{
-			IUnitTypeInterface::Execute_MoveToBuild(Soldier, Build);
+			Workers.Add(Soldier);
 		}
 	}
+
+	if (Workers.Num() > 0)
+		RtsController->TaskManager->AssignJobToWorkers(NewJob, Workers);
 }
 
 #pragma endregion

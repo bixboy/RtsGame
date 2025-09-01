@@ -1,6 +1,7 @@
 ﻿#include "Player/RtsPlayerController.h"
 #include "Components/RtsComponent.h"
 #include "Components/RtsResourcesComponent.h"
+#include "Components/WorkerComp/TaskManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -9,7 +10,7 @@ ARtsPlayerController::ARtsPlayerController(const FObjectInitializer& ObjectIniti
 	RtsComponent = Cast<URtsComponent>(SelectionComponent);
 
 	ResourcesComponent = CreateDefaultSubobject<URtsResourcesComponent>(TEXT("ResourcesComponent"));
-	
+	TaskManager = CreateDefaultSubobject<UTaskManagerComponent>(TEXT("TaskManager"));
 }
 
 void ARtsPlayerController::BeginPlay()

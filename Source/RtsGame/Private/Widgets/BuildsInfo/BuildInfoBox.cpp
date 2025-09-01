@@ -96,6 +96,12 @@ void UBuildInfoBox::CreateResourceEntry(TArray<AActor*> SelectedBuilds)
 		}
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("TOTAL | Wood=%d, Stone=%d, Iron=%d"),
+	TotalResources.Woods, TotalResources.Metal, TotalResources.Food);
+
+	UE_LOG(LogTemp, Warning, TEXT("MAX   | Wood=%d, Stone=%d, Iron=%d"),
+		TotalMaxResources.Woods, TotalMaxResources.Metal, TotalMaxResources.Food);
+
 	BuildResource->UpdateResources(TotalResources, TotalMaxResources);
 }
 
@@ -111,6 +117,8 @@ void UBuildInfoBox::UpdateResources(FResourcesCost ResourcesCost)
 		FResourcesCost Max = IStorageBuildInterface::Execute_GetMaxResource(Storage);
 		TotalMaxResources += Max;
 	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Emerald, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
 	
 	BuildResource->UpdateResources(TotalResources, TotalMaxResources);
 }

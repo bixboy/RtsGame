@@ -7,4 +7,6 @@ void UBuildResourceInfo::UpdateResources(FResourcesCost NewResource, FResourcesC
 	if (WoodEntry)  WoodEntry->SetTextValue(NewResource.Woods, MaxResource.Woods);
 	if (FoodEntry)  FoodEntry->SetTextValue(NewResource.Food, MaxResource.Food);
 	if (MetalEntry) MetalEntry->SetTextValue(NewResource.Metal, MaxResource.Metal);
+
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "Wood Entry");
 }

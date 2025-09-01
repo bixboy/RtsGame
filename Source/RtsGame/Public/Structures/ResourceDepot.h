@@ -17,6 +17,7 @@ class RTSGAME_API AResourceDepot : public AStructureBase, public IStorageBuildIn
 public:
 	AResourceDepot();
 
+	// ---- Interfaces
 	UFUNCTION()
 	virtual FResourcesCost GetResource_Implementation() override;
 
@@ -24,13 +25,28 @@ public:
 	virtual FResourcesCost GetMaxResource_Implementation() override;
 
 	UFUNCTION()
+	virtual int32 GetResourceByType_Implementation(EResourceType ResourceType = EResourceType::None) override;
+
+	UFUNCTION()
+	virtual int32 GetMaxByTypeResource_Implementation(EResourceType ResourceType = EResourceType::None) override;
+
+
+	// ---- Getters
+	UFUNCTION()
 	FResourcesCost GetStorage();
+	int32 GetStorage(EResourceType ResourceType);
+
+	UFUNCTION()
+	FResourcesCost GetResourceMax();
+	int32 GetResourceMax(EResourceType ResourceType);
 
 	UFUNCTION()
 	URtsResourcesComponent* GetResourcesComp();
 
 	UFUNCTION()
 	bool GetIsEmpty(EResourceType CheckResource);
+
+	
 
 	UFUNCTION()
 	void AddResources(FResourcesCost NewResources);

@@ -56,20 +56,32 @@ void AResourceDepot::OnStorageUpdate(const FResourcesCost& NewResources)
 	OnStorageUpdated.Broadcast(NewResources);
 }
 
+
+// ====== Getters
+
+// Storage
 FResourcesCost AResourceDepot::GetStorage()
 {
 	return ResourcesComp->GetResources();
 }
 
-FResourcesCost AResourceDepot::GetResource_Implementation()
+int32 AResourceDepot::GetStorage(EResourceType ResourceType)
 {
-	return GetStorage();
+	return ResourcesComp->GetResource(ResourceType);
 }
 
-FResourcesCost AResourceDepot::GetMaxResource_Implementation()
+
+// Max Resource
+FResourcesCost AResourceDepot::GetResourceMax()
 {
-	return ResourcesComp->GetMaxResource();
+	return ResourcesComp->GetMaxResources();
 }
+
+int32 AResourceDepot::GetResourceMax(EResourceType ResourceType)
+{
+	return ResourcesComp->GetMaxResource(ResourceType);
+}
+
 
 URtsResourcesComponent* AResourceDepot::GetResourcesComp()
 {
@@ -79,6 +91,29 @@ URtsResourcesComponent* AResourceDepot::GetResourcesComp()
 bool AResourceDepot::GetIsEmpty(EResourceType CheckResource)
 {
 	return ResourcesComp->GetStorageIsEmpty(CheckResource);
+}
+
+
+
+// ======= Interfaces Functions
+FResourcesCost AResourceDepot::GetResource_Implementation()
+{
+	return GetStorage();
+}
+
+FResourcesCost AResourceDepot::GetMaxResource_Implementation()
+{
+	return ResourcesComp->GetMaxResources();
+}
+
+int32 AResourceDepot::GetResourceByType_Implementation(EResourceType ResourceType)
+{
+	return GetStorage(ResourceType);
+}
+
+int32 AResourceDepot::GetMaxByTypeResource_Implementation(EResourceType ResourceType)
+{
+	return ResourcesComp->GetMaxResource(ResourceType);
 }
 
 

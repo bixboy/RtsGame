@@ -4,6 +4,7 @@
 #include "Player/PlayerControllerRts.h"
 #include "RtsPlayerController.generated.h"
 
+class UTaskManagerComponent;
 class URtsResourcesComponent;
 class URtsComponent;
 
@@ -39,8 +40,13 @@ public:
 	UFUNCTION()
 	void RemoveResource(FResourcesCost RemoveResource);
 
+	
+// ---------- Components	
 	UPROPERTY(EditAnywhere)
 	URtsResourcesComponent* ResourcesComponent;
+
+	UPROPERTY(EditAnywhere)
+	UTaskManagerComponent* TaskManager;
 
 protected:
 	

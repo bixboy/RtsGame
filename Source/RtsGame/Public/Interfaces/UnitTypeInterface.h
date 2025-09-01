@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "Data/DataRts.h"
+#include "Data/WorkerData.h"
 #include "UObject/Interface.h"
 #include "UnitTypeInterface.generated.h"
 
@@ -25,7 +26,7 @@ public:
 	EUnitsType GetUnitType();
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	void MoveToBuild(AStructureBase* BuildDest);
+	void StartWork(const FTaskJob& Job);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void MoveToResourceNode(AResourceNode* Node);

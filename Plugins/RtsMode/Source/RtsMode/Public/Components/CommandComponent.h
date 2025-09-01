@@ -20,7 +20,7 @@ public:
 	UCommandComponent();
 
 	UFUNCTION()
-	void CommandMoveToLocation(const FCommandData CommandData);
+	void CommandMoveToLocation(const FCommandData& CommandData);
 	
 	UFUNCTION()
 	void SetOwnerAIController(AAiControllerRts* Cast);

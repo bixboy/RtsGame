@@ -22,4 +22,11 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	FResourcesCost GetMaxResource();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	int32 GetResourceByType(EResourceType ResourceType = EResourceType::None);
+
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	int32 GetMaxByTypeResource(EResourceType ResourceType = EResourceType::None);
 };

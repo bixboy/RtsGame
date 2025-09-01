@@ -1,6 +1,6 @@
 ﻿#include "Units/ResourceTransporter.h"
-#include "Components/ResourceCollector.h"
 #include "Components/RtsResourcesComponent.h"
+#include "Components/WorkerComp/ResourceCollector.h"
 
 // ====== Setup ======
 #pragma region Setup

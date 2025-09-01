@@ -45,6 +45,7 @@ void AAiControllerRts::Tick(float DeltaSeconds)
             StopMovement();
             bMoveComplete = true;
         }
+        
         PerformAttack();
     }
     else if (ShouldApproach())
@@ -71,7 +72,7 @@ void AAiControllerRts::CommandMove(const FCommandData Cmd, bool bAttack)
     }
     else
     {
-        MoveToLocation(Cmd.Location);
+        MoveToLocation(Cmd.Location, 5.f);
     }
     OnNewDestination.Broadcast(Cmd);
 }

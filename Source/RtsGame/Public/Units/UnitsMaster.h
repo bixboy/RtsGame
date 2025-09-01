@@ -18,7 +18,7 @@ class RTSGAME_API AUnitsMaster : public ASoldierRts, public IUnitTypeInterface, 
 	GENERATED_BODY()
 
 public:
-	AUnitsMaster(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AUnitsMaster();
 
 	UFUNCTION()
 	void SetUnitTeam(int NewTeam);
@@ -48,9 +48,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	virtual void Tick(float DeltaTime) override;
-
+	
 	virtual void OnStartAttack(AActor* Target) override;
 	
 	/*------ Parameter ------*/	

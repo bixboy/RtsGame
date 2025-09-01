@@ -24,7 +24,7 @@ class RTSMODE_API ASoldierRts : public ACharacter, public ISelectable, public ID
 	GENERATED_BODY()
 
 public:
-	ASoldierRts(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ASoldierRts();
 	
 	virtual void BeginPlay() override;
 

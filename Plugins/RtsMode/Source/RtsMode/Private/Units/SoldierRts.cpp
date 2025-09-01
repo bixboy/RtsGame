@@ -8,7 +8,7 @@
 // ------------------- Setup ---------------------
 #pragma region Setup
 
-ASoldierRts::ASoldierRts(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+ASoldierRts::ASoldierRts()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
@@ -158,8 +158,9 @@ bool ASoldierRts::GetIsSelected_Implementation()
 void ASoldierRts::CommandMove_Implementation(FCommandData CommandData)
 {
 	ISelectable::CommandMove_Implementation(CommandData);
-	
-	GetCommandComponent()->CommandMoveToLocation(CommandData);
+
+	if (GetCommandComponent())
+		GetCommandComponent()->CommandMoveToLocation(CommandData);
 }
 
 FCommandData ASoldierRts::GetCurrentCommand_Implementation()

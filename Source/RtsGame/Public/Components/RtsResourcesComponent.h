@@ -15,59 +15,64 @@ public:
 	URtsResourcesComponent();
 
 	// ===== Multi Resources =====
-
-	UFUNCTION(BlueprintCallable, Category="Resources")
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
 	void SetResources(FResourcesCost NewResources);
-	
-	UFUNCTION(BlueprintCallable, Category="Resources")
+
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
 	void AddResources(FResourcesCost NewResources);
 
-	UFUNCTION(BlueprintCallable, Category="Resources")
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
 	void RemoveResources(FResourcesCost ResourcesToRemove);
 
-	UFUNCTION(BlueprintCallable, Category="Resources")
-	FResourcesCost GetResources();
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
+	FResourcesCost GetResources() const;
 
-	UFUNCTION(BlueprintCallable, Category="Resources")
-	FResourcesCost GetMaxResource();
-	int32 GetMaxResource(EResourceType Type);
-
-	// ===== Mono Resource =====
-	UFUNCTION(BlueprintCallable, Category="Resources")
-	void SetResource(EResourceType Type, int32 Amount);
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
+	FResourcesCost GetMaxResources() const;
 	
-	UFUNCTION(BlueprintCallable, Category="Resources")
+
+	// ===== Single Resource =====
+	UFUNCTION(BlueprintCallable, Category="Resources|Single")
+	void SetResource(EResourceType Type, int32 Amount);
+
+	UFUNCTION(BlueprintCallable, Category="Resources|Single")
 	void AddResource(EResourceType Type, int32 Amount);
 
-	UFUNCTION(BlueprintCallable, Category="Resources")
+	UFUNCTION(BlueprintCallable, Category="Resources|Single")
 	void RemoveResource(EResourceType Type, int32 Amount);
 
-	UFUNCTION(BlueprintCallable, Category="Resources")
+	UFUNCTION(BlueprintCallable, Category="Resources|Single")
 	int32 GetResource(EResourceType Type);
 
-
+	UFUNCTION(BlueprintCallable, Category="Resources|Single")
+	int32 GetMaxResource(EResourceType Type);
 	
-	UFUNCTION(BlueprintCallable, Category="Resources")
-	bool GetStorageIsFull(EResourceType CheckResource = EResourceType::None);
 
-	UFUNCTION(BlueprintCallable, Category="Resources")
-	bool GetStorageIsEmpty(EResourceType CheckResource = EResourceType::None);
-
+	// Event broadcast quand les ressources changent
 	UPROPERTY(BlueprintAssignable, Category="Resources")
 	FOnResourcesChanged OnResourcesChanged;
+	
+
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
+	bool GetStorageIsFull(EResourceType Type = EResourceType::None);
+
+	UFUNCTION(BlueprintCallable, Category="Resources|Multi")
+	bool GetStorageIsEmpty(EResourceType Type = EResourceType::None);
 
 protected:
 	virtual void BeginPlay() override;
-
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
 	void OnRep_CurrentResources();
+	
+	UFUNCTION()
+	void ApplyResourceChange(const FResourcesCost& NewResources);
 
-	UFUNCTION(NetMulticast, reliable)
-	void Multicast_UpdateResources(const FResourcesCost NewResources);
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_ApplyResourceChange(const FResourcesCost& NewResources);
 
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentResources)
+	UPROPERTY(ReplicatedUsing=OnRep_CurrentResources, VisibleAnywhere, Category="Resources")
 	FResourcesCost CurrentResources;
 
 	UPROPERTY(EditAnywhere, Category="Resources")

@@ -290,37 +290,33 @@ void UGridComponent::EnabledCollision(bool NewEnable)
 
 TArray<FVector2D> UGridComponent::GetTilesForActor(AActor* Actor)
 {
-	if (!Actor) return TArray<FVector2D>();
-	
-	FBox MeshBox;
-	TArray<FVector2D> Tiles;
+	if (!Actor) return {};
 
+	FBox MeshBox;
 	if (USkeletalMeshComponent* SkeletalComp = Actor->FindComponentByClass<USkeletalMeshComponent>())
 	{
 		MeshBox = SkeletalComp->Bounds.GetBox();
 	}
-	else
+	else if (UStaticMeshComponent* MeshComp = Actor->FindComponentByClass<UStaticMeshComponent>())
 	{
-		if (UStaticMeshComponent* MeshComp = Actor->FindComponentByClass<UStaticMeshComponent>())
-			MeshBox = MeshComp->Bounds.GetBox();
+		MeshBox = MeshComp->Bounds.GetBox();
 	}
-    
-	float TotalWidth  = GetGridWidth();
-	float TotalHeight = GetGridHeight();
-	
-	FVector CenterOffset = FVector(TotalWidth / 2.f, TotalHeight / 2.f, 0.f);
-	FVector GridOrigin = GetOwner()->GetActorLocation() - CenterOffset;
-    
-	float LocalMinX = MeshBox.Min.X - GridOrigin.X;
-	float LocalMinY = MeshBox.Min.Y - GridOrigin.Y;
-	float LocalMaxX = MeshBox.Max.X - GridOrigin.X;
-	float LocalMaxY = MeshBox.Max.Y - GridOrigin.Y;
-    
-	int MinRow = FMath::FloorToInt(LocalMinX / CellSize);
-	int MaxRow = FMath::FloorToInt(LocalMaxX / CellSize);
-	int MinCol = FMath::FloorToInt(LocalMinY / CellSize);
-	int MaxCol = FMath::FloorToInt(LocalMaxY / CellSize);
-    
+
+	TArray<FVector2D> Tiles;
+
+	FVector LocalMin = GetOwner()->GetTransform().InverseTransformPosition(MeshBox.Min);
+	FVector LocalMax = GetOwner()->GetTransform().InverseTransformPosition(MeshBox.Max);
+
+	LocalMin.X += GridWidth * CellSize / 2.f;
+	LocalMin.Y += GridHeight * CellSize / 2.f;
+	LocalMax.X += GridWidth * CellSize / 2.f;
+	LocalMax.Y += GridHeight * CellSize / 2.f;
+
+	int MinRow = FMath::FloorToInt(LocalMin.X / CellSize);
+	int MaxRow = FMath::FloorToInt(LocalMax.X / CellSize);
+	int MinCol = FMath::FloorToInt(LocalMin.Y / CellSize);
+	int MaxCol = FMath::FloorToInt(LocalMax.Y / CellSize);
+
 	for (int r = MinRow; r <= MaxRow; r++)
 	{
 		for (int c = MinCol; c <= MaxCol; c++)
@@ -331,7 +327,7 @@ TArray<FVector2D> UGridComponent::GetTilesForActor(AActor* Actor)
 			}
 		}
 	}
-    
+
 	return Tiles;
 }
 
@@ -420,19 +416,15 @@ void UGridComponent::EndOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 
 bool UGridComponent::GetLocationToTile(FVector Location, int& Row, int& Column)
 {
-    float TotalWidth  = GetGridWidth();
-    float TotalHeight = GetGridHeight();
+	FVector LocalPos = GetOwner()->GetTransform().InverseTransformPosition(Location);
 
-    FVector CenterOffset = FVector(TotalWidth / 2.f, TotalHeight / 2.f, 0.f);
-    FVector GridOrigin = GetOwner()->GetActorLocation() - CenterOffset;
+	float LocalX = LocalPos.X + (GridWidth * CellSize / 2.f);
+	float LocalY = LocalPos.Y + (GridHeight * CellSize / 2.f);
 
-    float LocalX = Location.X - GridOrigin.X;
-    float LocalY = Location.Y - GridOrigin.Y;
+	Row    = FMath::FloorToInt(LocalX / CellSize);
+	Column = FMath::FloorToInt(LocalY / CellSize);
 
-    Row    = FMath::FloorToInt(LocalX / CellSize);
-    Column = FMath::FloorToInt(LocalY / CellSize);
-
-    return GetTileIsValid(Row, Column);
+	return GetTileIsValid(Row, Column);
 }
 
 bool UGridComponent::GetTileToGrid(int Row, int Column, bool bCenter, FVector2D& GridLocation)

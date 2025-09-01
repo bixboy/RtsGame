@@ -1,5 +1,5 @@
 ﻿#include "Units/UnitsMaster.h"
-#include "Components/BuilderComponent.h"
+#include "Components/WorkerComp/BuilderComponent.h"
 #include "Components/Weapons/ArtilleryComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/RtsPlayerController.h"
@@ -8,9 +8,10 @@
 // ------------ Setup ------------
 #pragma region Setup
 
-AUnitsMaster::AUnitsMaster(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+AUnitsMaster::AUnitsMaster()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	
 }
 
 void AUnitsMaster::BeginPlay()
@@ -25,11 +26,6 @@ void AUnitsMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AUnitsMaster, UnitTeam);
-}
-
-void AUnitsMaster::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 }
 
 #pragma endregion

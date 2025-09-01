@@ -3,7 +3,6 @@
 #include "Components/Image.h"
 #include "Widgets/PlayerHudWidget.h"
 #include "Widgets/SelectorWrapBox.h"
-#include "Widgets/ToolTipWidget.h"
 
 
 void USelectorWidget::NativeOnInitialized()

@@ -2,7 +2,7 @@
 #include "Components/GridComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SlectionComponent.h"
-#include "Engine/StaticMeshActor.h"
+#include "Engine/OverlapResult.h"
 #include "Player/PlayerControllerRts.h"
 #include "Player/RtsPlayer.h"
 #include "Structures/StructureBase.h"

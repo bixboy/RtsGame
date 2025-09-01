@@ -20,6 +20,7 @@ UENUM(BlueprintType)
 enum class EUnitsType : uint8
 {
 	Builder,
+	Transporter,
 	Attacker,
 	None
 };
@@ -183,6 +184,7 @@ struct FResourcesCost
 			case EResourceType::Food:  return Food;
 			case EResourceType::Wood:  return Woods;
 			case EResourceType::Metal: return Metal;
+			default: ;
 		}
 		
 		static int32 Dummy = 0;
@@ -238,7 +240,7 @@ struct FStructure
 	UTexture2D* Image = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	int Id;
+	int Id = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Build")
 	TSubclassOf<AStructureBase> BuildClass;
@@ -300,7 +302,7 @@ struct FUnitsProd
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Unit")
 	bool bCanBuild = false;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Unit", meta = (EditCondition = "bNeedToBuild", EditConditionHides = true))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Unit", meta = (EditCondition = "bCanBuild", EditConditionHides = true))
 	TArray<UStructureDataAsset*> BuildsList;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Unit|Production")

@@ -140,7 +140,7 @@ void ARtsPlayer::ShowUnitPreview(TSubclassOf<ASoldierRts> NewUnitClass)
 {
 	bIsInSpawnBuild = false;
 	bIsInSpawnWall = false;
-	Preview->EnabledCollision(false);
+	Preview->EnabledCollision(true);
 	
 	Super::ShowUnitPreview(NewUnitClass);
 }

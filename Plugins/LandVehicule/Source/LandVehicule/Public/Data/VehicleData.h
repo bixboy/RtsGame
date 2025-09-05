@@ -1,8 +1,8 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
+#include "CameraVehicle.h"
+#include "UObject/GarbageCollectionSchema.h"
 #include "VehicleData.generated.h"
-
-class ACameraVehicle;
 
 
 UENUM(BlueprintType)
@@ -36,24 +36,46 @@ struct FTurrets
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite)
-	ACameraVehicle* CameraVehicle = nullptr;
+	UPROPERTY()
+	ACameraVehicle* Camera = nullptr;
+
+	UPROPERTY()
+	UStaticMeshComponent* TurretMesh = nullptr;
 
 	UPROPERTY(BlueprintReadWrite)
-	APlayerController* PlayerOwner = nullptr;
+	USceneComponent* SeatOwner = nullptr;
+
+	UPROPERTY()
+	APlayerController* Occupant = nullptr;
 
 	UPROPERTY(BlueprintReadWrite)
 	float AccumulatedYaw = 0.f;
 	
 	UPROPERTY(BlueprintReadWrite)
 	float AccumulatedPitch = 0.f;
+
+	UPROPERTY()
+	float BaseYaw = 0.f;
+
+	UPROPERTY()
+	float BasePitch = 0.f;
 	
-	bool operator==(const FTurrets& Other) const
+	bool operator == (const FTurrets& Other) const
 	{
-		return CameraVehicle == Other.CameraVehicle && 
-			   AccumulatedYaw == Other.AccumulatedYaw && 
+		return Camera           == Other.Camera &&
+			   TurretMesh       == Other.TurretMesh &&
+			   AccumulatedYaw   == Other.AccumulatedYaw && 
 			   AccumulatedPitch == Other.AccumulatedPitch &&
-			   PlayerOwner == Other.PlayerOwner;
+			   SeatOwner        == Other.SeatOwner;
+	}
+
+	bool operator != (const FTurrets& Other) const
+	{
+		return Camera           != Other.Camera &&
+			   TurretMesh       != Other.TurretMesh &&
+			   AccumulatedYaw   != Other.AccumulatedYaw && 
+			   AccumulatedPitch != Other.AccumulatedPitch &&
+			   SeatOwner        != Other.SeatOwner;
 	}
 };
 

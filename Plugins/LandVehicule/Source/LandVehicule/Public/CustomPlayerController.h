@@ -5,6 +5,8 @@
 #include "Interface/VehiclesInteractions.h"
 #include "CustomPlayerController.generated.h"
 
+class UProximityPromptComponent;
+class UProximityPromptManagerComponent;
 class AVehicleMaster;
 class UInputMappingContext;
 
@@ -14,54 +16,65 @@ class LANDVEHICULE_API ACustomPlayerController : public APlayerController, publi
 	GENERATED_BODY()
 
 public:
+    virtual void BeginPlay() override;
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+    UFUNCTION(Client, Reliable)
+    void Client_AddMappingContext(const UInputMappingContext* MappingContext);
+
+    UFUNCTION(Client, Reliable)
+    void Client_RemoveMappingContext(const UInputMappingContext* MappingContext);
+
 	
-	UFUNCTION(Client, Reliable, BlueprintCallable)
-	void Client_AddMappingContext(const UInputMappingContext* NewMappingContext) const;
-
-	UFUNCTION(Client, Reliable, BlueprintCallable)
-	void Client_RemoveMappingContext(const UInputMappingContext* MappingContextToRemove) const;
-
-	UFUNCTION(Server, Reliable, BlueprintCallable)
-	void Server_ChangeCamera(AVehicleMaster* Vehicle);
+	UFUNCTION(BlueprintCallable)
+    void EnterInVehicle(AVehicleMaster* Vehicle, USceneComponent* ChosenSeat);
 
 	UFUNCTION(BlueprintCallable)
-	void EnterInVehicle(AVehicleMaster* Vehicle);
-
-	UFUNCTION(Server, Reliable, BlueprintCallable)
-	void Server_OutOfVehicle(AVehicleMaster* Vehicle);
+    void ExitVehicle();
 
 	UFUNCTION(BlueprintCallable)
-	void RotateVehicleTurret(FVector2D NewRotation);
-	
-	UPROPERTY(Replicated, BlueprintReadWrite, ReplicatedUsing = OnRep_CurrentVehicle, Category = "Vehicle")
-	bool bInVehicle;
+	void SwitchViewMode();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	ACameraVehicle* GetCurrentCamera();
+	UFUNCTION(BlueprintCallable)
+	void SetPromptEnabled(bool bNewEnabled);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	AVehicleMaster* GetCurrentVehicle();
+	UFUNCTION(BlueprintPure)
+	AVehicleMaster* IsInVehicle() const { return CurrentVehicle; }
 
 protected:
+    // ----------- Variables -----------
+    UPROPERTY(Replicated)
+    bool bInVehicle = false;
 
-	UFUNCTION(Server, Reliable)
-	void Server_EnterInVehicle(AVehicleMaster* Vehicle);
+    UPROPERTY(Replicated)
+    AVehicleMaster* CurrentVehicle = nullptr;
 
-	UFUNCTION()
-	void OnRep_CurrentVehicle();
+    UPROPERTY(Replicated)
+    ACameraVehicle* CurrentCamera = nullptr;
 	
-	UFUNCTION()
-	void OnRep_bInVehicle();
+
+    // ----------- Ref ------------
+    UPROPERTY()
+    UProximityPromptManagerComponent* PromptManager = nullptr;
+	
+
+    // ----------- Callbacks ------------
+    UFUNCTION()
+    void OnPromptInteracted(UProximityPromptComponent* Prompt, APlayerController* PC, UObject* Context);
+
+    UFUNCTION(Server, Reliable)
+    void Server_OnPromptInteracted(UObject* Context, UProximityPromptComponent* Prompt);
+
+    UFUNCTION(Server, Reliable)
+    void Server_EnterInVehicle(AVehicleMaster* Vehicle, USceneComponent* ChosenSeat);
+
+    UFUNCTION(Server, Reliable)
+    void Server_ExitVehicle(AVehicleMaster* Vehicle);
 
 	UFUNCTION(Server, Reliable)
-	void Server_RotateVehicleTurret(const FVector2D NewRotation);
+	void Server_SwitchViewMode();
 
-	UPROPERTY(Replicated, BlueprintReadOnly)
-	ACameraVehicle* CurrentCamera;
-
-	UPROPERTY(Replicated, BlueprintReadWrite, ReplicatedUsing = OnRep_bInVehicle, Category = "Vehicle")
-	AVehicleMaster* CurrentVehicle;
+	UFUNCTION(Server, Reliable)
+	void Server_SetPromptManager(UProximityPromptManagerComponent* NewPromptManager);
 	
 };

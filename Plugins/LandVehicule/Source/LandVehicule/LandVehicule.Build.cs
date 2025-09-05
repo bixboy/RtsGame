@@ -25,7 +25,13 @@ public class LandVehicule : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "Engine", "Niagara"
+				"Core", 
+				"Engine", 
+				"Niagara",
+				"InputCore",
+				"EnhancedInput",
+				"ProceduralMeshComponent"
+				
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -39,8 +45,9 @@ public class LandVehicule : ModuleRules
 				"Slate",
 				"SlateCore", 
 				"AITestSuite", 
-				"EnhancedInput",
-				"ControlRig"
+				"ControlRig", 
+				"UMG"
+				
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

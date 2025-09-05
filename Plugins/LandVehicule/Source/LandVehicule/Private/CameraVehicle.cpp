@@ -13,8 +13,6 @@ ACameraVehicle::ACameraVehicle()
 void ACameraVehicle::BeginPlay()
 {
 	Super::BeginPlay();
-
-	Turret.CameraVehicle = this;
 }
 
 void ACameraVehicle::Tick(float DeltaTime)
@@ -22,6 +20,7 @@ void ACameraVehicle::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+<<<<<<< Updated upstream
 void ACameraVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -31,6 +30,8 @@ void ACameraVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	DOREPLIFETIME(ACameraVehicle, bSwitchToOtherTypeCam);
 }
 
+=======
+>>>>>>> Stashed changes
 UCameraComponent* ACameraVehicle::GetCameraComponent()
 {
 	return CameraComp;

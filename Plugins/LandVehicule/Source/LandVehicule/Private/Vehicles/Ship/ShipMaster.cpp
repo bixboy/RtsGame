@@ -1,6 +1,8 @@
 ﻿#include "Vehicles/Ship/ShipMaster.h"
 #include "EnhancedInputComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "Net/UnrealNetwork.h"
+#include "Widgets/MouseSteeringShip.h"
 
 
 #pragma region Setup
@@ -8,6 +10,9 @@
 AShipMaster::AShipMaster()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	bReplicates = true;
+	SetReplicatingMovement(true);
 }
 
 void AShipMaster::BeginPlay()
@@ -21,10 +26,10 @@ void AShipMaster::BeginPlay()
 		BaseVehicle->SetEnableGravity(true);
 	}
 
+	OnEngineChangeDelegate.AddDynamic(this, &AShipMaster::EngineChange);
+
 	if (HasAuthority())
 	{
-		OnVehicleMove.AddDynamic(this, &AShipMaster::OnShipMove);
-		
 		LandingGears.Empty();
 		TArray<USceneComponent*> AllComps;
 		GetComponents<USceneComponent>(AllComps);
@@ -48,12 +53,14 @@ void AShipMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 		EnhancedInput->BindAction(BoostAction, ETriggerEvent::Started, this, &AShipMaster::Input_OnBoost);
 
 		EnhancedInput->BindAction(ThrustAction, ETriggerEvent::Triggered, this, &AShipMaster::Input_Thrust);
-		EnhancedInput->BindAction(ThrustAction, ETriggerEvent::Completed, this, &AShipMaster::Input_Thrust);
+		EnhancedInput->BindAction(ThrustAction, ETriggerEvent::Completed, this, &AShipMaster::Input_ThrustReleased);
 
-		EnhancedInput->BindAction(PivoAction, ETriggerEvent::Triggered, this, &AShipMaster::Server_OnShipYaw);
-		EnhancedInput->BindAction(LiftAction, ETriggerEvent::Triggered, this, &AShipMaster::Server_OnShipLift);
+		EnhancedInput->BindAction(PivoAction, ETriggerEvent::Triggered, this, &AShipMaster::Input_OnShipSideMove);
+		EnhancedInput->BindAction(PivoAction, ETriggerEvent::Completed, this, &AShipMaster::Input_OnShipSideMove);
+		
+		EnhancedInput->BindAction(LiftAction, ETriggerEvent::Triggered, this, &AShipMaster::Input_OnShipLift);
 
-		EnhancedInput->BindAction(LandingAction, ETriggerEvent::Started, this, &AShipMaster::AttemptLanding);
+		EnhancedInput->BindAction(LandingAction, ETriggerEvent::Started, this, &AShipMaster::Server_AttemptLanding);
 	}
 }
 
@@ -61,201 +68,279 @@ void AShipMaster::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AShipMaster, bSuperSpeed);
+	DOREPLIFETIME(AShipMaster, FlightState);
 }
 
 #pragma endregion
 
 
-void AShipMaster::Server_SwitchEngine(bool OnOff)
+void AShipMaster::EngineChange(bool bEngine)
 {
-	Super::Server_SwitchEngine(OnOff);
+	if (bEngine && ShipHudClass)
+	{
+		ShipHud = CreateWidget<UMouseSteeringShip>(GetWorld(), ShipHudClass);
+		ShipHud->AddToViewport();
+		ShipHud->SetupWidget(MoveNeutralZone, MaxSteeringRadius);
+
+		OnMouseMoveDelegate.AddDynamic(ShipHud, &UMouseSteeringShip::UpdateMouseVisuals);
+	}
+	else if (ShipHud)
+	{
+		OnMouseMoveDelegate.RemoveDynamic(ShipHud, &UMouseSteeringShip::UpdateMouseVisuals);
+		
+		ShipHud->RemoveFromParent();
+		ShipHud = nullptr;
+	}
 }
 
+
+// ======= Update =======
+#pragma region Update
 
 void AShipMaster::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!HasAuthority() || !BaseVehicle || !bEngineOn || bIsLanded)
+	if (!HasAuthority() || !BaseVehicle || !bEngineOn || FlightState == EShipFlightState::Landed)
 	return;
-
-	// Check Is in Landing
-	if (bIsLanding)
+	
+	switch (FlightState)
 	{
-		ShipLanding(DeltaTime);
-		return;
-	}
+		case EShipFlightState::Landed:
+			
+			// rien à faire, on attend le StartTakeoff()
+			break;
 
-	if (ThrustInput != 0 && bHoverActive)
-	{
-		bHoverActive = false;
-		BaseVehicle->SetEnableGravity(false);
-	}
+		case EShipFlightState::Landing:
+			
+			HandleLanding(DeltaTime);
+			break;
 
-	// ——————————————————————————————————————————————————————————————————
-    // 0) HOVER
-    FVector HoverForce = FVector::ZeroVector;
-    if (bHoverActive)
-    {
-        const FVector Start = BaseVehicle->GetComponentLocation();
-        const FVector End   = Start - FVector::UpVector * (HoverHeight * 2.f);
+		case EShipFlightState::TakingOff:
+			
+			HandleTakeoff(DeltaTime);
+			break;
 
-        FHitResult Hit;
-        FCollisionQueryParams QP(NAME_None, false, this);
-    	
-        if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, QP))
-        {
-            float CurrentDist = Start.Z - Hit.Location.Z;
-            float Error = HoverHeight - CurrentDist;
-
-            if (FMath::Abs(Error) < 10.f)
-            {
-            	BaseVehicle->SetEnableGravity(false);
-                bHoverActive = false;
-            }
-            else
-            {
-                float DynamicStiff = HoverStiffness * (1.f + FMath::Clamp(FMath::Abs(Error) / HoverHeight, 0.f, 2.f));
-                float VelUp = FVector::DotProduct(BaseVehicle->GetPhysicsLinearVelocity(), FVector::UpVector);
-
-                float SpringAccel = DynamicStiff * Error;
-                float DampingAccel = HoverDamping * (-VelUp);
-                float TotalAccel = (SpringAccel + DampingAccel) / BaseVehicle->GetMass();
-
-                HoverForce = FVector::UpVector * (TotalAccel * BaseVehicle->GetMass());
-            }
-        }
-
-    	BaseVehicle->AddForce(HoverForce);
-    	return;
-    }
-
-    // ——————————————————————————————————————————————————————————————————
-	// 1) Thrust
-	if (!bHoverActive)
-	{
-		float TargetThrust = Thrust;
-		if (ThrustInput >  KINDA_SMALL_NUMBER)
-		{
-			TargetThrust += ThrustIncreaseRate * DeltaTime;	
-		}
-		else if (ThrustInput < -KINDA_SMALL_NUMBER)
-		{
-			TargetThrust -= ThrustDecreaseRate * DeltaTime;	
-		}
-
-		TargetThrust = FMath::Clamp(TargetThrust, 0.f, MaxThrust);
-		Thrust = FMath::FInterpTo(Thrust, TargetThrust, DeltaTime, ThrustInterpSpeed);
-
+		case EShipFlightState::Flying:
+			
+			BaseVehicle->SetEnableGravity(false);
+			HandleMouseSteering(DeltaTime);
+			HandleThrust(DeltaTime);
 		
-		// 2) Speed Factor
-		FVector ForwardDir = BaseVehicle->GetForwardVector();
-		FVector ForwardVel = ForwardDir * Thrust;
+			// ===== Handle Rolling via SideInput =====
+			if (FMath::Abs(TurnInput) > KINDA_SMALL_NUMBER)
+			{
+				float SpeedFactor = FMath::Clamp(CurrentThrust / MaxThrust, 0.f, 1.f);
+				float RollFactor = FMath::Lerp(1.f, MaxRollSpeedMultiplier, SpeedFactor);
+				float TorquePower = RollRotationPower * RollFactor;
 
-		float PitchDot = FVector::DotProduct(ForwardDir, FVector::UpVector);
-		float AbsDot = FMath::Abs(PitchDot);
+				FVector RollTorque = (-TurnInput * TorquePower) * BaseVehicle->GetForwardVector();
+				BaseVehicle->AddTorqueInDegrees(RollTorque, NAME_None, true);
+			}
 
-		float SpeedFactor;
+		/*
+			else
+			{
+				// Movement Rotation
+				float TargetRoll = SideInput * MaxBankAngle;
 
-		if (PitchDot > 0.f)
-		{
-			SpeedFactor = FMath::Lerp(1.f, MinUpSpeedFactor, AbsDot);
-		}
-		else
-		{
-			SpeedFactor = FMath::Lerp(1.f, MaxDownSpeedFactor, AbsDot);
-		}
-
-		ForwardVel *= SpeedFactor;
-
+				FRotator CurrentRot = GetActorRotation();
+				FRotator DesiredRot = FRotator(CurrentRot.Pitch, CurrentRot.Yaw, TargetRoll);
+				FRotator NewRot = FMath::RInterpTo(CurrentRot, DesiredRot, DeltaTime, BankInterpSpeed);
+				SetActorRotation(NewRot);
+			}
+		*/	
 		
-		// 4) fallback gravity
-		FVector AppliedUp = FVector::ZeroVector;
-		if (ForwardVel.Size() < GravityThreshold)
-		{
-			float Alpha = ForwardVel.Size() / GravityThreshold;
-			AppliedUp = FMath::Lerp(0.f, -980.f, 1.f - Alpha) * BaseVehicle->GetUpVector();
-		}
-		else
-		{
-			AppliedUp = FMath::VInterpTo(AppliedUp, FVector::ZeroVector, DeltaTime, 20.f);
-		}
-
-		if (bSuperSpeed)
-		{
-			ForwardVel *= BoostMultiplier;
-		}
-
-		// 5) Apply Velocity
-		FVector CurrVel = BaseVehicle->GetPhysicsLinearVelocity();
-		CurrVel.X = ForwardVel.X;
-		CurrVel.Y = ForwardVel.Y;
-		CurrVel.Z = ForwardVel.Z + AppliedUp.Z;
-		BaseVehicle->SetPhysicsLinearVelocity(CurrVel);
+			break;
 	}
 }
+
+void AShipMaster::HandleThrust(float DeltaTime)
+{
+	// Interpolate thrust
+	float Target = FMath::Clamp(CurrentThrust + ThrustInput * (ThrustInput > 0 ? ThrustRateUp : ThrustRateDown) * DeltaTime, MinThrust, MaxThrust);
+	CurrentThrust = FMath::FInterpTo(CurrentThrust, Target, DeltaTime, ThrustInterpSpeed);
+
+	FVector ForwardVel = BaseVehicle->GetForwardVector() * CurrentThrust;
+	
+	float PitchDot = FVector::DotProduct(BaseVehicle->GetForwardVector(), FVector::UpVector);
+	float Factor = PitchDot>0 ? FMath::Lerp(1.f, 0.8f, FMath::Abs(PitchDot)) : FMath::Lerp(1.f, 1.5f, FMath::Abs(PitchDot));
+	
+	ForwardVel *= Factor * (bBoosting ? BoostMultiplier : 1.f);
+
+	FVector Final = ForwardVel + BaseVehicle->GetRightVector() * SideInput * SideSpeedMove;
+	BaseVehicle->SetPhysicsLinearVelocity(Final);
+
+	// Reverse Delay
+	
+	const float ThresholdZero = 10.f;
+	if (ThrustInput < 0.f && FMath::Abs(CurrentThrust) < ThresholdZero && !bCanReverse)
+	{
+		ReverseHoldTime += DeltaTime;
+		if (ReverseHoldTime >= ReverseDelay)
+		{
+			bCanReverse = true;
+		}
+	}
+	else if (ThrustInput >= 0.f)
+	{
+		ReverseHoldTime = 0.f;
+		bCanReverse    = false;
+	}
+
+	if (ThrustInput < 0.f && !bCanReverse)
+	{
+		CurrentThrust = FMath::Max(0.f, CurrentThrust);
+		
+		FVector vel = BaseVehicle->GetForwardVector() * CurrentThrust + BaseVehicle->GetRightVector() * SideInput * SideSpeedMove;
+		BaseVehicle->SetPhysicsLinearVelocity(vel);
+	}
+}
+
+// ====== Mouse Movement ======
+
+void AShipMaster::HandleMouseSteering(float DeltaTime)
+{
+	if (!BaseVehicle) 
+		return;
+	
+	// 2) Récupère le PlayerController
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+		return;
+
+	// 3) Récupère la position souris
+	float MouseX, MouseY;
+	if (!PC->GetMousePosition(MouseX, MouseY))
+		return;
+
+	// 4) Récupère la taille du viewport
+	int32 ViewportX, ViewportY;
+	PC->GetViewportSize(ViewportX, ViewportY);
+	if (ViewportX == 0 || ViewportY == 0)
+		return;
+
+	// 5) Centre et offset
+	FVector2D Center(static_cast<float>(ViewportX) * 0.5f, static_cast<float>(ViewportY) * 0.5f);
+	FVector2D Offset(MouseX, MouseY);
+	Offset -= Center;
+	float Size = Offset.Size();
+
+	// 6) Calcul des rayons
+	float ScreenMin = FMath::Min(static_cast<float>(ViewportX), static_cast<float>(ViewportY)) * 0.5f;
+	float NeutralRadius = MoveNeutralZone * ScreenMin;
+	float MaxRadius     = MaxSteeringRadius * ScreenMin;
+    
+	if (Size < NeutralRadius)
+	{
+		// Damping sur la vitesse angulaire
+		FVector AV = BaseVehicle->GetPhysicsAngularVelocityInDegrees();
+		BaseVehicle->SetPhysicsAngularVelocityInDegrees(AV * FMath::Pow(0.5f, DeltaTime * DampingCoeff));
+	}
+	else
+	{
+		// Clamping de l'offset
+		FVector2D Clamped = (Size > MaxRadius)
+			? Offset.GetSafeNormal() * MaxRadius
+			: Offset;
+
+		FVector2D Norm = Clamped / MaxRadius;
+
+		// Applique le torque
+		FVector PitchT = Norm.Y * MouseTorque * BaseVehicle->GetRightVector();
+		FVector YawT   = Norm.X * MouseTorque * BaseVehicle->GetUpVector();
+		BaseVehicle->AddTorqueInDegrees(PitchT + YawT, NAME_None, true);
+	}
+
+	// 7) Mise à jour du HUD
+	if (ShipHud)
+	{
+		ShipHud->UpdateMouseVisuals();
+	}
+}
+
+FVector2D AShipMaster::GetMouseOffset() const
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return FVector2D::ZeroVector;	
+	}
+	
+	float x,y;
+	PC->GetMousePosition(x,y);
+
+	int Vx,Vy;
+	PC->GetViewportSize(Vx, Vy);
+	
+	FVector2D Center( Vx * 0.5f, Vy * 0.5f);
+	
+	return FVector2D(x,y) - Center;
+}
+
+#pragma endregion
 
 
 // ======= Movements =======
 #pragma region Movements
 
+// ====== Thrust Input ======
 void AShipMaster::Input_Thrust(const FInputActionValue& InputActionValue)
 {
-	Server_Thrust(InputActionValue);
+	float Value = InputActionValue.Get<float>();
+	Server_Thrust(Value);
 }
 
-void AShipMaster::Server_Thrust_Implementation(FInputActionValue InputActionValue)
+void AShipMaster::Input_ThrustReleased()
+{
+	ReverseHoldTime = 0.f;
+	bCanReverse    = false;
+	ThrustInput    = 0.f;
+}
+
+void AShipMaster::Server_Thrust_Implementation(float Value)
 {
 	if (!bEngineOn) return;
 	
-	ThrustInput = InputActionValue.Get<float>();
-}
+	ThrustInput = Value;
 
-void AShipMaster::OnShipMove(float NewForwardInput, float NewRightInput)
-{
-	if (!bEngineOn || bIsLanding || bIsLanded) return;
-	
-	// ====== Pitch Up / Down ======
-	if (NewForwardInput != 0.f)
+	if (FlightState == EShipFlightState::TakingOff && ThrustInput != 0.f)
 	{
-		FVector NewTorque = (NewForwardInput * ForwardTorquePower) * BaseVehicle->GetRightVector();
-		BaseVehicle->AddTorqueInDegrees(NewTorque, "None", true);
-	}
-
-	// ====== Roll Left / Roll Right ======
-	if (FMath::Abs(NewRightInput) > KINDA_SMALL_NUMBER)
-	{
-
-		float SpeedFactor = FMath::Clamp(Thrust / MaxThrust, 0.f, 1.f);
-		float RollFactor = FMath::Lerp(1.f, MaxRollSpeedMultiplier, SpeedFactor);
-		
-		float TorquePower = ForwardTorquePower * RollFactor;
-
-		FVector NewTorque = (-NewRightInput * TorquePower) * BaseVehicle->GetForwardVector();
-		BaseVehicle->AddTorqueInDegrees(NewTorque, NAME_None, true);
+		FlightState = EShipFlightState::Flying;
+		BaseVehicle->SetSimulatePhysics(true);
+		BaseVehicle->SetEnableGravity(false);
 	}
 }
 
-void AShipMaster::Server_OnShipYaw_Implementation(const FInputActionValue& InputActionValue)
+// ======= Left / Right =======
+void AShipMaster::Input_OnShipSideMove(const FInputActionValue& InputActionValue)
 {
-	if (!bEngineOn || bIsLanding || bIsLanded || !BaseVehicle) return;
-	
 	float YawInput = InputActionValue.Get<float>();
-	
-	// ====== Pivo Left / Right ======
-	FVector Torque = BaseVehicle->GetUpVector() * (YawInput * SideTorquePower);
-	BaseVehicle->AddTorqueInDegrees(Torque, NAME_None, true);
+
+	Server_OnShipSideMove(YawInput);
 }
 
-void AShipMaster::Server_OnShipLift_Implementation(const FInputActionValue& InputActionValue)
+void AShipMaster::Server_OnShipSideMove_Implementation(float Value)
 {
-	if (!bEngineOn || !BaseVehicle || bIsLanding || bIsLanded) return;
+	if (!bEngineOn || FlightState != EShipFlightState::Flying || !BaseVehicle) return;
 
-	float LiftInput = InputActionValue.Get<float>();
-	
-	// ====== Up / Down ======
-	FVector Force = FVector::UpVector * (LiftInput * LiftForcePower);
+	SideInput = FMath::Clamp(Value, -1.f, 1.f);
+}
+
+
+// ======= Up / Down =======
+void AShipMaster::Input_OnShipLift(const FInputActionValue& InputActionValue)
+{
+	float YawInput = InputActionValue.Get<float>();
+
+	Server_OnShipLift(YawInput);
+}
+
+void AShipMaster::Server_OnShipLift_Implementation(float LiftInput)
+{
+	if (!bEngineOn || !BaseVehicle || FlightState != EShipFlightState::Flying) return;
+
+	FVector Force = FVector::UpVector * (LiftInput * UpDownSpeedMove);
 	BaseVehicle->AddForce(Force, NAME_None, true);
 }
 
@@ -272,60 +357,84 @@ void AShipMaster::Input_OnBoost()
 
 void AShipMaster::Server_OnBoost_Implementation()
 {
-	if (bSuperSpeed)
+	if (bBoosting)
 	{
 		GetWorldTimerManager().ClearTimer(BoostTimerHandle);
 	}
 
-	bSuperSpeed = true;
+	bBoosting = true;
 
 	GetWorldTimerManager().SetTimer(BoostTimerHandle, this, &AShipMaster::EndBoost, BoostDuration, false);
 }
 
 void AShipMaster::EndBoost()
 {
-	bSuperSpeed = false;
+	bBoosting = false;
 }
 
 #pragma endregion
 
 
-// ======= Landing =======
-#pragma region Landing
+// ======= Landing / Takeoff=======
+#pragma region Landing / Takeoff
 
-void AShipMaster::TakeOff()
+void AShipMaster::StartTakeoff()
 {
 	if (!BaseVehicle)
 		return;
+	
+	if (FlightState != EShipFlightState::Landed) return;
 
-	BaseVehicle->SetSimulatePhysics(true);
+	FlightState = EShipFlightState::TakingOff;
+	TakeoffElapsed = 0.f;
+	TakeoffStartLocation = GetActorLocation();
+
+	BaseVehicle->SetSimulatePhysics(false);
 	BaseVehicle->SetEnableGravity(false);
 
-	bIsLanding = false;
-	
-	if (bIsLanded)
+	if (!bEngineOn)
 	{
-		bIsLanded = false;
-		bHoverActive = true;
-		
-		BaseVehicle->SetEnableGravity(true);
+		Input_SwitchEngine();
 	}
-
-	bEngineOn = true;
 }
 
-void AShipMaster::AttemptLanding()
+void AShipMaster::HandleTakeoff(float DeltaTime)
+{
+	TakeoffElapsed += DeltaTime;
+	float Alpha = FMath::Clamp(TakeoffElapsed / TakeoffDuration, 0.f, 1.f);
+
+	// interpolation de la position
+	FVector TargetLoc = TakeoffStartLocation + FVector(0,0,TakeoffHeight);
+	FVector NewLoc = FMath::Lerp(TakeoffStartLocation, TargetLoc, Alpha);
+	SetActorLocation(NewLoc);
+
+	if (Alpha >= 1.f)
+	{
+		// Fin du décollage
+		FlightState = EShipFlightState::Flying;
+
+		// Réactive la physique pour le vol libre
+		BaseVehicle->SetSimulatePhysics(true);
+		BaseVehicle->SetEnableGravity(false);
+
+		// Optionnel : reset thrust / vitesse
+		BaseVehicle->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	}
+}
+
+
+void AShipMaster::Server_AttemptLanding_Implementation()
 {
 	if (!BaseVehicle)
 		return;
 
-	if (bIsLanded || bIsLanding)
+	if (FlightState == EShipFlightState::Landed || FlightState == EShipFlightState::Landing)
 	{
-		TakeOff();
+		StartTakeoff();
 		return;
 	}
 
-	if (bEngineOn && Thrust <= MaxThrust * LandingMaxThrustFactor)
+	if (bEngineOn && CurrentThrust <= MaxThrust * LandingMaxThrustFactor)
 	{
 		FVector Start = BaseVehicle->GetComponentLocation();
 		FVector End = Start - FVector::UpVector * LandingDistanceThreshold * 1.5f;
@@ -350,15 +459,12 @@ void AShipMaster::AttemptLanding()
 		float Dist = (Start.Z - OutHit.Location.Z);
 		if (bHit && Dist <= LandingDistanceThreshold)
 		{
-			bIsLanding = true;
-			bIsLanded = false;
-			bHoverActive = false;
+			FlightState = EShipFlightState::Landing;
 			
-			Thrust = 0.f;
+			CurrentThrust = 0.f;
 			ThrustInput = 0.f;
 
 			BaseVehicle->SetSimulatePhysics(true);
-			BaseVehicle->SetEnableGravity(false);
 			BaseVehicle->SetPhysicsLinearVelocity(FVector::ZeroVector);
 
 			InitialRotation = GetActorRotation();
@@ -369,11 +475,11 @@ void AShipMaster::AttemptLanding()
 	}
 }
 
-void AShipMaster::ShipLanding(float DeltaTime)
+void AShipMaster::HandleLanding(float DeltaTime)
 {
 	if (ThrustInput > KINDA_SMALL_NUMBER)
     {
-        TakeOff();
+        StartTakeoff();
         return;
     }
 
@@ -433,8 +539,8 @@ void AShipMaster::ShipLanding(float DeltaTime)
 		}
 		if (bAllDown)
 		{
-			bIsLanding = false;
-			bIsLanded  = true;
+			FlightState = EShipFlightState::Landed;
+			
 			BaseVehicle->SetSimulatePhysics(false);
 		}	
 	}

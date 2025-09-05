@@ -26,6 +26,7 @@ UGridComponent::UGridComponent()
 void UGridComponent::OnRegister()
 {
 	Super::OnRegister();
+	
 	if (GetOwner() && GetOwner()->GetRootComponent())
 	{
 		LineProceduralMesh->SetupAttachment(GetOwner()->GetRootComponent());

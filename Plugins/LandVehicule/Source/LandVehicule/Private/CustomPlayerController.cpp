@@ -2,13 +2,32 @@
 
 #include "CameraVehicle.h"
 #include "EnhancedInputSubsystems.h"
+#include "Component/ProximityPromptComponent.h"
+#include "Component/ProximityPromptManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Vehicles/VehicleMaster.h"
 
-// ------------------- Replication -------------------
-#pragma region Replication
 
-void ACustomPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+// ----------- Setup Functions -----------
+#pragma region Setup Functions
+
+void ACustomPlayerController::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (APawn* P = GetPawn())
+    {
+        PromptManager = P->FindComponentByClass<UProximityPromptManagerComponent>();
+        Server_SetPromptManager(PromptManager);
+        
+        if (PromptManager)
+        {
+            PromptManager->OnPromptInteracted.AddDynamic(this, &ACustomPlayerController::OnPromptInteracted);
+        }
+    }
+}
+
+void ACustomPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
@@ -17,77 +36,80 @@ void ACustomPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeP
     DOREPLIFETIME(ACustomPlayerController, CurrentCamera);
 }
 
-#pragma endregion
-
-// ------------------- Mapping Context -------------------
-#pragma region Mapping Context
-
-void ACustomPlayerController::Client_AddMappingContext_Implementation(const UInputMappingContext* NewMappingContext) const
+void ACustomPlayerController::Client_AddMappingContext_Implementation(const UInputMappingContext* MappingContext)
 {
-    if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+    if (auto* Sub = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
     {
-        Subsystem->AddMappingContext(NewMappingContext, 1);
+        Sub->AddMappingContext(MappingContext, 1);
     }
 }
 
-void ACustomPlayerController::Client_RemoveMappingContext_Implementation(const UInputMappingContext* MappingContextToRemove) const
+void ACustomPlayerController::Client_RemoveMappingContext_Implementation(const UInputMappingContext* MappingContext)
 {
-    if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+    if (auto* Sub = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
     {
-        Subsystem->RemoveMappingContext(MappingContextToRemove);
+        Sub->RemoveMappingContext(MappingContext);
     }
 }
 
 #pragma endregion
 
-// ------------------- Vehicle and Camera Switching -------------------
-#pragma region Vehicle and Camera Switching
 
-void ACustomPlayerController::Server_ChangeCamera_Implementation(AVehicleMaster* Vehicle)
+
+// ----------- Vehicle Actions -----------
+#pragma region Vehicle Actions
+
+void ACustomPlayerController::EnterInVehicle(AVehicleMaster* Vehicle, USceneComponent* ChosenSeat)
 {
     if (Vehicle)
     {
-        CurrentCamera = Execute_ChangePlace(Vehicle, this);
+        Server_EnterInVehicle(Vehicle, ChosenSeat);
     }
 }
 
-void ACustomPlayerController::EnterInVehicle(AVehicleMaster* Vehicle)
+void ACustomPlayerController::ExitVehicle()
 {
-    if (Vehicle)
+    if (CurrentVehicle)
     {
-        Server_EnterInVehicle(Vehicle);
+        Server_ExitVehicle(CurrentVehicle);
     }
 }
 
-void ACustomPlayerController::Server_EnterInVehicle_Implementation(AVehicleMaster* Vehicle)
+void ACustomPlayerController::SwitchViewMode()
 {
-    if (Vehicle)
+    Server_SwitchViewMode();
+}
+
+void ACustomPlayerController::Server_EnterInVehicle_Implementation(AVehicleMaster* Vehicle, USceneComponent* ChosenSeat)
+{
+    if (!bInVehicle && Vehicle)
     {
-        bInVehicle = Execute_Interact(Vehicle, this);
-        if (bInVehicle)
+        if (Execute_Interact(Vehicle, this, ChosenSeat))
         {
+            bInVehicle = true;
             CurrentVehicle = Vehicle;
+
+            SetPromptEnabled(false);
         }
     }
 }
 
-void ACustomPlayerController::Server_OutOfVehicle_Implementation(AVehicleMaster* Vehicle)
+void ACustomPlayerController::Server_ExitVehicle_Implementation(AVehicleMaster* Vehicle)
 {
-    if (Vehicle)
+    if (bInVehicle && Vehicle == CurrentVehicle)
     {
         Execute_OutOfVehicle(Vehicle, this);
-        CurrentVehicle = nullptr;
+        
         bInVehicle = false;
+        CurrentVehicle = nullptr;
+
+        SetPromptEnabled(true);
     }
 }
 
-#pragma endregion
-
-// ------------------- Turret Rotation -------------------
-#pragma region Turret Rotation
-
-void ACustomPlayerController::RotateVehicleTurret(FVector2D NewRotation)
+void ACustomPlayerController::Server_SwitchViewMode_Implementation()
 {
+<<<<<<< Updated upstream
     Server_RotateVehicleTurret(NewRotation);
 }
 
@@ -97,36 +119,53 @@ void ACustomPlayerController::Server_RotateVehicleTurret_Implementation(const FV
         return;
 
     CurrentVehicle->OnTurretRotate(NewRotation, CurrentCamera);
+=======
+    if (CurrentVehicle)
+        Execute_SwitchViewModeVehicle(CurrentVehicle, this);
+>>>>>>> Stashed changes
 }
 
 #pragma endregion
 
-// ------------------- Getters -------------------
-#pragma region Getters
 
-ACameraVehicle* ACustomPlayerController::GetCurrentCamera()
+
+// ----------- Proximity Prompt Handling -----------
+#pragma region Proximity Prompt Handling
+
+void ACustomPlayerController::Server_SetPromptManager_Implementation(UProximityPromptManagerComponent* NewPromptManager)
 {
-    return CurrentCamera;
+    PromptManager = NewPromptManager;
 }
 
-AVehicleMaster* ACustomPlayerController::GetCurrentVehicle()
+void ACustomPlayerController::OnPromptInteracted(UProximityPromptComponent* Prompt, APlayerController* PC, UObject* Context)
 {
-    return CurrentVehicle;
+    if (PC == this && Prompt)
+    {
+        Server_OnPromptInteracted(Context, Prompt);
+    }
 }
 
-#pragma endregion
-
-// ------------------- OnRep Functions -------------------
-#pragma region OnRep Functions
-
-void ACustomPlayerController::OnRep_CurrentVehicle()
+void ACustomPlayerController::Server_OnPromptInteracted_Implementation(UObject* Context, UProximityPromptComponent* Prompt)
 {
-    GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Blue, TEXT("OnRep_CurrentVehicle: Updated in Blueprint!"));
+    if (!bInVehicle)
+    {
+        if (AVehicleMaster* Vehicle = Cast<AVehicleMaster>(Context))
+        {
+            EnterInVehicle(Vehicle, Prompt->GetAttachParent());
+        }
+        else
+        {
+            // Autre
+        }
+    }
 }
 
-void ACustomPlayerController::OnRep_bInVehicle()
+void ACustomPlayerController::SetPromptEnabled(bool bNewEnabled)
 {
-    GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Green, TEXT("OnRep_bInVehicle: Updated in Blueprint!"));
+    if (!PromptManager)
+        return;
+    
+    PromptManager->SetAllPromptsEnabled(bNewEnabled);
 }
 
 #pragma endregion

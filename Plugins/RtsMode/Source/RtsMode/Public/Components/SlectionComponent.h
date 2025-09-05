@@ -179,6 +179,9 @@ public:
 
 protected:
 	UFUNCTION(Server, Reliable)
+	void Server_ChangeUnitClass(TSubclassOf<ASoldierRts> UnitClass);
+	
+	UFUNCTION(Server, Reliable)
 	void Server_SpawnUnits(FVector HitLocation);
 
 	UFUNCTION()

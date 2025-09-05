@@ -390,6 +390,20 @@ void USelectionComponent::SpawnUnits()
 void USelectionComponent::ChangeUnitClass_Implementation(TSubclassOf<ASoldierRts> UnitClass)
 {
     UnitToSpawn = UnitClass;
+
+    if (OwnerController->HasAuthority())
+    {
+        UnitToSpawn = UnitClass;
+        OnRep_UnitClass();
+    }
+    else
+        Server_ChangeUnitClass(UnitClass);
+}
+
+void USelectionComponent::Server_ChangeUnitClass_Implementation(TSubclassOf<ASoldierRts> UnitClass)
+{
+    UnitToSpawn = UnitClass;
+    OnRep_UnitClass();
 }
 
 void USelectionComponent::OnRep_UnitClass()

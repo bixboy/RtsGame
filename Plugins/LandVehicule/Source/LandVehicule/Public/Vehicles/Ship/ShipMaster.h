@@ -4,40 +4,66 @@
 #include "ShipMaster.generated.h"
 
 
+class UMouseSteeringShip;
+
+UENUM()
+enum class EShipFlightState : uint8 {
+	Landed,
+	Landing,
+	TakingOff,
+	Flying
+};
+
 UCLASS()
 class LANDVEHICULE_API AShipMaster : public AVehicleMaster
 {
 	GENERATED_BODY()
+	
 
 public:
 	AShipMaster();
 
 protected:
 	virtual void BeginPlay() override;
-	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	virtual void Tick(float DeltaTime) override;
+	
 
-	virtual void Server_SwitchEngine(bool OnOff) override;
+	UFUNCTION()
+	void EngineChange(bool bEngine);
+	
+	UFUNCTION()
+	void HandleThrust(float DeltaTime);
 
+	UFUNCTION()
+	void HandleMouseSteering(float DeltaTime);
+
+	UFUNCTION()
+	FVector2D GetMouseOffset() const;
 	
 	UFUNCTION()
 	void Input_Thrust(const FInputActionValue& InputActionValue);
 
-	UFUNCTION(Server, Reliable)
-	void Server_Thrust(FInputActionValue InputActionValue);
-	
 	UFUNCTION()
-	void OnShipMove(float NewForwardInput, float NewRightInput);
+	void Input_ThrustReleased();
 
 	UFUNCTION(Server, Reliable)
-	void Server_OnShipYaw(const FInputActionValue& InputActionValue);
+	void Server_Thrust(float Value);
+
+	UFUNCTION()
+	void Input_OnShipSideMove(const FInputActionValue& InputActionValue);
 
 	UFUNCTION(Server, Reliable)
-	void Server_OnShipLift(const FInputActionValue& InputActionValue);
+	void Server_OnShipSideMove(float Value);
+
+	UFUNCTION()
+	void Input_OnShipLift(const FInputActionValue& InputActionValue);
+
+	UFUNCTION(Server, Reliable)
+	void Server_OnShipLift(float LiftInput);
 
 	UFUNCTION()
 	void Input_OnBoost();
@@ -48,16 +74,28 @@ protected:
 	UFUNCTION()
 	void EndBoost();
 
-	UFUNCTION()
-	void AttemptLanding();
+	UFUNCTION(Server, Reliable)
+	void Server_AttemptLanding();
 
 	UFUNCTION()
-	void ShipLanding(float DeltaTime);
+	void HandleLanding(float DeltaTime);
 
 	UFUNCTION()
-	void TakeOff();
+	void StartTakeoff();
 
+	UFUNCTION()
+	void HandleTakeoff(float DeltaTime);
 
+	
+	// ===== UI =====
+	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Ref")
+	TSubclassOf<UMouseSteeringShip> ShipHudClass;
+
+	UPROPERTY()
+	UMouseSteeringShip* ShipHud;
+
+	
+	// ===== Inputs =====
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Ship|Input",  Meta = (DisplayThumbnail = false))
 	TObjectPtr<UInputAction> BoostAction;
 
@@ -74,37 +112,30 @@ protected:
 	TObjectPtr<UInputAction> LandingAction;
 	
 
-	// ===== Hovering =====
-	UPROPERTY(EditAnywhere, Category="Settings|Ship|Hover")
-	float HoverHeight = 500.f;
-
-	UPROPERTY(EditAnywhere, Category="Settings|Ship|Hover")
-	float HoverStiffness = 20000.f;
-
-	UPROPERTY(EditAnywhere, Category="Settings|Ship|Hover")
-	float HoverDamping = 4000.f;
-
-	UPROPERTY(Replicated)
-	bool bHoverActive = false;
-	
-
 	// ===== Thrust =====
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Thrust")
-	float ThrustIncreaseRate = 500.f;
+	float MaxThrust = 10000.f;
 
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Thrust")
-	float ThrustDecreaseRate = 800.f;
+	float MinThrust = -1000.f;
+	
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Thrust")
+	float ThrustRateUp = 1000.f;
 
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Thrust")
-	float ThrustInterpSpeed = 5.f;
+	float ThrustRateDown = 800.f;
 
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Thrust")
-	float MaxThrust = 2000.f;
+	float ThrustInterpSpeed = 100.f;
+	
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Thrust")
+	float ReverseDelay = 0.5f;
 
-	UPROPERTY()
-	float Thrust = 0.f;
+	float ReverseHoldTime = 0.f;
 
-	UPROPERTY()
+	bool  bCanReverse = false;
+
+	float CurrentThrust = 0.f;
 	float ThrustInput = 0.f;
 
 
@@ -116,18 +147,41 @@ protected:
 	float MaxDownSpeedFactor = 1.5f;
 
 	
-	// ===== Rotation =====
-	UPROPERTY(EditAnywhere, Category="Settings|Ship|Rotation")
+	// ===== Movement =====
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Movement")
 	float MaxRollSpeedMultiplier = 3.f;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Movement")
+	float RollRotationPower = 70.f;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Movement")
+	float SideSpeedMove = 100.f;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Movement")
+	float UpDownSpeedMove = 7000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings|Ship|Movement|Mouse")
+	float MouseTorque = 100.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings|Ship|Movement|Mouse")
+	float MoveNeutralZone = 0.1f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings|Ship|Movement|Mouse")
+	float MaxSteeringRadius = 0.8f;
 	
-	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Rotation")
-	float RotationTorque = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings|Ship|Movement|Mouse", meta = (ClampMin="1.5", UIMin="1.5", ClampMax="4", UIMax="4"))
+	float DampingCoeff = 1.8f;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Rotation")
-	float ForwardTorquePower = 40.f;
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Movement|Mouse")
+	float MaxBankAngle = 45.f;
+	
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Movement|Mouse")
+	float BankInterpSpeed = 3.f;
 
-	UPROPERTY(EditAnywhere, Category = "Settings|Ship|Rotation")
-	float SideTorquePower = 100.f;
+	UPROPERTY(VisibleAnywhere, Replicated) 
+	EShipFlightState FlightState = EShipFlightState::Landed;
+
+	float SideInput = 0.f;
 
 
 	// ===== Boost =====
@@ -137,12 +191,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Boost", meta = (ClampMin="0.1", UIMin="0.1", UIMax="10.0"))
 	float BoostDuration = 3.0f;
 
-	UPROPERTY(Replicated)
-	bool bSuperSpeed;
-	
-	UPROPERTY()
+	bool bBoosting;
 	FTimerHandle BoostTimerHandle;
 
+	
+	// ===== Take off =====
+
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Takeoff")
+	float TakeoffDuration = 2.f;
+
+	UPROPERTY(EditAnywhere, Category="Settings|Ship|Takeoff")
+	float TakeoffHeight = 300.f;
+
+	// Internes
+	float TakeoffElapsed = 0.f;
+	FVector  TakeoffStartLocation;
+	
 
 	// ===== Landing =====
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Landing")
@@ -152,22 +216,16 @@ protected:
 	float LandingMaxThrustFactor = 0.1f;
 
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Landing")
-	float LandingSpeed = 300.f;
+	float LandingSpeed = 200.f;
 
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Landing")
 	float LandingRotationSpeed = 90.f;
 
 	UPROPERTY(EditAnywhere, Category="Settings|Ship|Landing")
-	float LegContactDistance = 20.f;
+	float LegContactDistance = 5.f;
 	
 	UPROPERTY()
 	TArray<USceneComponent*> LandingGears;
-
-	UPROPERTY()
-	bool bIsLanded = true;
-
-	UPROPERTY()
-	bool bIsLanding = false;
 	
 	UPROPERTY()
 	FRotator InitialRotation;
@@ -177,18 +235,14 @@ protected:
 
 	UPROPERTY()
 	float TotalLandingDistance;
-
 	
-	
-	UPROPERTY(EditAnywhere, Category = "Settings|Ship")
-	float GravityThreshold = 1000.f;
-
-	UPROPERTY(EditAnywhere, Category = "Settings|Ship")
-	float LiftForcePower = 150.f;
 
 	UPROPERTY()
 	FVector ForwardVelocity;
 
 	UPROPERTY()
 	FVector UpWardVelocity;
+
+	UPROPERTY(EditAnywhere, Category = "Settings|Ship")
+	float GravityThreshold = 1000.f;
 };

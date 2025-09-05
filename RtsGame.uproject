@@ -41,6 +41,14 @@
 		{
 			"Name": "ProceduralMeshComponent",
 			"Enabled": true
+		},
+		{
+			"Name": "LandVehicule",
+			"Enabled": true
+		},
+		{
+			"Name": "LevelSelection",
+			"Enabled": true
 		}
 	]
 }

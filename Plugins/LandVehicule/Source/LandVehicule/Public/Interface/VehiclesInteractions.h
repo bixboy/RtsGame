@@ -20,13 +20,13 @@ class LANDVEHICULE_API IVehiclesInteractions
 public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	bool Interact(ACustomPlayerController* PlayerInteract);
+	bool Interact(ACustomPlayerController* PlayerInteract, USceneComponent* ChosenSeat);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void OutOfVehicle(ACustomPlayerController* PlayerController);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	ACameraVehicle* ChangePlace(ACustomPlayerController* Player);
+	void SwitchViewModeVehicle(ACustomPlayerController* PlayerController);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void UpdateTurretRotation(FVector2D Rotation, FTurrets CameraToMove);

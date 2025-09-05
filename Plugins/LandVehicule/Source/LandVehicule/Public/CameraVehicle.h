@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Data/VehicleData.h"
 #include "GameFramework/Actor.h"
 #include "CameraVehicle.generated.h"
 
@@ -16,9 +15,7 @@ public:
 	ACameraVehicle();
 	
 	virtual void Tick(float DeltaTime) override;
-
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-
+	
 	UFUNCTION(BlueprintCallable)
 	UCameraComponent* GetCameraComponent();
 	
@@ -34,6 +31,7 @@ public:
 	UFUNCTION()
 	APlayerController* GetCameraController() const;
 
+<<<<<<< Updated upstream
 	
 	// Accessor
 	UFUNCTION()
@@ -52,6 +50,8 @@ public:
 	UPROPERTY(Replicated)
 	FTurrets Turret;
 
+=======
+>>>>>>> Stashed changes
 protected:
 	virtual void BeginPlay() override;
 
